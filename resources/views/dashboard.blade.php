@@ -1,0 +1,426 @@
+@include('components.header')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+
+ <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+       .btn-custom {
+            padding: 14px 28px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+
+        .btn-custom:hover {
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Specific Button Colors */
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: #ffc107;
+            color: white;
+        }
+    /*notification*/
+#notificationWrapper {
+    max-width: 600px;
+    background: rgba(0, 128, 0, 0.8); /* Green background */
+    border-radius: 10px;
+    padding: 10px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1050;
+}
+
+.carousel-item .alert {
+    background: linear-gradient(45deg, #28a745, #218838); /* Bootstrap green shades */
+    border: none;
+    text-align: center;
+    color: white;
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    padding: 10px;
+}
+
+.btn-close-white {
+    filter: invert(1);
+}
+
+@media (max-width: 768px) {
+    #notificationWrapper {
+        width: 90%;
+    }
+}
+
+.alert p {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.alert h4 {
+    font-size: 1.2rem;
+}
+
+/* Using Bootstrap for styling */
+.alert {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Style the button */
+.btn-light.btn-sm {
+    background-color: #ffffff;
+    color: #28a745;
+    border: 1px solid #28a745;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.btn-light.btn-sm:hover {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+    </style>
+        <!--**********************************
+            Nav header start
+        ***********************************-->
+        @include('components.nav-header')
+        <!--**********************************
+            Nav header end
+        ***********************************-->
+
+        <!--**********************************
+            Header start
+        ***********************************-->
+         @include('components.main-header')
+        <!--**********************************
+            Header end ti-comment-alt
+        ***********************************-->
+
+        <!--**********************************
+            Sidebar start
+        ***********************************-->
+        @include('components.nk-sidebar')
+        <!--**********************************
+            Sidebar end
+        ***********************************-->
+
+        <!--**********************************
+            Content body start
+        ***********************************-->
+        <!-----Notification slide show----->
+        @if ($notifications->where('expiry_date', '>', now())->isNotEmpty())
+        <div id="notificationWrapper" class="position-fixed top-0 start-50 translate-middle-x w-100 mt-3 z-index-1050">
+            <div id="notificationCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    @foreach ($notifications->where('expiry_date', '>', now()) as $key => $notification)
+                        <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
+                            <div class="container">
+                                <div class="row justify-content-center">
+                                    <div class="col-md-6 col-11">
+                                        <div class="alert alert-primary shadow-lg p-3 rounded d-flex flex-column text-white">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <i class="fa fa-bell fa-lg me-2"></i>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                                            </div>
+                                            <h4 class="fw-bold mt-2 text-center text-white">Special Notification</h4>
+                                            <h5 class="fw-bold mt-2 text-center">{{ $notification->title }}</h5>
+                                            <p class="fw-bold mt-2 text-center">{{ $notification->details }}</p>
+                                            <div class="text-center mt-2">
+                                                @if($notification->links)
+                                                    <a href="{{ $notification->links }}" class="btn btn-light btn-sm" target="_blank">
+                                                        Learn More
+                                                    </a>
+                                                @endif
+                                            </div>
+                                            <!-- Cancel Button -->
+                                            <button id="cancelNotification" class="btn btn-danger btn-sm mt-3">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <!-- Carousel Controls -->
+                <button class="carousel-control-prev d-none d-md-block" style="border: none; background: none" type="button" id="prevSlide">
+                    <span class="carousel-control-prev-icon bg-dark rounded-circle p-2"></span>
+                </button>
+                <button class="carousel-control-next d-none d-md-block" style="border: none; background: none" type="button" id="nextSlide">
+                    <span class="carousel-control-next-icon bg-dark rounded-circle p-2"></span>
+                </button>
+            </div>
+        </div>
+@endif
+
+        <div class="content-body">
+            <!-- Contact Us Button -->
+        <!-- Contact Us Button -->
+            <div class="container-fluid mt-3">
+                <div class="row">
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="card gradient-2">
+                            <div class="card-body">
+                                <h3 class="card-title text-white">Balance</h3>
+                                <div class="d-inline-block">
+                                       <!-- Balance (Hidden by Default) -->
+                                    <h2 id="balance" class="text-white" style="display: none;">₦ 
+                                    @if(!$balance)
+                                        0.00
+                                    @else
+                                       {{ $balance->balance }}
+                                    @endif
+                                    </h2>
+                                    <h2 id="hiddenBalance" class="text-white">****</h2>
+
+                                    <!-- Toggle Button -->
+                                    <p id="toggleButton" style="background: none; border: none; cursor: pointer;">
+                                        <i id="toggleIcon" class="icon-eye menu-icon"></i> 
+                                    </p>
+                                </div>
+                                <span class="float-right display-5 opacity-5"><i class="fa fa-money"></i></span>
+                                
+                            </div>
+                                <a href="{{ url('/topup') }}" class="mb-4 ml-4">
+                                    <button class="btn" style="color: black; background: white; border: none;">Top up</button>
+                                </a> 
+                        </div>
+                    </div>
+<!--                     <div class="col-lg-3 col-sm-6">
+                        <div class="card gradient-3">
+                            <div class="card-body">
+                                <h3 class="card-title text-white">Transactions</h3>
+                                <div class="d-inline-block">
+                                    <h2 class="text-white">0</h2>
+                                    <p class="text-white mb-0">All Transactions</p>
+                                </div>
+                                <span class="float-right display-5 opacity-5"><i class="fa fa-users"></i></span>
+                            </div>
+                        </div>
+                    </div> -->
+                </div>
+                @if(!$balance || empty($balance->pin))
+                    <div class="col-lg-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h4 class="card-title">Please set up your account PIN and add funds.</h4>
+                                <div class="bootstrap-modal">
+                                    <button type="button" class="btn btn-primary" style="background: green; border: 1px solid green;" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo">Click here</button>
+                                   <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="exampleModalLabel">Set Your 4-Digit PIN</h5>
+                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form id="pinForm">
+                                                    <div class="form-group">
+                                                        <label for="pin" class="col-form-label">Create New PIN:</label>
+                                                        <input type="password" maxlength="4" class="form-control pin-input" name="pin" id="pin" required>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="confirm_pin" class="col-form-label">Re-enter PIN:</label>
+                                                        <input type="password" maxlength="4" class="form-control pin-input" name="confirm_pin" id="confirm_pin" required>
+                                                    </div>
+                                                    <button type="submit" id="savePinBtn" class="btn btn-primary w-100" style="background: green;">Save PIN</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                    @if($balance && !empty($balance->pin))
+                    <div class="container d-flex justify-content-center align-items-center vh-100">
+                        <div class="row text-center gap-md-4">
+                            <div class="col-12 col-md-auto mb-3 mb-md-0">
+                                <a href="{{ url('/airtime/buy') }}" class="btn btn-primary btn-custom">
+                                    <i class="fa fa-mobile"></i> Buy Airtime
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-auto mb-3 mb-md-0">
+                                <a href="{{ url('/data/buy') }}" class="btn btn-success btn-custom">
+                                    <i class="fa fa-wifi"></i> Buy Data
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-auto">
+                                <a href="{{ url('/electricity') }}" class="btn btn-warning btn-custom">
+                                    <i class="fa fa-bolt"></i> Pay Electricity Bills in Nigeria
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    @endif                
+            </div>
+            <!-- #/ container -->
+        </div>
+
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+    <script>
+        document.getElementById('toggleButton').addEventListener('click', function() {
+            const balance = document.getElementById('balance');
+            const hiddenBalance = document.getElementById('hiddenBalance');
+            const icon = document.getElementById('toggleIcon');
+
+            if (balance.style.display === 'none') {
+                // Show Balance
+                balance.style.display = 'block';
+                hiddenBalance.style.display = 'none';
+                icon.classList.remove('icon-eye');
+                icon.classList.add('icon-eye'); // Change to "eye-slash" icon
+            } else {
+                // Hide Balance
+                balance.style.display = 'none';
+                hiddenBalance.style.display = 'block';
+                icon.classList.remove('icon-eye-slash');
+                icon.classList.add('icon-eye'); // Change back to "eye" icon
+            }
+        });
+    </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var notificationCarousel = new bootstrap.Carousel(document.querySelector("#notificationCarousel"), {
+            interval: 5000, // Change notification every 5 seconds
+            pause: "hover", // Pause on hover
+            wrap: true // Loop notifications
+        });
+
+        // Cancel Button - Hides the notification wrapper
+        document.getElementById("cancelNotification").addEventListener("click", function () {
+            document.getElementById("notificationWrapper").style.display = "none";
+        });
+
+        // Next Button - Manually slide to next
+        document.getElementById("nextSlide").addEventListener("click", function () {
+            notificationCarousel.next();
+        });
+
+        // Previous Button - Manually slide to previous
+        document.getElementById("prevSlide").addEventListener("click", function () {
+            notificationCarousel.prev();
+        });
+
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            document.getElementById("notificationWrapper").style.display = "none";
+        }, 10000);
+    });
+</script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+     @include('components.contact-us')
+    <script>
+        $(document).ready(function() {
+            $('#pinForm').submit(function(e) {
+                e.preventDefault();
+                let pin = $('#pin').val();
+                let confirmPin = $('#confirm_pin').val();
+
+                if (pin.length !== 4 || confirmPin.length !== 4) {
+                    Swal.fire('Error', 'PIN must be exactly 4 digits.', 'error');
+                    return;
+                }
+
+                let btn = $('#savePinBtn');
+                btn.prop('disabled', true).text('Processing...');
+
+                $.ajax({
+                    url: "{{ route('set.pin') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        pin: pin,
+                        confirm_pin: confirmPin
+                    },
+                    success: function(response) {
+                        Swal.fire('Success', response.success, 'success');
+                        $('#exampleModal').modal('hide');
+                        $('#pinForm')[0].reset();
+                        window.location.reload();
+                    },
+                    error: function(xhr) {
+                        let error = xhr.responseJSON.error || 'Something went wrong. Please ensure the re-entered PIN matches the initial PIN.';
+                        Swal.fire('Error', error, 'error');
+                    },
+                    complete: function() {
+                        btn.prop('disabled', false).text('Save PIN');
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script src="{{ asset('plugins/common/common.min.js') }}"></script>
+    <script src="{{ asset('js/custom.min.js') }}"></script>
+    <script src="{{ asset('js/settings.js') }}"></script>
+    <script src="{{ asset('js/gleek.js') }}"></script>
+    <script src="{{ asset('js/styleSwitcher.js') }}"></script>
+    <!-- Chartjs -->
+    <script src="{{ asset('plugins/chart.js/Chart.bundle.min.js') }}"></script>
+    <!-- Circle progress -->
+    <script src="{{ asset('plugins/circle-progress/circle-progress.min.js') }}"></script>
+    <!-- Datamap -->
+    <script src="{{ asset('plugins/d3v3/index.js') }}"></script>
+    <script src="{{ asset('plugins/topojson/topojson.min.js') }}"></script>
+    <script src="{{ asset('plugins/datamaps/datamaps.world.min.js') }}"></script>
+    <!-- Morrisjs -->
+    <script src="{{ asset('plugins/raphael/raphael.min.js') }}"></script>
+    <script src="{{ asset('plugins/morris/morris.min.js') }}"></script>
+    <!-- Pignose Calender -->
+    <script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
+    <script src="{{ asset('plugins/pg-calendar/js/pignose.calendar.min.js') }}"></script>
+    <!-- ChartistJS -->
+    <script src="{{ asset('plugins/chartist/js/chartist.min.js') }}"></script>
+    <script src="{{ asset('plugins/chartist-plugin-tooltips/js/chartist-plugin-tooltip.min.js') }}"></script>
+
+    <!-- Dashboard Script -->
+    <script src="{{ asset('js/dashboard/dashboard-1.js') }}"></script>
+</body>
+</html>
