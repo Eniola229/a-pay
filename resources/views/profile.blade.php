@@ -1,5 +1,168 @@
 @include('components.header')
+<style type="text/css">
+.profile-card {
+    background: linear-gradient(135deg, #009966, #006644);
+    border-radius: 12px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
 
+.profile-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.profile-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.user-info {
+    margin-bottom: 15px;
+}
+
+.user-name {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.user-email {
+    font-size: 14px;
+    color: #e0e0e0;
+    margin-bottom: 8px;
+}
+
+/* Account number with copy effect */
+.user-account-number {
+    font-size: 16px;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 15px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.user-account-number:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.copy-icon {
+    margin-left: 8px;
+    font-size: 16px;
+    color: #ffffff;
+}
+
+/* Balance button */
+.balance-section {
+    margin-top: 20px;
+}
+
+.balance-btn {
+    background: white;
+    color: #009966;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 12px 25px;
+    border-radius: 30px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.balance-btn:hover {
+    background: #f1f1f1;
+}
+
+    /* Modern Form Container */
+.reset-pin-container {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    margin: auto;
+    text-align: center;
+}
+
+.title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #777;
+    margin-bottom: 20px;
+}
+
+/* Input Fields */
+.input-field {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    transition: border 0.3s ease;
+}
+
+.input-field:focus {
+    border-color: #009966;
+}
+
+/* PIN Input Boxes */
+.pin-input-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.pin-box {
+    width: 50px;
+    height: 50px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    transition: border 0.3s ease;
+}
+
+.pin-box:focus {
+    border-color: #009966;
+    box-shadow: 0px 0px 5px rgba(0, 153, 102, 0.5);
+}
+
+/* Button */
+.btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: #009966;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-primary:hover {
+    background: #007d50;
+}
+
+</style>
  <!--**********************************
         Main wrapper start
     ***********************************-->
@@ -36,33 +199,29 @@
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-lg-4 col-xl-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="media align-items-center mb-4">
-                                    <img class="mr-3" src="{{ Auth::user()->avatar }}" width="80" height="80" alt="">
-                                    <div class="media-body">
-                                        <h3 class="mb-0">{{ Auth::user()->name }}</h3>
-                                    </div>
+                        <div class="profile-card">
+                            <div class="profile-card-body">
+                                <div class="user-info">
+                                    <h3 class="user-name">{{ Auth::user()->name }}</h3>
+                                    <p class="user-email">{{ Auth::user()->email }}</p>
+                                    <p class="user-account-number" id="accountNumber" onclick="copyAccountNumber()">
+                                        Account Number: <span>{{ Auth::user()->account_number }}</span>
+                                        <i class="fa fa-copy copy-icon"></i>
+                                    </p>
+                                    <p class="user-account-number">Wema Bank</p>
                                 </div>
-                                    <p class="text-muted mb-0">{{ Auth::user()->email }}</p>
-                                <div class="row mb-5">
-                                    
-                                    <div class="col-12 text-center">
-                                        <button class="btn btn-danger px-5">₦
-                                    @if(!$balance)
-                                        0.00
-                                    @else
-                                       {{ $balance->balance }}
-                                    @endif</button>
-                                    </div>
+                                <div class="balance-section">
+                                    <button class="balance-btn">
+                                        ₦ {{ $balance ? $balance->balance : '0.00' }}
+                                    </button>
                                 </div>
-
-                               
                             </div>
-                        </div>  
+                        </div>
                     </div>
+
+
                     <div class="col-lg-8 col-xl-9">
-  <!--                       <div class="card">
+                  <!--    <div class="card">
                             <div class="card-body">
                                 <form action="#" class="form-profile">
                                     <div class="form-group">
@@ -104,28 +263,45 @@
         <!-- Tab Content -->
         <div class="tab-content mt-3">
             <!-- Reset PIN Tab -->
-      <div class="tab-pane fade show active" id="reset-pin">
-            <form id="resetPinForm" class="text-center">
-                @csrf
-                <div class="form-group text-left">
-                    <label for="current_pin">Password:</label>
-                    <input type="password" class="form-control" name="current_pin" id="current_pin" required>
-                </div>
-                <div class="form-group text-left">
-                    <label for="new_pin">New PIN:</label>
-                    <input type="password" class="form-control pin-input" maxlength="4" name="new_pin" id="new_pin" required>
-                </div>
-                <div class="form-group text-left">
-                    <label for="confirm_pin">Confirm New PIN:</label>
-                    <input type="password" class="form-control pin-input" maxlength="4" name="confirm_pin" id="confirm_pin" required>
-                </div>
-                
-                <div class="text-center mt-3">
-                    <button type="submit" class="btn btn-primary mb-2" id="resetPinButton">Reset PIN</button>
-                </div>
-            </form>
+            <div class="tab-pane fade show active" id="reset-pin">
+                <div class="reset-pin-container">
+                    <h3 class="title">Reset PIN</h3>
+                    <p class="subtitle">Secure your transactions with a new PIN</p>
 
+                    <form id="resetPinForm">
+                        @csrf
+                        <div class="form-group">
+                            <label for="current_pin">Password</label>
+                            <input type="password" class="form-control input-field" name="current_pin" id="current_pin" placeholder="Enter password" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="new_pin">New PIN</label>
+                            <div class="pin-input-container">
+                                <input type="password" class="pin-box" maxlength="1" id="pin1">
+                                <input type="password" class="pin-box" maxlength="1" id="pin2">
+                                <input type="password" class="pin-box" maxlength="1" id="pin3">
+                                <input type="password" class="pin-box" maxlength="1" id="pin4">
+                            </div>
+                            <input type="hidden" name="new_pin" id="newPinHidden" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirm_pin">Confirm New PIN</label>
+                            <div class="pin-input-container">
+                                <input type="password" class="pin-box" maxlength="1" id="confirmPin1">
+                                <input type="password" class="pin-box" maxlength="1" id="confirmPin2">
+                                <input type="password" class="pin-box" maxlength="1" id="confirmPin3">
+                                <input type="password" class="pin-box" maxlength="1" id="confirmPin4">
+                            </div>
+                            <input type="hidden" name="confirm_pin" id="confirmPinHidden" required>
+                        </div>
+
+                        <button type="submit" class="btn-primary" id="resetPinButton">Reset PIN</button>
+                    </form>
+                </div>
             </div>
+
 
             <!-- Update Profile Tab -->
             <div class="tab-pane fade" id="update-profile">
@@ -179,7 +355,52 @@
     <!--**********************************
         Scripts
     ***********************************-->
+    
     <script>
+    function copyAccountNumber() {
+            let accountNumber = document.getElementById("accountNumber").innerText.replace("Account Number: ", "").trim();
+            navigator.clipboard.writeText(accountNumber).then(() => {
+                Swal.fire("Copied!", "Account number copied to clipboard.", "success");
+            }).catch(() => {
+                Swal.fire("Error", "Failed to copy account number.", "error");
+            });
+        }
+
+
+        document.addEventListener("DOMContentLoaded", function() {
+            function setupPinInputs(pinInputs, hiddenInput) {
+                pinInputs.forEach((input, index) => {
+                    input.addEventListener("input", () => {
+                        if (input.value.length === 1 && index < pinInputs.length - 1) {
+                            pinInputs[index + 1].focus();
+                        }
+                        updateHiddenInput(pinInputs, hiddenInput);
+                    });
+
+                    input.addEventListener("keydown", (e) => {
+                        if (e.key === "Backspace" && input.value === "" && index > 0) {
+                            pinInputs[index - 1].focus();
+                        }
+                    });
+                });
+            }
+
+            function updateHiddenInput(pinInputs, hiddenInput) {
+                hiddenInput.value = Array.from(pinInputs).map(input => input.value).join("");
+            }
+
+            // New PIN inputs
+            const newPinInputs = document.querySelectorAll("#pin1, #pin2, #pin3, #pin4");
+            const newPinHidden = document.getElementById("newPinHidden");
+            setupPinInputs(newPinInputs, newPinHidden);
+
+            // Confirm PIN inputs
+            const confirmPinInputs = document.querySelectorAll("#confirmPin1, #confirmPin2, #confirmPin3, #confirmPin4");
+            const confirmPinHidden = document.getElementById("confirmPinHidden");
+            setupPinInputs(confirmPinInputs, confirmPinHidden);
+        });
+
+
         document.getElementById('toggleButton').addEventListener('click', function() {
             const balance = document.getElementById('balance');
             const hiddenBalance = document.getElementById('hiddenBalance');
@@ -202,8 +423,7 @@
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    @include('components.contact-us')
-    <script>
+      <script>
     $(document).ready(function () {
         $(".pin-input").on("input", function () {
             this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);

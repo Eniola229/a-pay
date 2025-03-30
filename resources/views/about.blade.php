@@ -55,7 +55,7 @@
     <div class="container">
         <div class="row no-gutters d-flex">
             <div class="col-md-6 d-flex">
-                <div class="img d-flex align-self-stretch" style="background-image:url(images/apay.png);"></div>
+                <div class="img d-flex align-self-stretch" style="background-image:url(images/APAY.png);"></div>
             </div>
             <div class="col-md-6 p-3 pl-md-5 py-5" style="background-color: green;">
                 <div class="row justify-content-start pb-3">

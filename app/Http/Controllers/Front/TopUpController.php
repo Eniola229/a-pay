@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\Balance; 
 use Illuminate\Support\Facades\Auth;
 use GuzzleHttp\Client;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class TopUpController extends Controller
 {

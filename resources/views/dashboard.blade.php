@@ -115,6 +115,25 @@
     background-color: #28a745;
     color: #ffffff;
 }
+    .pin-input-container {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .pin-box {
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        font-size: 24px;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .pin-box:focus {
+        border-color: green;
+        outline: none;
+    }
 
     </style>
         <!--**********************************
@@ -236,42 +255,60 @@
                         </div>
                     </div> -->
                 </div>
-                @if(!$balance || empty($balance->pin))
-                    <div class="col-lg-12">
-                        <div class="card">
-                            <div class="card-body">
-                                <h4 class="card-title">Please set up your account PIN and add funds.</h4>
-                                <div class="bootstrap-modal">
-                                    <button type="button" class="btn btn-primary" style="background: green; border: 1px solid green;" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo">Click here</button>
-                                   <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                                    <div class="modal-dialog" role="document">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="exampleModalLabel">Set Your 4-Digit PIN</h5>
-                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                    <span aria-hidden="true">&times;</span>
-                                                </button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <form id="pinForm">
-                                                    <div class="form-group">
-                                                        <label for="pin" class="col-form-label">Create New PIN:</label>
-                                                        <input type="password" maxlength="4" class="form-control pin-input" name="pin" id="pin" required>
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <label for="confirm_pin" class="col-form-label">Re-enter PIN:</label>
-                                                        <input type="password" maxlength="4" class="form-control pin-input" name="confirm_pin" id="confirm_pin" required>
-                                                    </div>
-                                                    <button type="submit" id="savePinBtn" class="btn btn-primary w-100" style="background: green;">Save PIN</button>
-                                                </form>
-                                            </div>
+                @if(!$balance || empty($balance->pin)) 
+<div class="col-lg-12">
+    <div class="card">
+        <div class="card-body">
+            <h4 class="card-title">Please set up your account PIN and add funds.</h4>
+            <div class="bootstrap-modal">
+                <button type="button" class="btn btn-primary" style="background: green; border: 1px solid green;" data-toggle="modal" data-target="#exampleModal">
+                    Click here
+                </button>
+                <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="exampleModalLabel">Set Your 4-Digit PIN</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="pinForm">
+                                    <!-- New PIN -->
+                                    <div class="form-group">
+                                        <label for="new_pin">New PIN</label>
+                                        <div class="pin-input-container">
+                                            <input type="password" class="pin-box" maxlength="1" id="pin1">
+                                            <input type="password" class="pin-box" maxlength="1" id="pin2">
+                                            <input type="password" class="pin-box" maxlength="1" id="pin3">
+                                            <input type="password" class="pin-box" maxlength="1" id="pin4">
                                         </div>
+                                        <input type="hidden" name="new_pin" id="newPinHidden" required>
                                     </div>
-                                </div>
-                                </div>
+
+                                    <!-- Confirm PIN -->
+                                    <div class="form-group">
+                                        <label for="confirm_pin">Confirm New PIN</label>
+                                        <div class="pin-input-container">
+                                            <input type="password" class="pin-box" maxlength="1" id="confirmPin1">
+                                            <input type="password" class="pin-box" maxlength="1" id="confirmPin2">
+                                            <input type="password" class="pin-box" maxlength="1" id="confirmPin3">
+                                            <input type="password" class="pin-box" maxlength="1" id="confirmPin4">
+                                        </div>
+                                        <input type="hidden" name="confirm_pin" id="confirmPinHidden" required>
+                                    </div>
+
+                                    <button type="submit" id="savePinBtn" class="btn btn-primary w-100" style="background: green;">Save PIN</button>
+                                </form>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                     @endif
                     @if($balance && !empty($balance->pin))
                     <div class="container d-flex justify-content-center align-items-center vh-100">
@@ -352,49 +389,81 @@
         }, 10000);
     });
 </script>
+"{{ route('set.pin') }}",
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
      @include('components.contact-us')
     <script>
-        $(document).ready(function() {
-            $('#pinForm').submit(function(e) {
-                e.preventDefault();
-                let pin = $('#pin').val();
-                let confirmPin = $('#confirm_pin').val();
+        $(document).ready(function () {
+            // Auto-focus logic for PIN input boxes
+            $(".pin-box").on("input", function () {
+                var currentIndex = $(this).index(".pin-box");
+                if ($(this).val() && currentIndex < 7) {
+                    $(".pin-box").eq(currentIndex + 1).focus();
+                }
+            });
 
+            $(".pin-box").on("keydown", function (e) {
+                var currentIndex = $(this).index(".pin-box");
+
+                // Move focus back on Backspace
+                if (e.key === "Backspace" && !$(this).val() && currentIndex > 0) {
+                    $(".pin-box").eq(currentIndex - 1).focus();
+                }
+            });
+
+            $("#pinForm").submit(function (e) {
+                e.preventDefault();
+
+                // Get PIN values from input boxes
+                let pin = $("#pin1").val() + $("#pin2").val() + $("#pin3").val() + $("#pin4").val();
+                let confirmPin = $("#confirmPin1").val() + $("#confirmPin2").val() + $("#confirmPin3").val() + $("#confirmPin4").val();
+
+                // Set hidden fields
+                $("#newPinHidden").val(pin);
+                $("#confirmPinHidden").val(confirmPin);
+
+                // Validation: Ensure PIN is exactly 4 digits and matches
                 if (pin.length !== 4 || confirmPin.length !== 4) {
-                    Swal.fire('Error', 'PIN must be exactly 4 digits.', 'error');
+                    Swal.fire("Error", "PIN must be exactly 4 digits.", "error");
                     return;
                 }
 
-                let btn = $('#savePinBtn');
-                btn.prop('disabled', true).text('Processing...');
+                if (pin !== confirmPin) {
+                    Swal.fire("Error", "The PINs do not match. Please try again.", "error");
+                    return;
+                }
 
+                let btn = $("#savePinBtn");
+                btn.prop("disabled", true).text("Processing...");
+
+                // AJAX request to save PIN
                 $.ajax({
-                    url: "{{ route('set.pin') }}",
+                    url: "/set-pin", // Update with actual endpoint
                     type: "POST",
                     data: {
                         _token: "{{ csrf_token() }}",
                         pin: pin,
                         confirm_pin: confirmPin
                     },
-                    success: function(response) {
-                        Swal.fire('Success', response.success, 'success');
-                        $('#exampleModal').modal('hide');
-                        $('#pinForm')[0].reset();
+                    success: function (response) {
+                        Swal.fire("Success", response.success, "success");
+                        $("#exampleModal").modal("hide");
+                        $("#pinForm")[0].reset();
                         window.location.reload();
                     },
-                    error: function(xhr) {
-                        let error = xhr.responseJSON.error || 'Something went wrong. Please ensure the re-entered PIN matches the initial PIN.';
-                        Swal.fire('Error', error, 'error');
+                    error: function (xhr) {
+                        let error = xhr.responseJSON?.error || "Something went wrong. Please ensure the re-entered PIN matches the initial PIN.";
+                        Swal.fire("Error", error, "error");
                     },
-                    complete: function() {
-                        btn.prop('disabled', false).text('Save PIN');
+                    complete: function () {
+                        btn.prop("disabled", false).text("Save PIN");
                     }
                 });
             });
         });
+
     </script>
 
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>

@@ -13,6 +13,8 @@ use App\Http\Controllers\Front\DataPurchaseController;
 use App\Http\Controllers\Front\TransactionsController;
 use App\Http\Controllers\Front\ElectricityController;
 use App\Http\Controllers\ContactInquiryController;
+use App\Http\Controllers\PaystackWebhookController;
+
 
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,8 @@ Route::get('/blog', function () {
 });
 //Contact us
 Route::post('/contact-us', [ContactInquiryController::class, 'store'])->name('contact.store');
+
+Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebhook']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');

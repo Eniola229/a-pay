@@ -9,7 +9,15 @@
                             <div class="card-body pt-5">
                                 
                                     <a class="text-center" href="index.html"> <h4>A-Pay | Create an account</h4></a>
-        
+                                    @if(session('error'))
+                                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                            <strong>Error!</strong> {{ session('error') }}
+                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </div>
+                                    @endif
+
                                 <form class="mt-5 mb-5 login-input" action="{{ route('register') }}" method="post">
                                     @csrf
                                     <div class="form-group">

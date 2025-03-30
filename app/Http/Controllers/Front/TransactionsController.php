@@ -15,7 +15,7 @@ class TransactionsController extends Controller
 {
     public function view(Request $request)
     {
-        $transactions = Transaction::where('user_id', Auth::user()->id)->orderBy('created_at', 'desc')->paginate(10);
+        $transactions = Transaction::where('user_id', Auth::user()->id)->orderBy('created_at', 'desc')->get();
         return view('transactions', compact('transactions'));
     }
 

@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Include Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
 <style>
 .receipt-container {
     font-family: 'Arial', sans-serif;
@@ -73,12 +74,6 @@
     text-align: center;
     color: #000;
 }
-
-.support-email {
-    text-align: center;
-    color: black;
-}
-
 
 
 .table-borderless td {
@@ -183,166 +178,299 @@
             Content body start
         ***********************************-->
 
-      <div class="container-fluid col-xl-8 col-lg-10 col-md-12 p-4">
-<div class="container table-container">
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered custom-table">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($transactions as $transaction)
-                    <tr>
-                        <td>{{ $transaction->description }}</td>
-                        <td>₦{{ number_format($transaction->amount, 2) }}</td>
-                        <td>
-                            @if($transaction->status === 'SUCCESS')
-                                <span class="badge badge-success">Success</span>
-                            @elseif($transaction->status === 'PENDING')
-                                <span class="badge badge-warning">Pending</span>
-                            @else
-                                <span class="badge badge-danger">Error</span>
-                            @endif
-                        </td>
-                        <td>
-                            <button class="btn btn-primary btn-sm view-receipt" style="background: green; border: none;" 
-                                    data-id="{{ $transaction->id }}" 
-                                    data-description="{{ $transaction->description }}" 
-                                    data-amount="{{ number_format($transaction->amount, 2) }}" 
-                                    data-status="{{ $transaction->status }}" 
-                                    data-date="{{ $transaction->created_at }}">
-                                View Receipt
-                            </button>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+@php
+use App\Models\Transaction;
+@endphp
+
+<div class="container-fluid col-xl-8 col-lg-10 col-md-12 p-4">
+    <!-- Balance Summary -->
+    <div class="balance-summary">
+        <h4>All Transactions</h4>
     </div>
-</div>
-        <!-- Pagination links -->
-        @if ($transactions->hasPages())
-            <div class="bootstrap-pagination">
-                <nav>
-                    <ul class="pagination">
-                        {{-- Previous Page Link --}}
-                        @if ($transactions->onFirstPage())
-                            <li class="page-item disabled">
-                                <a class="page-link"><span aria-hidden="true">&laquo;</span></a>
-                            </li>
-                        @else
-                            <li class="page-item">
-                                <a class="page-link" href="{{ $transactions->previousPageUrl() }}" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                        @endif
-
-                        {{-- Pagination Elements --}}
-                        @foreach ($transactions->links()->elements[0] as $page => $url)
-                            <li class="page-item {{ $transactions->currentPage() == $page ? 'active' : '' }}">
-                                <a class="page-link" href="{{ $url }}">{{ $page }}</a>
-                            </li>
-                        @endforeach
-
-                        {{-- Next Page Link --}}
-                        @if ($transactions->hasMorePages())
-                            <li class="page-item">
-                                <a class="page-link" href="{{ $transactions->nextPageUrl() }}" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        @else
-                            <li class="page-item disabled">
-                                <a class="page-link"><span aria-hidden="true">&raquo;</span></a>
-                            </li>
-                        @endif
-                    </ul>
-                </nav>
+    
+    <!-- Filters -->
+<!--     <div class="filters">
+        <select>
+            <option>All Categories</option>
+            <option>Transfers</option>
+            <option>Payments</option>
+            <option>Data</option>
+            <option>Airtime</option>
+        </select>
+        <select>
+            <option>Any Status</option>
+            <option>Success</option>
+            <option>Pending</option>
+            <option>Failed</option>
+        </select>
+    </div> -->
+    
+    <!-- Transactions -->
+    <div class="transactions">
+        @foreach ($transactions->groupBy(fn($t) => $t->created_at->format('F d, Y')) as $date => $group)
+            <h5 class="transaction-date">{{ $date }}</h5>
+            
+            @foreach ($group as $transaction)
+                @php
+                    $isCredit = $transaction->amount > 0;
+                    $statusClass = match($transaction->status) {
+                        'success' => 'success',
+                        'pending' => 'pending',
+                        'error' => 'error',
+                        default => 'default'
+                    };
+                @endphp
+                
+                <div class="transaction-card {{ $isCredit ? 'credit' : 'debit' }}" 
+                    onclick="showTransactionDetails(this)"
+                    data-description="{{ $transaction->description }}"
+                    data-amount="₦{{ number_format(abs($transaction->amount), 2) }}"
+                    data-status="{{ ucfirst($transaction->status) }}"
+                    data-date="{{ $transaction->created_at->format('M d, Y H:i A') }}">
+                    
+                    <div class="transaction-info">
+                        <p class="transaction-description">{{ $transaction->description }}</p>
+                        <span class="transaction-time">{{ $transaction->created_at->format('H:i A') }}</span>
+                    </div>
+                    <div class="transaction-amount {{ $statusClass }}">
+                        <p>{{ $isCredit ? ' ' : '-' }}₦{{ number_format(abs($transaction->amount), 2) }}</p>
+                        <span class="transaction-status">{{ ucfirst($transaction->status) }}</span>
+                    </div>
+                </div>
+            @endforeach
+        @endforeach
+        
+        @if($transactions->isEmpty())
+            <div class="no-transactions">
+                <p>No transactions found</p>
             </div>
         @endif
+    </div>
+</div>
 
+<!-- Transaction Details Modal -->
+<div id="transactionModal" class="modal-overlay hidden">
+    <div class="modal-content" id="receipt">
+        <!-- Close Button (Top Right) -->
+        <button class="close-btn" onclick="closeModal()">&times;</button>
 
-
-        <!-- Receipt Modal -->
-<!--         <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="receiptModalLabel">Transaction Receipt</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="receipt border p-4 rounded shadow-sm bg-white">
-                            <h4 class="text-center mb-3">AfricPay Transaction Receipt</h4>
-                            <hr>
-                            <p><strong>Date:</strong> <span id="receipt-date"></span></p>
-                            <p><strong>Description:</strong> <span id="receipt-description"></span></p>
-                            <p><strong>Amount:</strong> <span id="receipt-amount"></span></p>
-                            <p><strong>Status:</strong> <span id="receipt-status"></span></p>
-                            <hr>
-                            <p class="text-center">Thank you for using AfricPay!</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Opay Logo -->
+        <div class="modal-header">
+            <img src="images/APAY.png" alt="APAY Logo" class="logo">
         </div>
- -->
-<div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body receipt-container">
-                <!-- Header -->
-                <div class="receipt-header">
-                    <img src="{{ url('https://www.africicl.com.ng/a-pay/images/APAY.png') }}" alt="A-Pay Logo" class="receipt-logo">
-                </div>
 
-                <!-- Transaction Info -->
-                <h6 class="transaction-info">Transaction Info</h6>
-                <hr>
+        <!-- Transaction Info -->
+        <h4 class="transaction-title">Transaction Info</h4>
+        <h2 class="amount" id="modal-amount"></h2>
+        <p class="status" id="modal-status"></p>
+        <p class="date" id="modal-date"></p>
 
-                <!-- Amount and Status -->
-                <h3 class="amount" id="receipt-amount"></h3>
-                <p class="status" id="receipt-status"></p>
-                <p id="receipt-date" class="text-center" style="color: black; font-size: 12px;"></p>
-
-                <hr>
-
-                <!-- Transaction Details Table -->
-                <table class="table table-borderless receipt-table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Sender Account:</strong></td>
-                            <td id="receipt-sender-account">{{ Auth::user()->mobile }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Description:</strong></td>
-                            <td id="receipt-description"></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <hr>
-
-                <!-- Support Information -->
-                <p class="support-text">SUPPORT</p>
-                <p class="support-email">a-pay@africicl.com.ng</p>
-            </div>
+        <!-- Transaction Details -->
+        <div class="modal-body">
+            <p><strong>Description:</strong> <span id="modal-description"></span></p>
+            <p><strong>Paid With:</strong> Wallet</p>
         </div>
+
+        <!-- Support Section -->
+        <div class="footer-modal">
+            <p class="support">SUPPORT</p>
+            <p class="support-email">a-pay@africicl.com.ng</p>
+        </div>
+
+        <!-- Download Receipt Button -->
+        <button class="download-btn" onclick="downloadReceipt()">Download Receipt</button>
     </div>
 </div>
 
 
 
-            <!-- #/ container -->
-        </div>
+<style>
+    .balance-summary { display: flex; justify-content: space-between; padding: 10px; background: white; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .balance { font-size: 24px; font-weight: bold; color: green; }
+    .filters { display: flex; justify-content: space-between; margin: 20px 0; }
+    .transactions { margin-top: 20px; }
+    .transaction-card { display: flex; justify-content: space-between; padding: 10px; background: white; border-radius: 5px; margin-bottom: 10px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .transaction-card.credit { border-left: 4px solid green; }
+    .transaction-card.debit { border-left: 4px solid red; }
+    .transaction-amount { text-align: right; }
+    .success { color: green; }
+    .pending { color: orange; }
+    .error { color: red; }
+    /* General Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 350px;
+        text-align: center;
+        position: relative;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Close Button */
+    .close-btn {
+        font-size: 24px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+        /* Opay Logo */
+        .modal-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            width: 60px;
+        }
+
+
+    /* Transaction Title */
+    .transaction-title {
+        font-size: 16px;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    /* Amount Styling */
+    .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #009966;
+    }
+
+    /* Status Styling */
+    .status {
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+
+    /* Dynamic Status Colors */
+    .status-success {
+        color: #009966;
+    }
+
+    .status-pending {
+        color: #FFA500;
+    }
+
+    .status-failed {
+        color: #FF0000;
+    }
+
+    /* Support Section */
+    .modal-footer {
+        margin-top: 20px;
+    }
+
+    .support {
+        font-weight: bold;
+        color: #009966;
+    }
+
+    .support-email {
+        font-size: 14px;
+        color: #666;
+        margin-top: -12px;
+    }
+
+    .hidden { display: none; }
+
+   /* Download Button */
+    .download-btn {
+        background: #009966;
+        color: white;
+        border: none;
+        padding: 10px;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    /* Download Button Hover */
+    .download-btn:hover {
+        background: #007a55;
+    }
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+    function showTransactionDetails(element) {
+        document.getElementById('modal-description').textContent = element.dataset.description;
+        document.getElementById('modal-amount').textContent = "NGN " + element.dataset.amount;
+
+        let statusElement = document.getElementById('modal-status');
+        statusElement.textContent = element.dataset.status.toUpperCase();
+
+        // Set status color
+        statusElement.classList.remove("status-success", "status-pending", "status-failed");
+        if (element.dataset.status.toLowerCase() === "success") {
+            statusElement.classList.add("status-success");
+        } else if (element.dataset.status.toLowerCase() === "pending") {
+            statusElement.classList.add("status-pending");
+        } else {
+            statusElement.classList.add("status-failed");
+        }
+
+        document.getElementById('modal-date').textContent = element.dataset.date;
+        document.getElementById('transactionModal').classList.remove('hidden');
+    }
+
+    function downloadReceipt() {
+        html2canvas(document.getElementById("receipt")).then(canvas => {
+            let image = canvas.toDataURL("image/png");
+
+            // Create a download link
+            let downloadLink = document.createElement("a");
+            downloadLink.href = image;
+            downloadLink.download = "A-Pay_Receipt.png";
+            downloadLink.click();
+        });
+    }
+
+    function closeModal() {
+        document.getElementById('transactionModal').classList.add('hidden');
+    }
+
+  $(document).ready(function () {
+        $('.transaction-status').each(function () {
+            var statusElement = $(this);
+            var status = statusElement.text().trim().toUpperCase(); // Get text and convert to uppercase
+
+            // Apply inline styles based on the status
+            if (status === 'PENDING') {
+                statusElement.css('color', '#ffc107'); // Yellow
+            } else if (status === 'ERROR' || status === 'FAILED') {
+                statusElement.css('color', '#dc3545'); // Red
+            } else if (status === 'SUCCESS') {
+                statusElement.css('color', '#28a745'); // Green
+            }
+        });
+    });
+</script>
+
 
     <!--**********************************
         Scripts

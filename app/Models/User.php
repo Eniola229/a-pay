@@ -50,6 +50,7 @@ class User extends Authenticatable
         'state',
         'city',
         'zipcode',
+        'account_number',
         'password',
     ];
 

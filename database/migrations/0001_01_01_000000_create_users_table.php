@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('mobile')->unique();
+            $table->string('account_number')->unique();
             $table->string('nin')->nullable()->unique();
             $table->string('bvn')->nullable()->unique();
             $table->string('utility_bill')->nullable();
