@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('user_id');
+            $table->uuid('user_id'); 
+            $table->string('beneficiary');
             $table->decimal('amount', 15, 2)->nullable();
             $table->string('description')->nullable();
             $table->string('reference')->nullable();

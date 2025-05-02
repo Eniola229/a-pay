@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DataPurchaseMail;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Str;
 
 
 class DataPurchaseController extends Controller
@@ -78,7 +77,7 @@ class DataPurchaseController extends Controller
     {
         $request->validate([
             'phone_number' => 'required|string',
-            'network_id'   => 'required|string|in:mtn,glo,airtel,etisalat,9mobile',
+            'network_id'   => 'required|string|in:mtn,glo,airtel,etisalat',
             'variation_id' => 'required|string',
             'pin'          => 'required|string|min:4|max:4'
         ]);
@@ -100,24 +99,15 @@ class DataPurchaseController extends Controller
         }
 
         $plans = $pricingData['data'];
-        $variationId = (int) $request->variation_id;
 
-        // Debug all variation_ids
-       // Log::info('Available plan IDs: ' . json_encode($plans));
-        //Log::info('Requested ID: ' . $variationId);
-
-        // Find plan directly using the variation_id as key
-        $planDetails = $plans[$variationId] ?? null; // Check if the plan exists
-
-        // Log result
-        //Log::info('Found plan: ' . json_encode($planDetails));
-
-        if (!$planDetails) {
+        // Validate variation_id
+        if (!isset($plans[$request->variation_id])) {
             return response()->json(['status' => false, 'message' => 'Invalid data plan selected.'], 400);
         }
-        $planDetails = $plans[$variationId];
+
+        $planDetails = $plans[$request->variation_id];
         $planPrice = $planDetails['price'];
-        $planName = $planDetails['name'];
+        $planDetails = $planDetails['name'];
 
         // Check wallet balance
         if ($balance->balance < $planPrice) {
@@ -142,65 +132,76 @@ class DataPurchaseController extends Controller
             'user_id'     => $user->id,
             'amount'      => $planPrice,
             'beneficiary' => $request->phone_number,
-            'description' => "Data purchase: " . $planName,
+            'description' => "Data purchase: " . $planDetails,
             'status'      => 'PENDING'
         ]);
 
-        // Ebills API integration
-        $apiToken = env('EBILLS_API_TOKEN'); // Set this in your .env
-        $requestId = 'REQ_' . strtoupper(Str::random(12));
-
-        $payload = [
-            'request_id'   => $requestId,
-            'phone'        => $request->phone_number,
-            'service_id'   => $request->network_id,
-            'variation_id' => $request->variation_id,
-        ];
+        // VTU.ng API credentials
+        $vtuUsername = env('VTU_NG_USERNAME');
+        $vtuPassword = env('VTU_NG_PASSWORD');
+        $baseUrl = 'https://paygold.ng/wp-json/api/v1/data';
 
         try {
-            $response = Http::withToken($apiToken)
-                ->timeout(15)
-                ->post('https://ebills.africa/wp-json/api/v2/data', $payload);
+            // Construct the full URL with query parameters
+            $url = sprintf(
+                '%s?username=%s&password=%s&phone=%s&network_id=%s&variation_id=%s',
+                $baseUrl,
+                urlencode($vtuUsername),
+                urlencode($vtuPassword),
+                urlencode($request->phone_number),
+                urlencode($request->network_id),
+                urlencode($request->variation_id)
+            );
 
-            $responseData = $response->json();
+            // Make the GET request
+            $purchaseResponse = Http::timeout(10)->get($url); // Optional: set timeout
+            $responseData = $purchaseResponse->json();            
+
+        } catch (RequestException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'We couldn’t reach our end point service. Please check your internet connection and try again.'
+            ], 500);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'We couldn’t reach our endpoint service. Please check your internet connection and try again.'
+                'message' => 'We couldn’t reach our end point service. Please check your internet connection and try again.'
             ], 500);
         }
 
-        if ($response->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
+        if ($purchaseResponse->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
             $transaction->update(['status' => 'SUCCESS']);
             $dataPurchase->update(['status' => 'SUCCESS']);
 
             // Send success email
-            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
+            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planDetails['name'], $planPrice, 'SUCCESS'));
 
             return response()->json(['status' => true, 'message' => 'Data purchased successfully']);
         } else {
+            // Log the full response for debugging
             Log::error('Data purchase failed', ['response' => $responseData]);
 
-            Errors::create([
+            // Convert the array response to JSON string before storing in DB
+            $errorData = json_encode($responseData);
+
+            $error = Errors::create([
                 'title' => "Data",
-                'error_message' => json_encode($responseData),
+                'error_message' => $errorData,
             ]);
 
-            // Refund
+            // Refund the user if purchase fails
             $balance->increment('balance', $planPrice);
+
             $transaction->update(['status' => 'ERROR']);
             $dataPurchase->update(['status' => 'FAILED']);
 
             // Send failure email
-            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
-
-            return response()->json([
-                'status' => false,
-                'message' => 'Data purchase failed. Your service provider may be unavailable. Please try again later.'
-            ], 500);
+            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planDetails['name'], $planPrice, 'FAILED'));
+            
+            return response()->json(['status' => false, 'message' => 'Data purchase failed. Your service provider may be unavailable. Please try again later.'], 500);
         }
-    }
 
+    }
     public function recentPurchases()
     {
         $purchases = DataPurchase::where('user_id', Auth::id())

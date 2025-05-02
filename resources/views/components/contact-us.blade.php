@@ -80,7 +80,7 @@ $(document).ready(function() {
         submitButton.prop('disabled', true).text('Submitting...');
 
         $.ajax({
-            url: '/contact-us',
+            url: '/a-pay/contact-us',
             method: 'POST',
             data: form.serialize() + '&_token=' + $('meta[name="csrf-token"]').attr('content'),
             success: function(response) {

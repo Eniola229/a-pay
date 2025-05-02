@@ -263,7 +263,7 @@
                 $(this).find("input").prop("checked", true); // Mark as selected
             });
 
-            $("#your-form-id").on("submit", function (e) {
+            $("#airtime-form").on("submit", function (e) {
                 if (!$("input[name='network_id']:checked").val()) {
                     alert("Please select a network."); // Prevent submission if no selection
                     e.preventDefault();

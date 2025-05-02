@@ -8,11 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Ramsey\Uuid\Uuid;
 
-class Transaction extends Authenticatable
+class DeviceAuthentication extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'transactions';
+    protected $table = 'device_authentications';
     protected $keyType = 'uuid';
     public $incrementing = false;
     protected $primaryKey = 'id';
@@ -34,13 +34,12 @@ class Transaction extends Authenticatable
      */
     protected $fillable = [
         'user_id',
-        'amount',
-        'beneficiary',
-        'description',
-        'status',
+        'device_identifier',
+        'code',
+        'verified',
     ];
-
-        public function user()
+    
+    public function user()
     {
         return $this->belongsTo(User::class);
     }

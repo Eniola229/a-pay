@@ -18,6 +18,13 @@
                                         </ul>
                                     </div>
                                 @endif
+                                @if($errors->has('code'))
+                                    <div class="alert alert-danger text-red-800 bg-red-200 p-4 rounded mb-4">
+                                        <ul class="list-disc list-inside">
+                                            <li>{{ $errors->first('code') }}</li>
+                                        </ul>
+                                    </div>
+                                @endif
                                 <form class="mt-5 mb-5 login-input" action="{{ route('login') }}" method="post">
                                     @csrf
                                    <div class="form-group">

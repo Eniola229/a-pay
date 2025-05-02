@@ -173,7 +173,7 @@
         .network-box[data-network="mtn"] { color: #ffcc00; }
         .network-box[data-network="glo"] { color: #008000; }
         .network-box[data-network="airtel"] { color: #d91a1a; }
-        .network-box[data-network="etisalat"] { color: #32a852; }
+        .network-box[data-network="9mobile"] { color: #32a852; }
 /*For amount input*/
         .red-border {
             border: 2px solid red !important;
@@ -251,8 +251,8 @@
                     <input type="radio" name="network_id" value="airtel">
                     <i class="fas fa-signal"></i> Airtel
                 </label>
-                <label class="network-box" data-network="etisalat">
-                    <input type="radio" name="network_id" value="etisalat">
+                <label class="network-box" data-network="9mobile">
+                    <input type="radio" name="network_id" value="9mobile">
                     <i class="fas fa-signal"></i> 9mobile
                 </label>
             </div>
@@ -262,7 +262,7 @@
                 <option value="mtn">MTN</option>
                 <option value="glo">Glo</option>
                 <option value="airtel">Airtel</option>
-                <option value="etisalat">9mobile</option>
+                <option value="9mobile">9mobile</option>
             </select>
         </div>
 
@@ -346,16 +346,13 @@ $(document).ready(function() {
     });
 
 
-    // When a network is selected, fetch the pricing (data plans)
     $('#network_id').change(function () {
-        const networkId = $(this).val();
-        // Reset any previous selection
+        const networkId = $(this).val().toLowerCase();
         $('#data_plan').val('');
         $('#selected-plan-display').html('');
         purchaseBtn.prop('disabled', true);
 
         if (networkId) {
-            // Show a loading alert
             Swal.fire({
                 title: 'Fetching Data Plans...',
                 text: 'Please wait...',
@@ -365,25 +362,26 @@ $(document).ready(function() {
                 }
             });
 
-            // Call backend endpoint that returns the static pricing data
-           //$.get(`${window.location.origin}/a-pay/data-plans/${networkId}`)
             $.get(`/data-plans/${networkId}`)
-                .done(function(response) {
-                    Swal.close(); // Close loading alert
+                .done(function (response) {
+                    Swal.close();
 
-                    if (response.status) {
-                        // Build HTML for the data plans as clickable cards
+                    if (response.status === true && response.data) {
                         let htmlContent = '<div class="plan-container" style="display: flex; flex-wrap: wrap; justify-content: center;">';
-                        // response.data is expected to be an object with keys as variation_ids and values as objects containing name and price
-                        $.each(response.data, function(variation_id, plan) {
-                            htmlContent += `<div class="plan-item" 
-                                                data-variation="${variation_id}">
-                                                ${plan.name} <br> ₦${plan.price}
-                                            </div>`;
+
+                        const plans = response.data;
+                        const reversedKeys = Object.keys(plans).reverse();
+
+                        $.each(reversedKeys, function (_, key) {
+                            const plan = plans[key];
+                            htmlContent += `
+                                <div class="plan-item" data-variation="${key}" style="margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer;">
+                                    <strong>${plan.name}</strong><br>₦${plan.price}
+                                </div>`;
                         });
+
                         htmlContent += '</div>';
 
-                        // Show the plans in a SweetAlert modal with a Cancel (Close) button
                         Swal.fire({
                             title: 'Select Data Plan',
                             html: htmlContent,
@@ -391,37 +389,24 @@ $(document).ready(function() {
                             showCancelButton: true,
                             cancelButtonText: 'Close',
                             allowOutsideClick: false,
-                            customClass: {
-                                popup: 'custom-swal-popup',
-                                title: 'custom-swal-title',
-                                cancelButton: 'custom-swal-cancel'
-                            },
                             didOpen: () => {
-                                // Attach click event to each plan card
-                                $('.plan-item').on('click', function() {
+                                $('.plan-item').on('click', function () {
                                     const selectedVariation = $(this).data('variation');
-                                    // Set the chosen variation id in the hidden input field
                                     $('#data_plan').val(selectedVariation);
-                                    // Display the selected plan's description (name and price)
                                     $('#selected-plan-display').html(`Selected: ${$(this).text()}`);
                                     Swal.close();
-                                    // Enable the purchase button
                                     purchaseBtn.prop('disabled', false);
                                 });
                             }
                         });
                     } else {
-                        Swal.fire("Error", response.message, "error");
+                        Swal.fire("Error", response.message || "No plans found", "error");
                     }
                 })
-                .fail(function(xhr) {
-                    Swal.fire("Error", xhr.responseJSON?.message || "Failed to fetch data plans. Please try again.", "error");
+                .fail(function (xhr) {
+                    console.error("AJAX Error:", xhr);
+                    Swal.fire("Error", xhr.responseJSON?.message || "Failed to fetch data plans", "error");
                 });
-        } else {
-            // Reset if no network is chosen
-            $('#data_plan').val('');
-            $('#selected-plan-display').html('');
-            purchaseBtn.prop('disabled', true);
         }
     });
     // Handle form submission

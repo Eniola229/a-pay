@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use App\Mail\AirtimePurchaseMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Client\RequestException;
 
 class AirtimePurchaseController extends Controller
 {
@@ -25,9 +26,9 @@ class AirtimePurchaseController extends Controller
     {
         // Validate the request
         $request->validate([
-            'phone_number' => 'required|string',
-            'amount' => 'required|numeric|min:0.01',
-            'network_id' => 'required|string|in:mtn,glo,airtel,etisalat',
+            'phone_number' => 'required|string', 
+            'amount' => 'required|numeric|min:10|max:50000', 
+            'network_id' => 'required|string|in:mtn,airtel,glo,9mobile', 
             'pin' => 'required|string|min:4|max:4'
         ]);
 
@@ -57,7 +58,7 @@ class AirtimePurchaseController extends Controller
             'user_id' => $user->id,
             'phone_number' => $request->phone_number,
             'amount' => $request->amount,
-            'network_id' => $request->network_id,
+            'network_id' => $request->service_id, // Store service_id here
             'status' => 'PENDING'
         ]);
 
@@ -65,43 +66,50 @@ class AirtimePurchaseController extends Controller
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'amount' => $request->amount,
-            'description' => "Airtime purchase for " . $request->phone_number,
+            'beneficiary' => $request->phone_number,
+            'description' => $request->service_id . " airtime purchase for " . $request->phone_number,
             'status' => 'PENDING'
         ]);
 
-        // Prepare VTU.ng API request
-        $vtuUsername = env('VTU_NG_USERNAME');
-        $vtuPassword = env('VTU_NG_PASSWORD');
-        $baseUrl = 'https://paygold.ng/wp-json/api/v1/airtime';
+        // Prepare the external API request
+        $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
+        $headers = [
+            'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
+            'Content-Type' => 'application/json'
+        ];
 
-        // Make the API request
-        $response = Http::get($baseUrl, [
-            'username' => $vtuUsername,
-            'password' => $vtuPassword,
+        $data = [
+            'request_id' => 'req_' . uniqid(), // Generate a unique request ID
             'phone' => $request->phone_number,
-            'network_id' => $request->network_id,
+            'service_id' => $request->network_id, // Network provider
             'amount' => $request->amount
-        ]);
+        ];
+
+        try {
+            // Make the API request
+            $response = Http::withHeaders($headers)->post($apiUrl, $data);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'We couldn’t connect to our endpoint. Please check your internet connection and try again.'
+            ], 500);
+        }
 
         // Handle the API response
         if ($response->successful() && $response->json()['code'] === 'success') {
+            // Update transaction and airtime purchase status
             $transaction->update(['status' => 'SUCCESS']);
             $airtime->update(['status' => 'SUCCESS']);
 
-             // Send success email
+            // Send success email
             Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'SUCCESS'));
 
             return response()->json(['status' => true, 'message' => 'Airtime purchased successfully']);
         } else {
             // Log the error response
             Log::error('Airtime purchase failed', ['response' => $response->json()]);
-            
-            $errorData = is_array($response->json()) ? json_encode($response->json()) : $response->json();
 
-            $error = Errors::create([
-                'title' => "Airtime",
-                'error_message' => $errorData,
-            ]);
             // Refund the user
             $balance->balance += $request->amount;
             $user->cashback_balance -= $cashback;
@@ -114,7 +122,10 @@ class AirtimePurchaseController extends Controller
             // Send failure email
             Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'FAILED'));
 
-            return response()->json(['status' => false, 'message' => 'Airtime purchase failed. Your service provider may be unavailable. Please try again later.'], 500);
+            return response()->json([
+                'status' => false,
+                'message' => 'Airtime purchase failed. Your service provider may be unavailable. Please try again later.'
+            ], 500);
         }
     }
 

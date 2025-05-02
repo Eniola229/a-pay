@@ -226,7 +226,9 @@ use App\Models\Transaction;
                     data-description="{{ $transaction->description }}"
                     data-amount="₦{{ number_format(abs($transaction->amount), 2) }}"
                     data-status="{{ ucfirst($transaction->status) }}"
-                    data-date="{{ $transaction->created_at->format('M d, Y H:i A') }}">
+                    data-date="{{ $transaction->created_at->format('M d, Y H:i A') }}"
+                    data-beneficiary="{{ $transaction->beneficiary }}"
+                    >
                     
                     <div class="transaction-info">
                         <p class="transaction-description">{{ $transaction->description }}</p>
@@ -265,10 +267,10 @@ use App\Models\Transaction;
         <p class="status" id="modal-status"></p>
         <p class="date" id="modal-date"></p>
 
-        <!-- Transaction Details -->
+        <!-- Paid With -->
         <div class="modal-body">
             <p><strong>Description:</strong> <span id="modal-description"></span></p>
-            <p><strong>Paid With:</strong> Wallet</p>
+            <p><strong>Beneficiary:</strong> <span id="modal-beneficiary"></span></p>
         </div>
 
         <!-- Support Section -->
@@ -435,6 +437,7 @@ use App\Models\Transaction;
         }
 
         document.getElementById('modal-date').textContent = element.dataset.date;
+        document.getElementById('modal-beneficiary').textContent = element.dataset.beneficiary;
         document.getElementById('transactionModal').classList.remove('hidden');
     }
 
@@ -484,6 +487,7 @@ use App\Models\Transaction;
             $('#receipt-amount').text('₦' + $(this).data('amount'));
             $('#receipt-status').text($(this).data('status'));
             $('#receipt-date').text($(this).data('date'));
+            $('#beneficiary').text($(this).data('beneficiary'));
 
             var status = $(this).data('status'); // Keep it uppercase as backend sends it
             var statusElement = $('#receipt-status');

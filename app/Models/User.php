@@ -51,6 +51,7 @@ class User extends Authenticatable
         'city',
         'zipcode',
         'account_number',
+        'last_login_device',
         'password',
     ];
 

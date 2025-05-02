@@ -440,7 +440,7 @@
 
                 // AJAX request to save PIN
                 $.ajax({
-                    url: "/set-pin", // Update with actual endpoint
+                    url: "/a-pay/set-pin",
                     type: "POST",
                     data: {
                         _token: "{{ csrf_token() }}",

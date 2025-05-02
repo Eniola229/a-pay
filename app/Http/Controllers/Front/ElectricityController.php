@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ElectricityPaymentReceipt;
+use Illuminate\Http\Client\RequestException;
+
 
 class ElectricityController extends Controller
 {
@@ -63,7 +65,7 @@ class ElectricityController extends Controller
             'meter_number' => $request->meter_number,
             'provider_id'  => $request->provider_id,
             'amount'       => $request->amount,
-            'service_fee' => $serviceFee,
+            'service_fee'  => $serviceFee,
             'total_amount' => $totalAmount,
             'status'       => 'PENDING'
         ]);
@@ -72,32 +74,56 @@ class ElectricityController extends Controller
         $transaction = Transaction::create([
             'user_id'     => $user->id,
             'amount'      => $totalAmount,
+            'beneficiary' => $request->meter_number,
             'description' => "Electricity bill payment for " . $request->meter_number,
             'status'      => 'PENDING'
         ]);
 
-        // Call VTU API to pay electricity bill
+        // Prepare API request to pay electricity bill
         $vtuUsername = env('VTU_NG_USERNAME');
         $vtuPassword = env('VTU_NG_PASSWORD');
-        $baseUrl = 'https://paygold.ng/wp-json/api/v1/electricity';
+        $baseUrl = 'https://ebills.africa/wp-json/api/v2/electricity';
 
-        $purchaseResponse = Http::get($baseUrl, [
-            'username'     => $vtuUsername,
-            'password'     => $vtuPassword,
-            'meter_number' => $request->meter_number,
-            'service_id'  => $request->provider_id,
-            'amount'       => $request->amount,
-            'variation_id' => $request->variation_id,
-            'phone' => $user->mobile,
-        ]);
+        // Generate a unique request_id
+        $requestId = 'req_' . uniqid();
 
-            // Check if the API request was successful
+        // Call the API
+        try {
+            $purchaseResponse = Http::withHeaders([
+                'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
+                'Content-Type'  => 'application/json',
+            ])->post($baseUrl, [
+                'request_id'   => $requestId,
+                'customer_id'  => $request->meter_number,
+                'service_id'   => $request->provider_id,
+                'variation_id' => $request->variation_id,
+                'amount'       => $request->amount,
+            ]);
+        } catch (RequestException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'We couldn’t connect to our endpoint. Please check your internet connection and try again.'
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'We couldn’t connect to our endpoint. Please check your internet connection and try again.'
+            ], 500);
+        }
+
+        // Check if the API request was successful
         if ($purchaseResponse->successful()) {
             $responseData = $purchaseResponse->json();
 
             // Check if the API response indicates success
             if (isset($responseData['code']) && $responseData['code'] === 'success') {
-                $transaction->update(['status' => 'SUCCESS']);
+              // Store transaction record
+                $transaction->update([
+                        'amount'      => $totalAmount,
+                        'description' => "Electricity bill payment for " . $request->meter_number . ' | Token: ' . $responseData['token'] . ' | Units: ' . $responseData['units'],
+                        'status'      => 'SUCCESS'
+                    ]);
+                
                 $electricityPurchase->update(['status' => 'SUCCESS']);
 
                 // Prepare email details
@@ -109,14 +135,16 @@ class ElectricityController extends Controller
                     'status' => 'SUCCESS'
                 ];
 
+
+
                 // Send email
                 Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
 
-                return response()->json(['status' => true, 'message' => 'Electricity bill paid successfully']);
+                return response()->json(['status' => true, 'message' => 'EYour electricity bill has been paid successfully. Please check your transaction history for the token.']);
             } else {
                 // Extract the error message from the API response
                 $errorMessage = $responseData['message'] ?? 'Payment failed due to an unknown error.';
-                
+
                 // Convert response array to JSON before storing it
                 $errorData = json_encode($responseData);
 
@@ -135,7 +163,7 @@ class ElectricityController extends Controller
 
                 Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
 
-               return response()->json(['status' => false, 'message' => $errorMessage], 500);
+                return response()->json(['status' => false, 'message' => $errorMessage], 500);
             }
         } else {
             // Handle HTTP request errors (e.g., network issues, server down)
@@ -143,6 +171,8 @@ class ElectricityController extends Controller
 
             $errorMessage = $responseData['message'] ?? 'Failed to connect to the payment gateway.';
             $errorData = json_encode($responseData);
+
+
 
             // Save error details
             Errors::create([
@@ -170,5 +200,6 @@ class ElectricityController extends Controller
 
             return response()->json(['status' => false, 'message' => "An error occurred. Please try again later."], 500);
         }
-      }
+    }
+
     }

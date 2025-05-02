@@ -14,6 +14,9 @@ use App\Http\Controllers\Front\TransactionsController;
 use App\Http\Controllers\Front\ElectricityController;
 use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\PaystackWebhookController;
+use App\Http\Controllers\Security\DeviceVerificationController;
+use App\Http\Controllers\Leaners\RegistrationController;
+
 
 
 use Illuminate\Support\Facades\Route;
@@ -36,7 +39,15 @@ Route::get('/blog', function () {
 //Contact us
 Route::post('/contact-us', [ContactInquiryController::class, 'store'])->name('contact.store');
 
-Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebhook']);
+Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebhook'])->withoutMiddleware([Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
+//2fa
+Route::get('/verify-device', [DeviceVerificationController::class, 'show'])->name('verify.device');
+Route::post('/verify-device', [DeviceVerificationController::class, 'verify']);
+
+Route::post('/get-payment-amount', [RegistrationController::class, 'getPaymentAmount']);
+Route::post('/register-leaners', [RegistrationController::class, 'register'])->name('register-leaners');
+Route::get('/register-leaners.com', [RegistrationController::class, 'showForm']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');

@@ -1,16 +1,20 @@
 <?php
 
+namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Balance;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Log;
+use App\Mail\CreditAlertMail;
+use Illuminate\Support\Facades\Mail;
 
 class PaystackWebhookController extends Controller
 {
     public function handleWebhook(Request $request)
     {
-        // Verify that the request is from Paystack
+        // Verify the request from Paystack
         $signature = $request->header('x-paystack-signature');
         $payload = $request->getContent();
         
@@ -42,15 +46,19 @@ class PaystackWebhookController extends Controller
                 }
 
                 // Record transaction
-                Transaction::create([
+                $transaction = Transaction::create([
                     'sender_id' => null, // Unknown sender
                     'recipient_id' => $user->id,
                     'amount' => $amount,
                     'status' => 'SUCCESS',
+                    'description' => 'Credit Alert: ₦' . $amount,
                 ]);
 
+                // Send email notification
+                Mail::to($user->email)->send(new CreditAlertMail($user, $amount, $transaction));
+
                 Log::info("Money received: ₦$amount credited to user ID {$user->id}");
-                return response()->json(['success' => 'Balance updated'], 200);
+                return response()->json(['success' => 'Balance updated and email sent'], 200);
             }
         }
 
