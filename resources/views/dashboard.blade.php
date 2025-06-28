@@ -10,39 +10,59 @@
         body {
             background-color: #f8f9fa;
         }
-       .btn-custom {
-            padding: 14px 28px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 10px;
-            transition: all 0.3s ease-in-out;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            text-decoration: none;
-        }
+    .btn-custom {
+        padding: 14px 28px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease-in-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+    }
 
-        .btn-custom:hover {
-            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
-        }
+    .btn-custom:hover {
+        box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+    }
 
-        /* Specific Button Colors */
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
-        }
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
 
-        .btn-success {
-            background-color: #28a745;
-            color: white;
-        }
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
 
-        .btn-warning {
-            background-color: #ffc107;
-            color: white;
+    .btn-warning {
+        background-color: #ffc107;
+        color: white;
+    }
+
+    .service-card {
+        background-color: #ffffff;
+        border-radius: 15px;
+        padding: 40px 30px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+        max-width: 700px;
+        width: 100%;
+    }
+
+    .service-heading {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 30px;
+    }
+
+    @media (max-width: 768px) {
+        .btn-custom {
+            width: 100%;
         }
+    }
     /*notification*/
 #notificationWrapper {
     max-width: 600px;
@@ -134,6 +154,8 @@
         border-color: green;
         outline: none;
     }
+
+
 
     </style>
         <!--**********************************
@@ -242,18 +264,34 @@
                                 </a> 
                         </div>
                     </div>
-<!--                     <div class="col-lg-3 col-sm-6">
-                        <div class="card gradient-3">
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="card gradient-1">
                             <div class="card-body">
-                                <h3 class="card-title text-white">Transactions</h3>
+                                <h3 class="card-title text-white">Oweing</h3>
                                 <div class="d-inline-block">
-                                    <h2 class="text-white">0</h2>
-                                    <p class="text-white mb-0">All Transactions</p>
+                                       <!-- Balance (Hidden by Default) -->
+                                    <h2 id="owebalance" class="text-white" style="display: none;">₦ 
+                                    @if(!$balance)
+                                        0.00
+                                    @else
+                                       {{ $balance->owe }}
+                                    @endif
+                                    </h2>
+                                    <h2 id="owehiddenBalance" class="text-white">****</h2>
+
+                                    <!-- Toggle Button -->
+                                    <p id="owetoggleButton" style="background: none; border: none; cursor: pointer;">
+                                        <i id="owetoggleIcon" class="icon-eye menu-icon"></i> 
+                                    </p>
                                 </div>
-                                <span class="float-right display-5 opacity-5"><i class="fa fa-users"></i></span>
+                                <span class="float-right display-5 opacity-5"><i class="fa fa-money"></i></span>
+                                
                             </div>
+                                <a href="{{ url('/borrow/credit_limit') }}" class="mb-4 ml-4">
+                                    <button class="btn" style="color: black; background: white; border: none;">Borrow Airtime/Data</button>
+                                </a> 
                         </div>
-                    </div> -->
+                    </div>
                 </div>
                 @if(!$balance || empty($balance->pin)) 
 <div class="col-lg-12">
@@ -312,21 +350,29 @@
                     @endif
                     @if($balance && !empty($balance->pin))
                     <div class="container d-flex justify-content-center align-items-center vh-100">
-                        <div class="row text-center gap-md-4">
-                            <div class="col-12 col-md-auto mb-3 mb-md-0">
-                                <a href="{{ url('/airtime/buy') }}" class="btn btn-primary btn-custom">
-                                    <i class="fa fa-mobile"></i> Buy Airtime
-                                </a>
-                            </div>
-                            <div class="col-12 col-md-auto mb-3 mb-md-0">
-                                <a href="{{ url('/data/buy') }}" class="btn btn-success btn-custom">
-                                    <i class="fa fa-wifi"></i> Buy Data
-                                </a>
-                            </div>
-                            <div class="col-12 col-md-auto">
-                                <a href="{{ url('/electricity') }}" class="btn btn-warning btn-custom">
-                                    <i class="fa fa-bolt"></i> Pay Electricity Bills in Nigeria
-                                </a>
+                        <div class="service-card text-center">
+                            <h4 class="service-heading">Our Services</h4>
+                            <div class="row g-3 justify-content-center">
+                                <div class="col-12 col-md-auto">
+                                    <a href="{{ url('/airtime/buy') }}" class="btn btn-primary btn-custom">
+                                        <i class="fa fa-mobile"></i> Airtime
+                                    </a>
+                                </div>
+                                <div class="col-12 col-md-auto">
+                                    <a href="{{ url('/data/buy') }}" class="btn btn-success btn-custom">
+                                        <i class="fa fa-wifi"></i> Data
+                                    </a>
+                                </div>
+                                <div class="col-12 col-md-auto">
+                                    <a href="{{ url('/electricity') }}" class="btn btn-warning btn-custom">
+                                        <i class="fa fa-bolt"></i> Electricity
+                                    </a>
+                                </div>
+                           <!--     <div class="col-12 col-md-auto"> 
+                                    <a href="{{ url('/borrow/credit#limit') }}" class="btn btn-success btn-custom">
+                                        <i class="fa fa-wifi"></i> Borrow Airtime/Data
+                                    </a>
+                                </div> -->
                             </div>
                         </div>
                     </div>
@@ -344,6 +390,26 @@
             const balance = document.getElementById('balance');
             const hiddenBalance = document.getElementById('hiddenBalance');
             const icon = document.getElementById('toggleIcon');
+
+            if (balance.style.display === 'none') {
+                // Show Balance
+                balance.style.display = 'block';
+                hiddenBalance.style.display = 'none';
+                icon.classList.remove('icon-eye');
+                icon.classList.add('icon-eye'); // Change to "eye-slash" icon
+            } else {
+                // Hide Balance
+                balance.style.display = 'none';
+                hiddenBalance.style.display = 'block';
+                icon.classList.remove('icon-eye-slash');
+                icon.classList.add('icon-eye'); // Change back to "eye" icon
+            }
+        });
+
+        document.getElementById('owetoggleButton').addEventListener('click', function() {
+            const balance = document.getElementById('owebalance');
+            const hiddenBalance = document.getElementById('owehiddenBalance');
+            const icon = document.getElementById('owetoggleIcon');
 
             if (balance.style.display === 'none') {
                 // Show Balance
@@ -389,7 +455,6 @@
         }, 10000);
     });
 </script>
-"{{ route('set.pin') }}",
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

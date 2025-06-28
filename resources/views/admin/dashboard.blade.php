@@ -106,10 +106,48 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="card gradient-1">
+                            <div class="card-body">
+                                <h3 class="card-title text-white">Wallet Account Balance</h3>
+                                <div class="d-inline-block">
+                                    <!-- Balance shows immediately -->
+                                    <h2 id="balances" class="text-white">₦ Loading...</h2>
+                                </div>
+                                <span class="float-right display-5 opacity-5">
+                                    <i class="fa fa-money"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>           
             </div>
             <!-- #/ container -->
         </div>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    const walletBalanceUrl = "{{ route('wallet.balance') }}";
+
+    $(document).ready(function () {
+        $.ajax({
+            url: walletBalanceUrl,
+            method: "GET",
+            success: function (response) {
+                if (response.code === "success") {
+                    const balance = response.data.balance;
+                    $('#balances').html(`₦ ${balance.toLocaleString()}`);
+                } else {
+                    $('#balances').html("₦ Error");
+                    console.error("Error fetching balance:", response.message);
+                }
+            },
+            error: function () {
+                $('#balances').html("₦ Network Error");
+            }
+        });
+    });
+</script>
 
     <script>
         document.getElementById('toggleButton').addEventListener('click', function() {

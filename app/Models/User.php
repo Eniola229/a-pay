@@ -84,4 +84,16 @@ class User extends Authenticatable
         ]);
     }
 
+
+    public function borrowings()
+    {
+        return $this->hasMany(Borrow::class);
+    }
+
+    public function creditLimit()
+    {
+        return $this->hasOne(CreditLimit::class);
+    }
+
+
 }

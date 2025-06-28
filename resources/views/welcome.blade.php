@@ -9,7 +9,7 @@
                             <p class="mb-4 pl-md-5 line" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Welcome to A-Pay</p>
                         </div>
                     </div>
-                    <h1 class="mb-4" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Your trusted platform<br> to buy and sell data, airtime, and pay bills online.</h1>
+                    <h1 class="mb-4" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Your trusted platform<br> to buy, sell and borrow data, airtime, and pay bills online.</h1>
                     <p><a href="{{ route('register') }}" class="btn btn-primary px-4 py-3">Get Started</a></p>
                 </div>
             </div>
@@ -74,7 +74,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <img src="images/apay.png" class="img-fluid" alt="A-pay Services">
+                <img src="images/APAY.png" class="img-fluid" alt="A-pay Services">
             </div>
             <div class="col-md-4">
                 <div class="services-2 text-center">

@@ -226,7 +226,7 @@
 
     <div class="container-fluid col-12 col-md-8 col-lg-6">
   <div class="airtime-card mt-4">
-    <h3 class="text-center">Buy Data</h3>
+    <h3 class="text-center">Borrow Data</h3>
     <form id="data-form">
         <div class="mb-3 position-relative">
             <label for="phone_number">Phone Number</label>
@@ -272,7 +272,7 @@
             <!-- This area will display the chosen plan -->
             <div id="selected-plan-display" style="font-weight: bold; text-align: center;"></div>
         </div>
-        <button type="submit" id="purchase-btn" class="btn btn-primary w-100" disabled>Buy Data</button>
+        <button type="submit" id="purchase-btn" class="btn btn-primary w-100" disabled>Borrow Data</button>
     </form>
 </div>
             <!-- #/ container -->
@@ -361,8 +361,8 @@ $(document).ready(function() {
                     Swal.showLoading();
                 }
             });
-            $.get(`${window.location.origin}/a-pay/data-plans/${networkId}`)
-            //$.get(`/data-plans/${networkId}`)
+            //$.get(`${window.location.origin}/a-pay/data-plans/${networkId}`)
+            $.get(`/data-plans/${networkId}`)
                 .done(function (response) {
                     Swal.close();
 
@@ -445,7 +445,7 @@ $(document).ready(function() {
                 purchaseBtn.text('Processing...').prop('disabled', true);
 
                 // Submit the form data along with the PIN
-                $.post("{{ route('buy.data') }}", {
+                $.post("{{ route('borrow.data') }}", {
                     phone_number: $('#phone_number').val(),
                     network_id: $('#network_id').val(),
                     variation_id: $('#data_plan').val(),

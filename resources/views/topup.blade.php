@@ -60,38 +60,94 @@
                 });
             </script>
         @endif
+ <style type="text/css">
+ .topup-card {
+        background-color: #ffffff;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+        max-width: 600px;
+        margin: 0 auto;
+    }
 
-        <div class="container-fluid">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="card">
-                            <div class="card-body">
-                                <h4 class="card-title">Top Up your Balance</h4>
-                                <h5 class="">Current Balance: ₦<span>
-                                   @if(!$balance)
-                                        0.00
-                                    @else
-                                       {{ $balance->balance }}
-                                    @endif
-                                </span></p></h5>
-                                <p class="text-muted m-b-15 f-s-12">Enter Amount (in Naira):</p>
-                                <div class="basic-form">
-                                     <form id="topupForm" action="{{ route('topup.initialize') }}" method="POST">
-                                        @csrf
-                                        <div class="form-group">
-                                            <input type="text" class="form-control input-default" name="amount" id="amount" placeholder="Input amount (In Naira)" required>
-                                        </div>
-                                       
-                                        <div class="form-group">
-                                            <button class="btn" style="background: green; color: white;" type="submit">Top Up Now</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-            <!-- #/ container -->
+    .topup-card h4 {
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .topup-card h5 {
+        margin-top: 10px;
+        font-weight: 600;
+        color: #2d2d2d;
+    }
+
+    .topup-card p {
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #555;
+    }
+
+    #amount {
+        font-size: 18px;
+        padding: 10px 15px;
+        border-radius: 8px;
+    }
+
+    #formatted-label {
+        margin-top: 5px;
+        font-weight: 500;
+        color: #007bff;
+        font-size: 14px;
+        display: block;
+    }
+
+    .btn-topup {
+        background-color: green;
+        color: white;
+        font-weight: 600;
+        padding: 12px 25px;
+        border-radius: 8px;
+        transition: 0.3s;
+    }
+
+    .btn-topup:hover {
+        background-color: #056b05;
+    }
+
+    @media (max-width: 576px) {
+        .topup-card {
+            padding: 20px;
+        }
+    }
+</style>
+    <div class="container py-5">
+        <div class="topup-card">
+            <h4>Top Up Your Balance</h4>
+            <h5>Current Balance: ₦
+                <span>
+                    @if(!$balance)
+                        0.00
+                    @else
+                        {{ number_format($balance->balance, 2) }}
+                    @endif
+                </span>
+            </h5>
+
+            <p class="text-muted">Enter Amount (in Naira):</p>
+
+            <form id="topupForm" action="{{ route('topup.initialize') }}" method="POST">
+                @csrf
+                <div class="form-group">
+                    <input type="text" class="form-control input-default" name="amount" id="amount" placeholder="e.g. 10,000" required>
+                    <small id="formatted-label" style="color: green;"></small>
+                </div>
+
+                <div class="form-group mt-3">
+                    <button class="btn btn-topup" type="submit">Top Up Now</button>
+                </div>
+            </form>
         </div>
+    </div>
 
     <!--**********************************
         Scripts
@@ -99,27 +155,37 @@
 
     <!-- Auto Redraw: Fetch and update balance every 10 seconds -->
     @include('components.contact-us')
-    <script>
-        document.getElementById('toggleButton').addEventListener('click', function() {
-            const balance = document.getElementById('balance');
-            const hiddenBalance = document.getElementById('hiddenBalance');
-            const icon = document.getElementById('toggleIcon');
+<script>
+    const amountInput = document.getElementById('amount');
+    const label = document.getElementById('formatted-label');
 
-            if (balance.style.display === 'none') {
-                // Show Balance
-                balance.style.display = 'block';
-                hiddenBalance.style.display = 'none';
-                icon.classList.remove('icon-eye');
-                icon.classList.add('icon-eye'); // Change to "eye-slash" icon
-            } else {
-                // Hide Balance
-                balance.style.display = 'none';
-                hiddenBalance.style.display = 'block';
-                icon.classList.remove('icon-eye-slash');
-                icon.classList.add('icon-eye'); // Change back to "eye" icon
-            }
-        });
-    </script>
+    amountInput.addEventListener('input', function (e) {
+        let rawValue = e.target.value.replace(/[^0-9]/g, '');
+
+        if (!rawValue) {
+            label.textContent = '';
+            return;
+        }
+
+        let formatted = Number(rawValue).toLocaleString('en-NG');
+        e.target.value = formatted;
+
+        let value = parseInt(rawValue);
+        let unit = '';
+
+        if (value >= 1_000_000) {
+            unit = 'Millions';
+        } else if (value >= 1_000) {
+            unit = 'Thousands';
+        } else if (value >= 100) {
+            unit = 'Hundreds';
+        } else {
+            unit = '';
+        }
+
+        label.textContent = unit ? `You're entering in the ${unit}` : '';
+    });
+</script>
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
     <script src="{{ asset('js/custom.min.js') }}"></script>
     <script src="{{ asset('js/settings.js') }}"></script>

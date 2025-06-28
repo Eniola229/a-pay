@@ -16,6 +16,7 @@ use App\Models\GeneralNotification;
 use App\Models\Balance;
 use App\Models\ContactInquiry;
 use App\Models\Errors;
+use Illuminate\Support\Facades\Http;
 
 class AdminAuthController extends Controller
 {
@@ -109,6 +110,24 @@ class AdminAuthController extends Controller
         $totalBalance = Balance::all()->sum('balance');
 
         return view('admin.dashboard', compact("users", "userCount", "tranCount", 'totalBalance'));
+    }
+
+    public function getBalance()
+    {
+        $token = env('EBILLS_API_TOKEN');
+
+        $response = Http::withToken($token)
+            ->get('https://ebills.africa/wp-json/api/v2/balance');
+
+        if ($response->successful()) {
+            return response()->json($response->json());
+        } else {
+            return response()->json([
+                'code' => 'error',
+                'message' => 'Failed to fetch balance',
+                'details' => $response->body()
+            ], $response->status());
+        }
     }
 
       public function transactions(Request $request)

@@ -29,7 +29,7 @@
                     </li>
                     <hr>
                    <li>
-                       <a class="has-arrow" href="https://wa.me/qr/PXDYDW6XSJ2HG1" target="_blank" aria-expanded="false">
+                       <a class="has-arrow" href="https://wa.me/09079916807" target="_blank" aria-expanded="false">
                             
                             <span class="nav-text"><strong>Whatsapp Us</strong></span>
                         </a>

@@ -23,8 +23,13 @@ class TopUpController extends Controller
     // Initialize the payment transaction with Paystack
     public function initialize(Request $request)
     {
+
+        $request->merge([
+            'amount' => str_replace([',', '.'], '', $request->amount)
+        ]);        
+
         $request->validate([
-            'amount' => 'required|numeric|min:100'
+            'amount' => 'required|numeric'
         ]);
 
         $email = Auth::user()->email;
@@ -48,6 +53,14 @@ class TopUpController extends Controller
 
         if ($body['status'] && isset($body['data'])) {
             // Redirect user to Paystack payment page
+            $transaction = Transaction::create([
+                'user_id'     => Auth::user()->id,
+                'beneficiary' => Auth::user()->mobile,
+                'amount'      => $request->amount, 
+                'description' => 'Wallet Top-up',
+                'status'      => 'PENDING'
+            ]);
+
             return redirect($body['data']['authorization_url']);
         } else {
             return back()->with('error', 'Payment initialization failed. Please try again.');
@@ -78,11 +91,23 @@ class TopUpController extends Controller
                 ['user_id' => Auth::id()],
                 ['balance' => 0, 'pin' => ''] 
             );
+           $transaction = Transaction::where('user_id', Auth::id())
+            ->where('description', 'Wallet Top-up')
+            ->latest()
+            ->first();
+            $transaction->status = "SUCCESS";
+            $transaction->save();
             $balance->balance += $amount;
             $balance->save();
 
             return redirect()->route('topup')->with('success', 'Top up successful!');
         } else {
+            $transaction = Transaction::where('user_id', Auth::id())
+            ->where('description', 'Wallet Top-up')
+            ->latest()
+            ->first();
+            $transaction->status = "ERROR";
+            $transaction->save();
             return redirect()->route('topup')->with('error', 'Payment failed, please try again.');
         }
     }

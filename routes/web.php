@@ -16,6 +16,9 @@ use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\Security\DeviceVerificationController;
 use App\Http\Controllers\Leaners\RegistrationController;
+use App\Http\Controllers\Loan\CreditLimitController;
+use App\Http\Controllers\Loan\BorrowAirtimeController;
+use App\Http\Controllers\Loan\BorrowDataController;
 
 
 
@@ -73,16 +76,24 @@ Route::middleware('auth')->group(function () {
     Route::post('/airtime/buy', [AirtimePurchaseController::class, 'buyAirtime'])->name('buy.airtime');
     Route::get('/recent-purchases', [AirtimePurchaseController::class, 'recentPurchases'])->name('recent.purchases');
     Route::get('/airtime/history', [AirtimePurchaseController::class, 'purchaseHistory'])->name('airtime.history');
+    //Borrow Airtime
+    Route::get('/borrow/airtime', [BorrowAirtimeController::class, 'showForm'])->name('airtime.borrow');
+    Route::post('/borrow/airtime', [BorrowAirtimeController::class, 'buyAirtime'])->name('borrow.airtime');
     //DATA
     Route::get('/data/buy', [DataPurchaseController::class, 'showForm'])->name('data.form');
     Route::get('/data-plans/{networkId}', [DataPurchaseController::class, 'getDataPlans'])->name('data-plans');
     Route::post('/buy-data', [DataPurchaseController::class, 'buyData'])->name('buy.data');
     Route::get('/recent-purchases-data', [DataPurchaseController::class, 'recentPurchases'])->name('recent.purchases-data');
+    //Borrow Data
+     Route::get('/borrow/data', [BorrowDataController::class, 'showForm'])->name('data.form');
+     Route::post('/borrow-data', [BorrowDataController::class, 'buyData'])->name('borrow.data');
     //Pay Electricty
     Route::get('/electricity', [ElectricityController::class, 'showForm'])->name('electricity.form');
     Route::post('/pay-electricity', [ElectricityController::class, 'payElectricity'])->name('pay.electricity');
     //TRANSACTIONS
     Route::get('/transactions', [TransactionsController::class, 'view'])->name('trans');
+    //Loan/Borrow
+    Route::get('/borrow/credit_limit', [CreditLimitController::class, 'view'])->name('creditlimit');
 });
 
 //ADMIN
@@ -93,6 +104,7 @@ Route::get('admin/logout', [AdminAuthController::class, 'logout'])->name('admin-
 
 Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/dashboard', [AdminAuthController::class, 'dashboard'])->name('admin-dashboard'); 
+ Route::get('/wallet-balance', [AdminAuthController::class, 'getBalance'])->name('wallet.balance');
  Route::get('/transactions', [AdminAuthController::class, 'transactions'])->name('admin-transactions'); 
  Route::get('/complians', [AdminAuthController::class, 'complians'])->name('admin-complians'); 
  Route::get('/users', [AdminAuthController::class, 'users'])->name('admin-users'); 

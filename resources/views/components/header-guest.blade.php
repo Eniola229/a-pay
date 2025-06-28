@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
     <title>A-Pay - Transactions Made Easy</title>
+     <!-- Description for SEO -->
+  <meta name="description" content="A-Pay is your all-in-one solution for airtime, data, and utility payments in Nigeria. Fast, secure, and easy to use.">
+
+  <!-- Favicon -->
+  <link rel="icon" href="images/APAY.png" type="image/x-icon">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     
