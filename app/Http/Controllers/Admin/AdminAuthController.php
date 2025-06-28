@@ -17,6 +17,7 @@ use App\Models\Balance;
 use App\Models\ContactInquiry;
 use App\Models\Errors;
 use Illuminate\Support\Facades\Http;
+use App\Models\Borrow;
 
 class AdminAuthController extends Controller
 {
@@ -255,6 +256,15 @@ class AdminAuthController extends Controller
         Auth::guard('admin')->logout();
 
         return redirect('admin/login');
+    }
+
+    public function loans()
+    {
+        $loans = Borrow::with('user.balance')
+            ->latest()
+            ->paginate(15);
+
+        return view('admin.loans', compact('loans'));
     }
 
 }

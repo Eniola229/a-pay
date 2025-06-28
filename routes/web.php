@@ -115,7 +115,7 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/notifications', [AdminAuthController::class, 'notification'])->name('admin-notifications'); 
  Route::post('/notifications/store', [AdminAuthController::class, 'Notificationstore'])->name('notifications.store');
  Route::delete('/notifications/{id}', [AdminAuthController::class, 'Notificationdestroy'])->name('notifications.destroy');
-
+ Route::get('/loans', [AdminAuthController::class, 'loans'])->name('admin-loans'); 
 });
 
 require __DIR__.'/auth.php';

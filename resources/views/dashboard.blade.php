@@ -246,7 +246,7 @@
                                     @if(!$balance)
                                         0.00
                                     @else
-                                       {{ $balance->balance }}
+                                      {{ number_format($balance->balance, 2) }}
                                     @endif
                                     </h2>
                                     <h2 id="hiddenBalance" class="text-white">****</h2>

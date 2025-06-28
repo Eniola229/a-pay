@@ -150,87 +150,48 @@
             Content body start
         ***********************************-->
 
-      <div class="container-fluid col-xl-8 col-lg-10 col-md-12 p-4">
-<div class="container table-container">
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered custom-table">
-            <thead>
-                <th>Customer Name</th>
-                <th>Customer Mobile</th>
-                    <th>Customer Email</th>
-                    <th>Customer Balance</th>
-                    <th>Customer Loan</th>
-                    <th>Joined At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($users as $user)
+    <div class="container-fluid col-xl-10 col-lg-12 p-4">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered custom-table">
+                <thead>
                     <tr>
-                        <td>{{ $user->name }}</td>
-                        <td>{{ $user->mobile }}</td>
-                        <td>{{ $user->email }}</td>
-                        <td>₦ {{ number_format($user->balance->balance, 2) }}
-                        <td>₦ {{ number_format($user->balance->owe, 2) }}
-                        </td>
-                        <td>{{ $user->created_at->format('d M Y, h:i A') }}</td>
-                       
-                        <td>
-                        <button class="btn btn-warning btn-sm edit-user" 
-                                data-id="{{ $user->id }}" 
-                                data-name="{{ $user->name }}" 
-                                data-mobile="{{ $user->mobile }}" 
-                                data-email="{{ $user->email }}">
-                            Edit
-                        </button>
-                    </td>
+                        <th>Customer Name</th>
+                        <th>Mobile</th>
+                        <th>Email</th>
+                        <th>Balance</th>
+                        <th>Owe</th>
+                        <th>Loan Amount</th>
+                        <th>Loan For</th>
+                        <th>Status</th>
+                        <th>Repayment Status</th>
+                        <th>Requested At</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach($loans as $loan)
+                        <tr>
+                            <td>{{ $loan->user->name }}</td>
+                            <td>{{ $loan->user->mobile }}</td>
+                            <td>{{ $loan->user->email }}</td>
+                            <td>₦{{ number_format($loan->user->balance->balance ?? 0, 2) }}</td>
+                            <td>₦{{ number_format($loan->user->balance->owe ?? 0, 2) }}</td>
+                            <td>₦{{ number_format($loan->amount, 2) }}</td>
+                            <td>{{ $loan->for ?? 'N/A' }}</td>
+                            <td><span class="badge badge-{{ $loan->status === 'approved' ? 'success' : ($loan->status === 'pending' ? 'warning' : 'danger') }}">{{ strtoupper($loan->status) }}</span></td>
+                            <td><span class="badge badge-{{ $loan->repayment_status === 'PAID' ? 'success' : ($loan->repayment_status === 'NOT PAID FULL' ? 'warning' : 'danger') }}">{{ strtoupper($loan->repayment_status) }}</span></td>
+                            <td>{{ $loan->created_at->format('d M Y, h:i A') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        {{-- Pagination --}}
+        <div class="mt-4">
+            {{ $loans->links() }}
+        </div>
     </div>
-</div>
-        <!-- Pagination links -->
-        @if ($users->hasPages())
-            <div class="bootstrap-pagination">
-                <nav>
-                    <ul class="pagination">
-                        {{-- Previous Page Link --}}
-                        @if ($users->onFirstPage())
-                            <li class="page-item disabled">
-                                <a class="page-link"><span aria-hidden="true">&laquo;</span></a>
-                            </li>
-                        @else
-                            <li class="page-item">
-                                <a class="page-link" href="{{ $users->previousPageUrl() }}" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                        @endif
 
-                        {{-- Pagination Elements --}}
-                        @foreach ($users->links()->elements[0] as $page => $url)
-                            <li class="page-item {{ $users->currentPage() == $page ? 'active' : '' }}">
-                                <a class="page-link" href="{{ $url }}">{{ $page }}</a>
-                            </li>
-                        @endforeach
-
-                        {{-- Next Page Link --}}
-                        @if ($users->hasMorePages())
-                            <li class="page-item">
-                                <a class="page-link" href="{{ $users->nextPageUrl() }}" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        @else
-                            <li class="page-item disabled">
-                                <a class="page-link"><span aria-hidden="true">&raquo;</span></a>
-                            </li>
-                        @endif
-                    </ul>
-                </nav>
-            </div>
-        @endif
 
         <!-- Receipt Modal -->
 <!--         <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
@@ -260,7 +221,7 @@
  -->
 
 <!-- Edit User Modal -->
-<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+<!-- <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -294,7 +255,7 @@
             </div>
         </div>
     </div>
-</div>
+</div> -->
 
             <!-- #/ container -->
         </div>
@@ -303,7 +264,7 @@
         Scripts
     ***********************************-->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script type="text/javascript">
+<!-- <script type="text/javascript">
     $(document).ready(function() {
     // When "Edit" button is clicked, open modal and load user data
     $('.edit-user').click(function() {
@@ -370,7 +331,7 @@
     });
 });
 
-</script>
+</script> -->
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
     <script src="{{ asset('js/custom.min.js') }}"></script>
     <script src="{{ asset('js/settings.js') }}"></script>

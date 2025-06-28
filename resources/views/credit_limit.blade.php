@@ -233,6 +233,7 @@
 <div class="card mt-4">
     <div class="card-header bg-primary text-white">
         <h5 class="mb-0">How to Borrow & Repay</h5>
+        <strong>NOTE: ALL LOAN MUST BEEN PAID BACK WITHIN 2 WEEKS</strong>
     </div>
     <div class="card-body">
         <h6><strong>How to Borrow</strong></h6>
@@ -291,8 +292,11 @@
                       <td>{{ ucfirst($loan->status) }}</td>
                       <td>{{ $loan->repayment_status }}</td>
                       <td>{{ $loan->created_at->format('d M Y') }}</td>
-                      <td><a href="{{ url('/topup') }}">Repay</td>
-                    </tr>
+                      <td>@if($loan->status !== 'rejected' & $loan->repayment_status !== 'PAID')
+                            <a href="{{ url('/topup') }}" class="btn btn-sm btn-success">Repay</a>
+                        @endif
+                    </td>
+
                   @endforeach
                 </tbody>
               </table>

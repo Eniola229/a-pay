@@ -40,6 +40,12 @@
                             <span class="nav-text">Users</span>
                         </a>
                     </li>
+                    <li>
+                       <a class="has-arrow {{ request()->is('admin/loans') ? 'active' : '' }}" href="{{ url('admin/loans') }}" aria-expanded="false">
+                             <i class="icon-user menu-icon"></i>
+                            <span class="nav-text">Loans</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>

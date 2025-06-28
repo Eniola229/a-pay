@@ -18,7 +18,7 @@ class CreditLimitController extends Controller
     {
         $user = Auth::user();
         $balance = Balance::where('user_id', $user->id)->first();
-        $borrowHistory = Borrow::where('user_id', $user->id)->latest()->get();
+        $borrowHistory = Borrow::where('user_id', $user->id)->orderBy('created_at', 'desc')->latest()->get();
 
         // Count and sum APay transactions
         $apayTransactions = Transaction::where('user_id', $user->id)->count();
@@ -49,10 +49,10 @@ class CreditLimitController extends Controller
         }
 
         // Check minimum APay transaction requirement
-        if ($apayTransactions < 5) {
+        if ($apayTransactions < 7) {
             return view('credit_limit', [
                 'requirementNotMet' => true,
-                'requiredCount' => 5,
+                'requiredCount' => 7,
                 'currentCount' => $apayTransactions,
                 'balance' => $balance,
                 'borrowHistory' => $borrowHistory
@@ -68,7 +68,7 @@ class CreditLimitController extends Controller
         }
 
         // Reward transaction frequency
-        if ($apayTransactions >= 5 && $apayTransactions < 20) {
+        if ($apayTransactions >= 7 && $apayTransactions < 20) {
             $limit += 1000;
         } elseif ($apayTransactions >= 20 && $apayTransactions < 50) {
             $limit += 2500;

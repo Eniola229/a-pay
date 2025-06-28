@@ -280,7 +280,7 @@ use App\Models\Transaction;
         </div>
 
         <!-- Download Receipt Button -->
-        <button class="download-btn" onclick="downloadReceipt()">Download Receipt</button>
+        <button class="download-btn" id="download-btn" onclick="downloadReceipt()">Download Receipt</button>
     </div>
 </div>
 
@@ -441,17 +441,29 @@ use App\Models\Transaction;
         document.getElementById('transactionModal').classList.remove('hidden');
     }
 
-    function downloadReceipt() {
-        html2canvas(document.getElementById("receipt")).then(canvas => {
-            let image = canvas.toDataURL("image/png");
+function downloadReceipt() {
+    const button = document.getElementById("download-btn");
+    const originalText = button.innerHTML;
 
-            // Create a download link
-            let downloadLink = document.createElement("a");
-            downloadLink.href = image;
-            downloadLink.download = "A-Pay_Receipt.png";
-            downloadLink.click();
-        });
-    }
+    // Change button text
+    button.innerHTML = "Downloading...";
+    button.disabled = true;
+
+    html2canvas(document.getElementById("receipt")).then(canvas => {
+        let image = canvas.toDataURL("image/png");
+
+        let downloadLink = document.createElement("a");
+        downloadLink.href = image;
+        downloadLink.download = "A-Pay_Receipt.png";
+        downloadLink.click();
+
+        // Revert button text after short delay
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    });
+}
 
     function closeModal() {
         document.getElementById('transactionModal').classList.add('hidden');

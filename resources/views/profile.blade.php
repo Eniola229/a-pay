@@ -202,13 +202,13 @@
                         <div class="profile-card">
                             <div class="profile-card-body">
                                 <div class="user-info">
-                                    <h3 class="user-name">{{ Auth::user()->name }}</h3>
+                                    <h3 class="user-name" style="color: white;">{{ Auth::user()->name }}</h3>
                                     <p class="user-email">{{ Auth::user()->email }}</p>
-                                    <p class="user-account-number" id="accountNumber" onclick="copyAccountNumber()">
+                                    <!-- <p class="user-account-number" id="accountNumber" onclick="copyAccountNumber()">
                                         Account Number: <span>{{ Auth::user()->account_number }}</span>
                                         <i class="fa fa-copy copy-icon"></i>
                                     </p>
-                                    <p class="user-account-number">Wema Bank</p>
+                                    <p class="user-account-number">Wema Bank</p> -->
                                 </div>
                                 <div class="balance-section">
                                     <button class="balance-btn">

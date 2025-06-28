@@ -65,7 +65,7 @@
                                     </div>
                                     <button class="btn login-form__btn submit w-100">Sign Up</button>
                                 </form>
-                                    <p class="mt-5 login-form__footer">Have account <a href="{{ route('login') }}" class="" style="color: green;">Sign In </a> now</p>
+                                    <p class="mt-5 login-form__footer">Have account? <a href="{{ route('login') }}" class="" style="color: green;">Sign In </a> now</p>
                                     </p>
                                 </div>
                             </div>

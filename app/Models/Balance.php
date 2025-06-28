@@ -36,6 +36,7 @@ class Balance extends Authenticatable
         'user_id',
         'balance',
         'pin',
+        'owe',
     ];
 
     
