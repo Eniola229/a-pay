@@ -168,12 +168,18 @@ class AdminAuthController extends Controller
         $transaction->save();
 
         // If status is changed from "PENDING" to "ERROR", refund the user
-        if ($oldStatus === 'PENDING' && $request->status === 'ERROR') {
+        if (
+            $oldStatus === 'PENDING' &&
+            $request->status === 'ERROR' &&
+            $transaction->description !== 'Wallet Top-up'
+        ) {
             $user = User::find($request->user_id);
             $balance = Balance::where('user_id', $user->id)->first();
+        
             if ($user) {
                 $balance->balance += $transaction->amount;
                 $balance->save();
+        
                 Transaction::create([
                     'user_id'     => $user->id,
                     'amount'      => $transaction->amount,
