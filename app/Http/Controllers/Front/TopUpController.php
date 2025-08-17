@@ -57,7 +57,7 @@ class TopUpController extends Controller
             // Redirect user to Paystack payment page
             $transaction = Transaction::create([
                 'user_id'     => Auth::user()->id,
-                'beneficiary' => Auth::user()->mobile,
+                'beneficiary' => Auth::user()->name . ' | ' .Auth::user()->mobile,
                 'amount'      => $request->amount, 
                 'description' => 'Wallet Top-up',
                 'status'      => 'PENDING'

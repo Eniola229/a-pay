@@ -361,8 +361,8 @@ $(document).ready(function() {
                     Swal.showLoading();
                 }
             });
-            $.get(`${window.location.origin}/a-pay/data-plans/${networkId}`)
-            //$.get(`/data-plans/${networkId}`)
+            //$.get(`${window.location.origin}/a-pay/data-plans/${networkId}`)
+            $.get(`/data-plans/${networkId}`)
                 .done(function (response) {
                     Swal.close();
 

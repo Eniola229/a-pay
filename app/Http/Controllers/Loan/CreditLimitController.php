@@ -21,8 +21,13 @@ class CreditLimitController extends Controller
         $borrowHistory = Borrow::where('user_id', $user->id)->orderBy('created_at', 'desc')->latest()->get();
 
         // Count and sum APay transactions
-        $apayTransactions = Transaction::where('user_id', $user->id)->count();
-        $totalTransactionAmount = Transaction::where('user_id', $user->id)->sum('amount');
+        $apayTransactions = Transaction::where('user_id', $user->id)
+                        ->whereNotIn('status', ['PENDING', 'ERROR'])
+                        ->count();
+
+        $totalTransactionAmount = Transaction::where('user_id', $user->id)
+                              ->whereNotIn('status', ['PENDING', 'ERROR'])
+                              ->sum('amount');
 
         // Check for pending loan (but allow borrow if credit limit > 0)
         $pendingLoan = Borrow::where('user_id', $user->id)

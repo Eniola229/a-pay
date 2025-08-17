@@ -28,7 +28,7 @@
                                 <a class="text-center" href="index.html"> <h2>Server Error</h2></a>
                                 <p>Oops! Something went wrong on our end. We're working to fix it — please try again shortly.</p>
                                 
-                                <p class="mt-5 login-form__footer">Dont have account? <a href="{{ route('register') }}" style="color: green;" >Sign Up</a> now</p>
+                                <!-- <p class="mt-5 login-form__footer">Dont have account? <a href="{{ route('register') }}" style="color: green;" >Sign Up</a> now</p> -->
                             </div>
                         </div>
                     </div>

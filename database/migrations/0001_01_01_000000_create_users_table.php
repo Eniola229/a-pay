@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('zipcode')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->string('last_login_device')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

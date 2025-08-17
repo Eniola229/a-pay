@@ -28,7 +28,7 @@
                                 <a class="text-center" href="index.html"> <h2>Page Expired – Please Reload the Page</h2></a>
                                 <p>This usually happens when a page has been left open for too long or your session has expired. Reloading will refresh your session and allow you to continue.</p>
                                 
-                                <p class="mt-5 login-form__footer">Dont have account? <a href="{{ route('register') }}" style="color: green;" >Sign Up</a> now</p>
+                                <!-- <p class="mt-5 login-form__footer">Dont have account? <a href="{{ route('register') }}" style="color: green;" >Sign Up</a> now</p> -->
                             </div>
                         </div>
                     </div>

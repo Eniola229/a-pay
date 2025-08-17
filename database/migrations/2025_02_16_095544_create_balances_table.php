@@ -16,7 +16,7 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->decimal('balance', 15, 2);
             $table->decimal('owe', 15, 2)->default(0);
-            $table->string('pin');
+            $table->string('pin')->nullable();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });

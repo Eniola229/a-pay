@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\DataPurchaseMail;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Str;
+use App\Services\CashbackService;
+
 
 
 class DataPurchaseController extends Controller
@@ -173,6 +175,13 @@ class DataPurchaseController extends Controller
         if ($response->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
             $transaction->update(['status' => 'SUCCESS']);
             $dataPurchase->update(['status' => 'SUCCESS']);
+            
+            //For cashback
+            $cashback = CashbackService::calculate($planPrice);
+            $balance->balance += $cashback;
+            $balance->save();
+            $transaction->cash_back += $cashback;
+            $transaction->save();
 
             // Send success email
             Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
@@ -204,6 +213,8 @@ class DataPurchaseController extends Controller
     public function recentPurchases()
     {
         $purchases = DataPurchase::where('user_id', Auth::id())
+            ->select('phone_number')
+            ->distinct()
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();

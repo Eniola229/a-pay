@@ -193,8 +193,8 @@
 	        {{-- Credit Eligibility --}}
 	        @if(isset($requirementNotMet))
 	            <div class="alert alert-warning mt-4">
-	                <strong>Notice:</strong> You need at least {{ $requiredCount }} APay transactions.<br>
-	                You currently have {{ $currentCount }}.
+	                <strong>Sorry!</strong> You are not elible for a loan right now.<br>
+	                Keep making transactions
 	            </div>
 
 	        @elseif(isset($hasLoan) && $hasLoan)
@@ -233,7 +233,7 @@
 <div class="card mt-4">
     <div class="card-header bg-primary text-white">
         <h5 class="mb-0">How to Borrow & Repay</h5>
-        <strong>NOTE: ALL LOAN MUST BEEN PAID BACK WITHIN 2 WEEKS</strong>
+        <strong>NOTE: ALL LOAN MUST BE PAID BACK WITHIN 2 WEEKS</strong>
     </div>
     <div class="card-body">
         <h6><strong>How to Borrow</strong></h6>

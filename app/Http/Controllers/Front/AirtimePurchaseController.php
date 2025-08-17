@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 use App\Mail\AirtimePurchaseMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Client\RequestException;
+use App\Services\CashbackService;
+
 
 class AirtimePurchaseController extends Controller
 {
@@ -45,12 +47,8 @@ class AirtimePurchaseController extends Controller
             return response()->json(['status' => false, 'message' => 'Insufficient balance.'], 400);
         }
 
-        // Calculate cashback (3% of the amount)
-        $cashback = $request->amount * 0.03;
-
         // Deduct the balance and add cashback
         $balance->balance -= $request->amount;
-        $user->cashback_balance += $cashback;
         $balance->save();
 
         // Store the airtime purchase record
@@ -58,7 +56,7 @@ class AirtimePurchaseController extends Controller
             'user_id' => $user->id,
             'phone_number' => $request->phone_number,
             'amount' => $request->amount,
-            'network_id' => $request->service_id, // Store service_id here
+            'network_id' => $request->service_id, // Store service_id
             'status' => 'PENDING'
         ]);
 
@@ -101,6 +99,12 @@ class AirtimePurchaseController extends Controller
             // Update transaction and airtime purchase status
             $transaction->update(['status' => 'SUCCESS']);
             $airtime->update(['status' => 'SUCCESS']);
+            //For Cashback
+            $cashback = CashbackService::calculate($request->amount);
+            $balance->balance += $cashback;
+            $balance->save();
+            $transaction->cash_back += $cashback;
+            $transaction->save();
 
             // Send success email
             Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'SUCCESS'));
@@ -112,7 +116,6 @@ class AirtimePurchaseController extends Controller
 
             // Refund the user
             $balance->balance += $request->amount;
-            $user->cashback_balance -= $cashback;
             $balance->save();
 
             // Update transaction and airtime purchase status
@@ -129,10 +132,13 @@ class AirtimePurchaseController extends Controller
         }
     }
 
+
     public function recentPurchases()
     {
         $purchases = AirtimePurchase::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
+            ->select('phone_number')
+            ->distinct()
             ->take(5)
             ->get();
 

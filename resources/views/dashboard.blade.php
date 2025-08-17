@@ -376,11 +376,29 @@
                             </div>
                         </div>
                     </div>
-                    @endif                
+                    @endif            
+                <div class="container my-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title mb-3">🎉 Invite and Earn ₦100 Per Invite</h5>
+                            <p class="card-text">Share your unique invite link with friends and earn rewards.</p>
+
+                            <div class="input-group mb-3">
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="inviteLink"
+                                       style="border: 1px solid green;" 
+                                       readonly
+                                       value="{{ url('/register?r_c=' . Auth::user()->mobile) }}">
+                                <button class="btn" style="background:none; border: 1px solid green; color: green;"  type="button" onclick="copyInviteLink()">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>    
             </div>
             <!-- #/ container -->
+        
         </div>
-
 
     <!--**********************************
         Scripts
@@ -530,6 +548,17 @@
         });
 
     </script>
+
+        <script>
+        function copyInviteLink() {
+            var copyText = document.getElementById("inviteLink");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+            document.execCommand("copy");
+            alert("Invite link copied: " + copyText.value);
+        }
+        </script>
+
 
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
     <script src="{{ asset('js/custom.min.js') }}"></script>

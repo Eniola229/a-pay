@@ -48,6 +48,21 @@
                                        <div class="alert alert-danger mb-2">{{ $message }}</div>
                                     @enderror
                                     </div>
+                                    <div class="form-group">
+                                       <input
+                                            type="tel"
+                                            class="form-control"
+                                            placeholder="Referer Code (optional)"
+                                            name="referer_mobile"
+                                            value="{{ old('referer_mobile') }}"
+                                            pattern="\+234[0-9]{10}"
+                                            title="Please enter a valid Nigerian phone number starting with +234 (e.g., +2348035906313)"
+                                            readonly
+                                        >
+                                    @error('referer_mobile')
+                                       <div class="alert alert-danger mb-2">{{ $message }}</div>
+                                    @enderror
+                                    </div>
                                    <div class="form-group">
                                         <input type="password" class="form-control" id="password" placeholder="Password" name="password" required>
                                         <small id="passwordStrength" class="text-muted"></small>
@@ -76,6 +91,34 @@
         </div>
     </div>
     
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get("r_c");
+    if (!raw) return;
+
+    const normalizeRc = (val) => {
+        let s = String(val).trim().replace(/\s+/g, '');
+
+        // If already perfect, keep it
+        if (/^\+234\d{10}$/.test(s)) return s;
+
+        // Remove one or MORE leading 234s (with or without +), leading zeros, keep digits only
+        s = s.replace(/^(\+?234)+/i, '');
+        s = s.replace(/^0+/, '');
+        s = s.replace(/\D/g, '');
+
+        // Keep the last 10 digits (Nigerian local number)
+        s = s.slice(-10);
+
+        return s ? `+234${s}` : '';
+    };
+
+    const formatted = normalizeRc(raw);
+    const input = document.querySelector('input[name="referer_mobile"]');
+    if (input && formatted) input.value = formatted;
+});
+</script>
 
 <script>
     document.querySelector('form').addEventListener('submit', function (event) {
@@ -112,7 +155,7 @@
             strengthText = "Add at least one special character (!@#$%^&*)";
             strengthColor = "orange";
         } else {
-            strengthText = "Strong Password ✅";
+            strengthText = "Strong Password";
             strengthColor = "green";
         }
 
@@ -126,9 +169,9 @@
 
         if (confirmPassword.length > 0) {
             if (password === confirmPassword) {
-                $("#passwordMatch").text("Passwords match ✅").css("color", "green");
+                $("#passwordMatch").text("Passwords match").css("color", "green");
             } else {
-                $("#passwordMatch").text("Passwords do not match ❌").css("color", "red");
+                $("#passwordMatch").text("Passwords do not match").css("color", "red");
             }
         } else {
             $("#passwordMatch").text("");

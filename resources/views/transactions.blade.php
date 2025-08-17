@@ -228,6 +228,8 @@ use App\Models\Transaction;
                     data-status="{{ ucfirst($transaction->status) }}"
                     data-date="{{ $transaction->created_at->format('M d, Y H:i A') }}"
                     data-beneficiary="{{ $transaction->beneficiary }}"
+                    data-cash_back="{{ $transaction->cash_back }}"
+                    data-charges="{{ $transaction->charges }}"
                     >
                     
                     <div class="transaction-info">
@@ -267,11 +269,26 @@ use App\Models\Transaction;
         <p class="status" id="modal-status"></p>
         <p class="date" id="modal-date"></p>
 
-        <!-- Paid With -->
+        <!-- Transaction Info -->
         <div class="modal-body">
-            <p><strong>Description:</strong> <span id="modal-description"></span></p>
-            <p><strong>Beneficiary:</strong> <span id="modal-beneficiary"></span></p>
+            <div class="info-row">
+                <span class="label">Description:</span>
+                <span class="value" id="modal-description"></span>
+            </div>
+            <div class="info-row">
+                <span class="label">Beneficiary:</span>
+                <span class="value" id="modal-beneficiary"></span>
+            </div>
+            <div class="info-row">
+                <span class="label">Cash Back:</span>
+                <span class="value">₦<span id="modal-cash_back"></span></span>
+            </div>
+            <div class="info-row">
+                <span class="label">Transaction Fee:</span>
+                <span class="value">₦<span id="modal-charges"></span></span>
+            </div>
         </div>
+
 
         <!-- Support Section -->
         <div class="footer-modal">
@@ -415,6 +432,24 @@ use App\Models\Transaction;
         background: #007a55;
     }
 
+    /* Info Rows for Transaction Details */
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        color: #000; /* make all black */
+        font-size: 14px;
+    }
+
+    .info-row .label {
+        font-weight: bold;
+        text-align: left;
+    }
+
+    .info-row .value {
+        text-align: right;
+    }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -437,6 +472,8 @@ use App\Models\Transaction;
         }
 
         document.getElementById('modal-date').textContent = element.dataset.date;
+        document.getElementById('modal-charges').textContent = element.dataset.charges;
+        document.getElementById('modal-cash_back').textContent = element.dataset.cash_back;
         document.getElementById('modal-beneficiary').textContent = element.dataset.beneficiary;
         document.getElementById('transactionModal').classList.remove('hidden');
     }
@@ -500,6 +537,8 @@ function downloadReceipt() {
             $('#receipt-status').text($(this).data('status'));
             $('#receipt-date').text($(this).data('date'));
             $('#beneficiary').text($(this).data('beneficiary'));
+            $('#cash_back').text($(this).data('cash_back'));
+            $('#charges').text($(this).data('charges'));
 
             var status = $(this).data('status'); // Keep it uppercase as backend sends it
             var statusElement = $('#receipt-status');

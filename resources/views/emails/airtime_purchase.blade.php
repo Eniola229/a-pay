@@ -71,7 +71,6 @@
                 <p>We encountered an issue processing your airtime. The amount has been refunded to your wallet.</p>
             @endif
 
-            <p>Transaction ID: <strong>{{ $transaction->id }}</strong></p>
             <p>Description: <strong>{{ $transaction->description }}</strong></p>
 
             <div class="footer">

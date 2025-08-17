@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Balance;
+use App\Models\Transaction;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,8 +53,20 @@ class RegisteredUserController extends Controller
                 'required',
                 'confirmed',
                 'min:8',
-                'not_in:123456789,password,12345678,123123,qwerty', 
+                'not_in:123456789,password,12345678,123123,qwerty',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/'
+            ],
+            'referer_mobile' => [
+                'nullable',
+                'regex:/^\+234[0-9]{10}$/',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        // Check if referer exists in "users.mobile"
+                        if (!\App\Models\User::where('mobile', $value)->exists()) {
+                            $fail('The referer code (phone number) is invalid.');
+                        }
+                    }
+                }
             ]
         ]);
 
@@ -66,6 +79,38 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
             'account_number' => $accountNumber,
         ]);
+
+        // Check if referer code is in URL (or input)
+        if ($request->has('referer_mobile') || $request->has('r_c')) {
+            $refererCode = $request->input('referer_mobile') ?? $request->input('r_c');
+
+            // Make sure it includes +234 format
+            if (strpos($refererCode, '+234') !== 0) {
+                $refererCode = '+234' . ltrim($refererCode, '0');
+            }
+
+            // Find referer by mobile
+            $referer = User::where('mobile', $refererCode)->first();
+
+            if ($referer) {
+                // Update balance +100
+                $balance = Balance::where('user_id', $referer->id)->first();
+                if ($balance) {
+                    $balance->increment('balance', 100);
+                }
+
+                // Create transaction record
+                Transaction::create([
+                    'user_id'     => $referer->id,
+                    'amount'      => 100,
+                    'cash_back'   => 0,
+                    'charges'     => 0,
+                    'beneficiary' => $referer->name . ' | ' . $referer->mobile,
+                    'description' => "Referral bonus for inviting {$request->name}",
+                    'status'      => 'success',
+                ]);
+            }
+        }
 
         // Check if Customer Exists in Paystack
         $customerLookupResponse = Http::withHeaders([
@@ -130,7 +175,7 @@ class RegisteredUserController extends Controller
         Log::info('Paystack Virtual Account Response:', $responseData);
 
         if (!isset($responseData['data']['account_number'])) {
-            return redirect()->back()->with('error', 'Failed to generate virtual account. Account created, Kindly Login!');
+            return redirect()->route('login')->with('success', 'Account created, Kindly Login!');
         }
 
         // Save Virtual Account
@@ -144,13 +189,13 @@ class RegisteredUserController extends Controller
         ]);
 
         // Send SMS Notification
-        $message = "Hello {$request->name}, thank you for registering with AfricPay! Your virtual account number is {$responseData['data']['account_number']}";
+        $message = "Hello {$request->name}, thank you for registering with A-Pay! Your virtual account number is {$responseData['data']['account_number']}";
         
         try {
             $smsService->sendSms($request->mobile, $message);
-            return redirect()->route('dashboard')->with('success', 'Registration successful! Virtual account created.');
+            return redirect()->route('login')->with('success', 'Registration successful! Virtual account created, Kindly login.');
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Registration successful, but SMS could not be sent: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Registration successful, but SMS could not be sent');
         }
     }
 

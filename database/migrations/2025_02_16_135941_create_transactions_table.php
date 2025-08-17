@@ -16,6 +16,8 @@ return new class extends Migration
             $table->uuid('user_id'); 
             $table->string('beneficiary');
             $table->decimal('amount', 15, 2)->nullable();
+            $table->decimal('cash_back', 15, 2)->default(0);
+            $table->decimal('charges', 15, 2)->default(0);
             $table->string('description')->nullable();
             $table->string('reference')->nullable();
             $table->enum('status', ['SUCCESS','PENDING', 'ERROR']);

@@ -35,6 +35,8 @@ class Transaction extends Authenticatable
     protected $fillable = [
         'user_id',
         'amount',
+        'cash_back',
+        'charges',
         'beneficiary',
         'description',
         'status',

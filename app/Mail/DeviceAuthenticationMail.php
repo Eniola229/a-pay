@@ -19,7 +19,7 @@ class DeviceAuthenticationMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Device Authentication Code')
+        return $this->subject('2 Factor Authentication Code')
             ->view('emails.device_authentication')
             ->with(['code' => $this->code]);
     }

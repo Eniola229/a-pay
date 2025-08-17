@@ -25,6 +25,13 @@
                                         </ul>
                                     </div>
                                 @endif
+
+                                @if(session('success'))
+                                    <div class="alert alert-success text-green-800 bg-green-200 p-4 rounded mb-4">
+                                        {{ session('success') }}
+                                    </div>
+                                @endif
+
                                 <form class="mt-5 mb-5 login-input" action="{{ route('login') }}" method="post">
                                     @csrf
                                    <div class="form-group">
