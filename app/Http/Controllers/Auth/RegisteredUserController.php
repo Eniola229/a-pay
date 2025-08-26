@@ -133,7 +133,7 @@ class RegisteredUserController extends Controller
         ])->get("https://api.paystack.co/customer/{$user->email}");
 
         $customerLookupData = $customerLookupResponse->json();
-        Log::info('Paystack Customer Lookup Response:', $customerLookupData);
+        //Log::info('Paystack Customer Lookup Response:', $customerLookupData);
         $nameParts = explode(' ', trim($request->name), 2);
         $firstName = $nameParts[0];
         $lastName = isset($nameParts[1]) ? $nameParts[1] : $firstName; // If no last name, duplicate first name
@@ -152,7 +152,7 @@ class RegisteredUserController extends Controller
             ]);
 
             $updateData = $updateResponse->json();
-            Log::info('Paystack Customer Update Response:', $updateData);
+            //Log::info('Paystack Customer Update Response:', $updateData);
         } else {
             // Customer does not exist, create a new one
             $customerResponse = Http::withHeaders([
@@ -166,7 +166,7 @@ class RegisteredUserController extends Controller
             ]);
 
             $customerData = $customerResponse->json();
-            Log::info('Paystack Customer Response:', $customerData);
+            //Log::info('Paystack Customer Response:', $customerData);
 
             if (!isset($customerData['data']['customer_code'])) {
                 return redirect()->back()->with('error', 'Failed to create Paystack customer.');
@@ -186,7 +186,7 @@ class RegisteredUserController extends Controller
         ]);
 
         $responseData = $paystackResponse->json();
-        Log::info('Paystack Virtual Account Response:', $responseData);
+        //Log::info('Paystack Virtual Account Response:', $responseData);
 
         if (!isset($responseData['data']['account_number'])) {
             return redirect()->route('login')->with('success', 'Account created, Kindly Login!');
@@ -203,7 +203,7 @@ class RegisteredUserController extends Controller
         ]);
 
         // Send SMS Notification
-        $message = "Hello {$request->name}, thank you for registering with A-Pay! Your virtual account number is {$responseData['data']['account_number']}";
+        $message = "Hello {$request->name}, thank you for registering with A-Pay!";
         
         try {
             $smsService->sendSms($request->mobile, $message);

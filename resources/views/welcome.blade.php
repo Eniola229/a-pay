@@ -247,13 +247,13 @@
                         </div>
                         <div class="collapse" id="collapseTwo" role="tabpanel" aria-labelledby="headingTwo">
                             <div class="card-body py-3 px-0">
-                                <ol>
-                                    <li>Sign up or log in to your A-Pay account</li>
-                                    <li>Select the service you want: airtime, data, or electricity</li>
-                                    <li>Enter the required details (e.g., phone number, amount, meter number)</li>
-                                    <li>Choose a payment method and confirm your transaction</li>
-                                    <li>Receive instant confirmation once your payment is successful</li>
-                                </ol>
+                                    <ol>
+                                        <li>Create an A-Pay account or log in to your existing one</li>
+                                        <li>Top up your wallet with funds</li>
+                                        <li>Select the service you want to purchase: airtime, data, or bill payment</li>
+                                        <li>Provide the required details (e.g., phone number, amount, meter number)</li>
+                                        <li>Confirm your transaction and get instant notification once it’s successful</li>
+                                    </ol>
                             </div>
                         </div>
                     </div>

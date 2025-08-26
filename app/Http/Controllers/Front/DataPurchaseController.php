@@ -80,7 +80,7 @@ class DataPurchaseController extends Controller
     {
         $request->validate([
             'phone_number' => 'required|string',
-            'network_id'   => 'required|string|in:mtn,glo,airtel,etisalat,9mobile',
+            'network_id'   => 'required|string|in:mtn,glo,airtel,9mobile,smile',
             'variation_id' => 'required|string',
             'pin'          => 'required|string|min:4|max:4'
         ]);

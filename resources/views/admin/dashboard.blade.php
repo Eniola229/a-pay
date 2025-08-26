@@ -79,7 +79,7 @@
                                 <h3 class="card-title text-white">Users Account Balance</h3>
                                 <div class="d-inline-block">
                                        <!-- Balance (Hidden by Default) -->
-                                    <h2 id="balance" class="text-white" style="display: none;">₦ {{ $totalBalance }}
+                                    <h2 id="balance" class="text-white" style="display: none;">₦ {{ number_format($totalBalance, 2, '.', ',') }}
                                    
                                     </h2>
 

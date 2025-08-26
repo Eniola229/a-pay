@@ -2,6 +2,8 @@
 
 //ADMIN
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\Admin\UserController;
+
 
 //User
 use App\Http\Controllers\ProfileController;
@@ -36,6 +38,14 @@ Route::get('/about', function () {
 
 Route::get('/contact', function () {
     return view('contact');
+});
+
+Route::get('/terms-and-condition', function () {
+    return view('terms-and-condition');
+});
+
+Route::get('/privacy-policy', function () {
+    return view('privacy-policy');
 });
 
 Route::get('/blog', function () {
@@ -112,7 +122,8 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/wallet-balance', [AdminAuthController::class, 'getBalance'])->name('wallet.balance');
  Route::get('/transactions', [AdminAuthController::class, 'transactions'])->name('admin-transactions'); 
  Route::get('/complians', [AdminAuthController::class, 'complians'])->name('admin-complians'); 
- Route::get('/users', [AdminAuthController::class, 'users'])->name('admin-users'); 
+ Route::get('/users', [UserController::class, 'users'])->name('admin-users'); 
+ Route::get('/users/{id}', [UserController::class, 'showUser'])->name('admin.users.show');
  Route::get('/errors', [AdminAuthController::class, 'errors'])->name('admin-errors'); 
  Route::post('/transactions/update', [AdminAuthController::class, 'updateTransaction'])->name('transactions.update');
  Route::get('/users/{id}/edit', [AdminAuthController::class, 'Useredit']);

@@ -24,8 +24,8 @@
                     <div class="ftco-footer-widget mb-4">
                         <h2 class="ftco-heading-2">Legal</h2>
                         <ul class="list-unstyled">
-                            <li><a href="#" class="py-2 d-block">Privacy &amp; Policy</a></li>
-                            <li><a href="#" class="py-2 d-block">Terms &amp; Conditions</a></li>
+                            <li><a href="{{ url('/privacy-policy') }}" class="py-2 d-block">Privacy &amp; Policy</a></li>
+                            <li><a href="{{ url('/terms-and-condition') }}" class="py-2 d-block">Terms &amp; Conditions</a></li>
                         </ul>
                     </div>
                 </div>

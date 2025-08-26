@@ -174,6 +174,7 @@
         .network-box[data-network="glo"] { color: #008000; }
         .network-box[data-network="airtel"] { color: #d91a1a; }
         .network-box[data-network="9mobile"] { color: #32a852; }
+        .network-box[data-network="smile"] { color: #32a852; }
 /*For amount input*/
         .red-border {
             border: 2px solid red !important;
@@ -255,6 +256,10 @@
                     <input type="radio" name="network_id" value="9mobile">
                     <i class="fas fa-signal"></i> 9mobile
                 </label>
+                <label class="network-box" data-network="smile">
+                    <input type="radio" name="network_id" value="smile">
+                    <i class="fas fa-signal"></i> Smile
+                </label>
             </div>
             <!-- Hidden select to retain compatibility with existing JavaScript -->
             <select id="network_id" name="network_id" class="d-none">
@@ -263,6 +268,7 @@
                 <option value="glo">Glo</option>
                 <option value="airtel">Airtel</option>
                 <option value="9mobile">9mobile</option>
+                <option value="smile">Smile</option>
             </select>
         </div>
 

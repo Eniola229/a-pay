@@ -137,11 +137,7 @@ class AdminAuthController extends Controller
         return view('admin.transactions', compact('transactions'));
     }
 
-     public function users(Request $request)
-    {
-        $users = User::with('balance')->orderBy('created_at', 'desc')->paginate(20);
-        return view('admin.users', compact('users'));
-    }
+
      public function complians(Request $request)
     {
         $complians = ContactInquiry::orderBy('created_at', 'desc')->paginate(20);
