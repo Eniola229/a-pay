@@ -19,6 +19,8 @@ use App\Mail\RegistrationConfirmation;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\Http; 
 use Illuminate\Support\Facades\Log;
+use App\Models\EmailVerification;
+use Carbon\Carbon;
 
 
 class RegisteredUserController extends Controller
@@ -48,6 +50,7 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'mobile' => ['required', 'regex:/^\+234[0-9]{10}$/', 'unique:users'],
+            'email_verification_code' => ['required'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
             'password' => [
                 'required',
@@ -69,6 +72,17 @@ class RegisteredUserController extends Controller
                 }
             ]
         ]);
+
+        $verification = EmailVerification::where('email', $request->email)->first();
+        $inputCode = (string) $request->email_verification_code;
+        $dbCode = (string) $verification->code;
+
+        if (!$verification || $dbCode !== $inputCode) {
+            dd($inputCode);
+            return back()->with('error', 'Invalid or expired email verification code.');
+        }
+
+        $verification->delete();
 
         $accountNumber = str_replace('+234', '', $request->mobile);
 

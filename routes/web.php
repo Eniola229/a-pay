@@ -19,6 +19,8 @@ use App\Http\Controllers\Leaners\RegistrationController;
 use App\Http\Controllers\Loan\CreditLimitController;
 use App\Http\Controllers\Loan\BorrowAirtimeController;
 use App\Http\Controllers\Loan\BorrowDataController;
+use App\Http\Controllers\EmailVerificationController;
+
 
 
 
@@ -39,6 +41,9 @@ Route::get('/contact', function () {
 Route::get('/blog', function () {
     return view('blog');
 });
+
+Route::post('/send-email-code', [EmailVerificationController::class, 'sendCode'])->name('send.email.code');
+
 //Contact us
 Route::post('/contact-us', [ContactInquiryController::class, 'store'])->name('contact.store');
 

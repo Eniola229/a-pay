@@ -26,12 +26,29 @@
                                        <div class="alert alert-danger mb-2">{{ $message }}</div>
                                     @enderror
                                     </div>
-                                    <div class="form-group">
-                                        <input type="email" class="form-control"  placeholder="Email" name="email" value="{{ old('email') }}" required>
+                                    <div class="form-group d-flex">
+                                        <input type="email" class="form-control" placeholder="Email" name="email" id="emailField" value="{{ old('email') }}" required>
+                                        <button type="button" id="sendCodeBtn" class="btn btn-success ml-2">Verify Email</button>
+                                    </div>
                                     @error('email')
                                        <div class="alert alert-danger mb-2">{{ $message }}</div>
                                     @enderror
-                                    </div>
+                                    <div class="form-group">
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        name="email_verification_code" 
+                                        id="emailVerificationCode" 
+                                        placeholder="Enter Verification Code" 
+                                        value="{{ old('email_verification_code') }}"
+                                        required
+                                        style="display:none;"
+                                    >
+                                </div>
+                                @error('email_verification_code')
+                                   <div class="alert alert-danger mb-2">{{ $message }}</div>
+                                @enderror
+
                                     <div class="form-group">
                                        <input
                                             type="tel"
@@ -90,7 +107,7 @@
             </div>
         </div>
     </div>
-    
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const params = new URLSearchParams(location.search);
@@ -118,6 +135,49 @@ document.addEventListener("DOMContentLoaded", function() {
     const input = document.querySelector('input[name="referer_mobile"]');
     if (input && formatted) input.value = formatted;
 });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    $("#sendCodeBtn").click(function() {
+    let email = $("#emailField").val();
+    if (!email) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Please enter your email first!'
+        });
+        return;
+    }
+
+    let btn = $(this);
+    btn.prop('disabled', true).text('Sending...');
+
+    $.post("{{ route('send.email.code') }}", {
+        email: email,
+        _token: "{{ csrf_token() }}"
+    }, function(data) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Verification Email Sent',
+            text: data.message,
+            timer: 2500,
+            showConfirmButton: false
+        });
+
+        // Show the input and focus
+        $("#emailVerificationCode").show().focus();
+        btn.prop('disabled', false).text('Verify Email');
+    }).fail(function(xhr){
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: xhr.responseJSON.message
+        });
+        btn.prop('disabled', false).text('Verify Email');
+    });
+});
+
 </script>
 
 <script>
