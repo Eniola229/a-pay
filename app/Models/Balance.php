@@ -38,6 +38,4 @@ class Balance extends Authenticatable
         'pin',
         'owe',
     ];
-
-    
 }

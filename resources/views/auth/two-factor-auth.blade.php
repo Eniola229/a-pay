@@ -41,10 +41,10 @@
                                   <div class="form-group text-center">
                                         <label for="code" class="d-block">Enter Code</label>
                                         <div class="d-flex justify-content-center">
-                                            <input type="text" class="form-control otp-input" maxlength="1" id="code1" required>
-                                            <input type="text" class="form-control otp-input" maxlength="1" id="code2" required>
-                                            <input type="text" class="form-control otp-input" maxlength="1" id="code3" required>
-                                            <input type="text" class="form-control otp-input" maxlength="1" id="code4" required>
+                                            <input type="text" class="form-control otp-input" style="border: 2px solid #28a745;" maxlength="1" id="code1" required>
+                                            <input type="text" class="form-control otp-input" style="border: 2px solid #28a745;"  maxlength="1" id="code2" required>
+                                            <input type="text" class="form-control otp-input" style="border: 2px solid #28a745;"  maxlength="1" id="code3" required>
+                                            <input type="text" class="form-control otp-input" style="border: 2px solid #28a745;"  maxlength="1" id="code4" required>
                                         </div>
                                         <input type="hidden" name="code" id="hidden-code">
                                         <small class="form-text text-muted">

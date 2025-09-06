@@ -21,18 +21,21 @@
                                 <form class="mt-5 mb-5 login-input" action="{{ route('register') }}" method="post">
                                     @csrf
                                     <div class="form-group">
+                                        <label for="name">Name</label>
                                         <input type="text" class="form-control"  placeholder="Name" name="name" value="{{ old('name') }}" required>
                                     @error('name')
                                        <div class="alert alert-danger mb-2">{{ $message }}</div>
                                     @enderror
                                     </div>
                                     <div class="form-group">
+                                        <label for="email">Email</label>
                                         <input type="email" class="form-control"  placeholder="Email" name="email" value="{{ old('email') }}" required>
                                     @error('email')
                                        <div class="alert alert-danger mb-2">{{ $message }}</div>
                                     @enderror
                                     </div>
                                     <div class="form-group">
+                                        <label for="Phone Number">Phone Number</label>
                                        <input
                                             type="tel"
                                             class="form-control"
@@ -49,6 +52,7 @@
                                     @enderror
                                     </div>
                                     <div class="form-group">
+                                        <label for="Referer Code (optional)">Referer Code (optional)</label>
                                        <input
                                             type="tel"
                                             class="form-control"
@@ -64,6 +68,7 @@
                                     @enderror
                                     </div>
                                    <div class="form-group">
+                                    <label for="Password">Password</label>
                                         <input type="password" class="form-control" id="password" placeholder="Password" name="password" required>
                                         <small id="passwordStrength" class="text-muted"></small>
                                         @error('password')
@@ -72,13 +77,14 @@
                                     </div>
 
                                     <div class="form-group">
+                                        <label for="Confirm Password">Confirm Password</label>
                                         <input type="password" class="form-control" id="password_confirmation" placeholder="Confirm Password" name="password_confirmation" required>
                                         <small id="passwordMatch" class="text-muted"></small>
                                         @error('password_confirmation')
                                             <div class="alert alert-danger mb-2">{{ $message }}</div>
                                         @enderror
                                     </div>
-                                    <button class="btn login-form__btn submit w-100">Sign Up</button>
+                                    <button class="btn login-form__btn submit w-100" id="signup-btn">Sign Up</button>
                                 </form>
                                     <p class="mt-5 login-form__footer">Have account? <a href="{{ route('login') }}" class="" style="color: green;">Sign In </a> now</p>
                                     </p>
@@ -92,6 +98,19 @@
     </div>
     
 <script>
+  const btn = document.getElementById('signup-btn');
+
+  // When the page starts loading
+  document.addEventListener('DOMContentLoaded', function () {
+    btn.textContent = 'Loading...';
+    btn.disabled = true; // disable button during loading
+  });
+
+  // When the page finishes loading
+  window.addEventListener('load', function () {
+    btn.textContent = 'Sign Up';
+    btn.disabled = false; // Re-enable the button
+  });
 document.addEventListener("DOMContentLoaded", function() {
     const params = new URLSearchParams(location.search);
     const raw = params.get("r_c");
