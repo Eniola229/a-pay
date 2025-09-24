@@ -368,6 +368,11 @@
                                         <i class="fa fa-bolt"></i> Electricity
                                     </a>
                                 </div>
+                                <!-- <div class="col-12 col-md-auto p-2">
+                                    <a href="{{ url('/send/to-pay') }}" class="btn btn-primary btn-custom">
+                                        <i class="fa fa-money"></i> To A-Pay
+                                    </a>
+                                </div> -->
                            <!--     <div class="col-12 col-md-auto"> 
                                     <a href="{{ url('/borrow/credit#limit') }}" class="btn btn-success btn-custom">
                                         <i class="fa fa-wifi"></i> Borrow Airtime/Data

@@ -183,6 +183,9 @@
                                 data-email="{{ $user->email }}">
                             Edit
                         </button>
+                        <a href="{{ url('admin/users/' . $user->id) }}">
+                            <button class="btn btn-primary btn-sm">View</button>
+                        </a>
                     </td>
                     </tr>
                 @endforeach
