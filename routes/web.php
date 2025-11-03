@@ -21,6 +21,7 @@ use App\Http\Controllers\Leaners\RegistrationController;
 use App\Http\Controllers\Loan\CreditLimitController;
 use App\Http\Controllers\Loan\BorrowAirtimeController;
 use App\Http\Controllers\Loan\BorrowDataController;
+use App\Http\Controllers\Ussd\UssdController;
 use App\Http\Controllers\EmailVerificationController;
 
 
