@@ -14,6 +14,7 @@ use App\Http\Controllers\Front\AirtimePurchaseController;
 use App\Http\Controllers\Front\DataPurchaseController;
 use App\Http\Controllers\Front\TransactionsController;
 use App\Http\Controllers\Front\ElectricityController;
+use App\Http\Controllers\Front\BettingPurchaseController;
 use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\Security\DeviceVerificationController;
@@ -103,6 +104,9 @@ Route::middleware('auth')->group(function () {
     //Borrow Data
      Route::get('/borrow/data', [BorrowDataController::class, 'showForm'])->name('data.form');
      Route::post('/borrow-data', [BorrowDataController::class, 'buyData'])->name('borrow.data');
+    //Betting
+    Route::get('/betting', [BettingPurchaseController::class, 'showForm'])->name('betting.buy');
+    Route::post('/betting/buy', [BettingPurchaseController::class, 'buyBetting'])->name('pay.betting');
     //Pay Electricty
     Route::get('/electricity', [ElectricityController::class, 'showForm'])->name('electricity.form');
     Route::post('/pay-electricity', [ElectricityController::class, 'payElectricity'])->name('pay.electricity');

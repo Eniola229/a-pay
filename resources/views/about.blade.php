@@ -16,7 +16,7 @@
     <div class="container">
         <div class="row justify-content-center pb-5">
             <div class="col-lg-6 heading-section text-center ftco-animate">
-                <h2 class="mb-4">Your Trusted Partner for <span style="color: green;">Airtime, Data, and Electricity Payments</span></h2>
+                <h2 class="mb-4">Your Trusted Partner for <span style="color: green;">Airtime, Data, and Online Payments</span></h2>
                 <p style="">Experience seamless transactions for all your essential services, anytime and anywhere.</p>
             </div>
         </div>
@@ -61,7 +61,7 @@
                 <div class="row justify-content-start pb-3">
                     <div class="col-md-12 heading-section heading-section-white ftco-animate">
                         <h2 class="mb-4">Why Choose <span>A-Pay?</span></h2>
-                        <p>Seamless and secure transactions for Airtime, Data, and Electricity bill payments.</p>
+                        <p>Seamless and secure transactions for Airtime, Data, and Online Payments.</p>
                     </div>
                 </div>
                 <div class="row">
@@ -245,6 +245,7 @@
                                     <li>Buy airtime instantly</li>
                                     <li>Purchase mobile data</li>
                                     <li>Pay electricity bills seamlessly</li>
+                                    <li>Topup your betting account's seamlessly</li>
                                     <li>Enjoy a smooth and reliable payment experience</li>
                                     <li>Access 24/7 customer support</li>
                                 </ol>

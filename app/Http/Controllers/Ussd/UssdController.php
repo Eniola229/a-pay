@@ -20,50 +20,49 @@ use Illuminate\Support\Facades\DB;
 use App\Mail\DataPurchaseMail;
 use Illuminate\Support\Str;
 use App\Models\DataPurchase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Session;
 
 class UssdController extends Controller
 {
-    public function handle(Request $request)
-    {
-        // === Incoming data from Africa’s Talking ===
-        $sessionId   = $request->input('sessionId');
-        $serviceCode = $request->input('serviceCode');
-        $phoneNumber = $request->input('phoneNumber');
-        $text        = trim($request->input('text')); // Example: "1*2*100"
+        public function handle(Request $request)
+        {
+            $sessionId   = $request->input('sessionId');
+            $serviceCode = $request->input('serviceCode');
+            $phoneNumber = $request->input('phoneNumber');
+            $text        = trim($request->input('text'));
 
-        // Log incoming request for debugging
-        //Log::info('USSD Request Data', ['request' => $request->all()]);
+            // === Use Africa’s Talking session ID to store USSD session manually ===
+            $key = "ussd_session_" . $sessionId;
+            $inputs = $text === "" ? [] : explode('*', $text);
 
-        // Split user input by "*" to track the current step
-        $inputs = $text === "" ? [] : explode('*', $text);
+            // Retrieve existing session data
+            $userSession = cache()->get($key, []);
 
-        // === Stage 0: Main Menu ===
-        if (count($inputs) === 0) {
-            $response  = "CON Welcome to A-Pay\n";
-            $response .= "1. Buy Airtime\n";
-            $response .= "2. Buy Data\n";
-            $response .= "3. Pay Electricity Bill\n";
-            $response .= "4. Check Balance\n";
-            $response .= "5. Borrow Airtime/Data";
-        }
+            // === Stage 0: Main Menu ===
+            if (count($inputs) === 0) {
+                $userSession = []; // reset session data
+                cache()->put($key, $userSession, now()->addMinutes(10)); // keep for 10 min
 
-        // === Stage 1: Handle first option selection ===
-        else {
-            switch ($inputs[0]) {
-                case "1": // Buy Airtime
-                    $response = $this->buyAirtimeMenu($inputs, $phoneNumber);
-                    break;
-
-                case "2": // Buy Data
-                    $response = $this->buyDataMenu($inputs, $phoneNumber);
-                    break;
-
-                case "3": // Pay Electricity Bill
-                    $response = $this->electricityMenu($inputs, $phoneNumber);
-                    break;
-
-                    case "4": // Check Balance
-                        switch (count($inputs)) {
+                $response  = "CON Welcome to A-Pay\n";
+                $response .= "1. Buy Airtime\n";
+                $response .= "2. Buy Data\n";
+                $response .= "3. Pay Electricity Bill\n";
+                $response .= "4. Check Balance\n";
+                $response .= "5. Borrow Airtime/Data";
+            } else {
+                switch ($inputs[0]) {
+                    case "1":
+                        $response = $this->buyAirtimeMenu($inputs, $phoneNumber, $userSession);
+                        break;
+                    case "2":
+                        $response = $this->buyDataMenu($inputs, $phoneNumber, $userSession);
+                        break;
+                    case "3":
+                        $response = $this->electricityMenu($inputs, $phoneNumber, $userSession);
+                        break;
+                    case "4":
+                                               switch (count($inputs)) {
                             case 1:
                                 return "CON Enter Your Transaction PIN \n\n0. Back\n00. Main Menu";
 
@@ -76,7 +75,6 @@ class UssdController extends Controller
 
                                 $balance = Balance::where('user_id', $user->id)->first();
 
-                                // If no balance record, ask to create PIN
                                 if (!$balance) {
                                     return "CON You don't have a PIN yet.\nPlease create a 4-digit PIN now:";
                                 }
@@ -89,7 +87,6 @@ class UssdController extends Controller
                                 return "END Dear {$user->name}!\nYour wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay!";
 
                             case 3:
-                                // Handle new PIN creation when no balance record exists
                                 $user = User::where('mobile', $phoneNumber)->first();
                                 $newPin = $inputs[2];
 
@@ -97,7 +94,6 @@ class UssdController extends Controller
                                     return "CON PIN must be 4 digits. Try again:";
                                 }
 
-                                // Create new balance record
                                 $balance = new Balance();
                                 $balance->user_id = $user->id;
                                 $balance->balance = 0.00;
@@ -109,70 +105,26 @@ class UssdController extends Controller
                             default:
                                 return "END Invalid response. Try again.";
                         }
-
-
-                case "5": // Borrow Airtime/Data
-                    $response = $this->borrowMenu($inputs, $phoneNumber);
-                    break;
-
-                default:
-                    $response = "END Invalid choice. Please dial again.";
-                    break;
+                        break;
+                    case "5":
+                        $response = $this->borrowMenu($inputs, $phoneNumber, $userSession);
+                        break;
+                    default:
+                        $response = "END Invalid choice. Please dial again.";
+                        break;
+                }
             }
+
+            // Save session if not ended
+            if (!str_starts_with($response, 'END')) {
+                cache()->put($key, $userSession, now()->addMinutes(10));
+            } else {
+                cache()->forget($key);
+            }
+
+            return response($response)->header('Content-Type', 'text/plain');
         }
 
-        // Return plain text response (important)
-        return response($response)->header('Content-Type', 'text/plain');
-    }
-
-    //GET DATA PLAN
-    public function getDataPlans($networkId)
-    {
-        // Normalize network ID
-        $networkId = strtolower($networkId);
-
-        // Fetch all data from the external API
-        $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-
-        if ($response->failed()) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to fetch data from provider.'
-            ], 500);
-        }
-
-        // Access the 'data' key from the response
-        $allData = $response->json()['data'] ?? [];
-
-        // Filter only plans for the requested network
-        $filteredPlans = collect($allData)->filter(function ($item) use ($networkId) {
-            $serviceId = strtolower($item['service_id']); // Convert service_id to lowercase
-            return $serviceId === $networkId;
-        });
-
-
-        // Reformat data to match the expected structure
-        $formatted = [];
-        foreach ($filteredPlans as $plan) {
-            $planCode = $plan['variation_id'] ?? uniqid(); // fallback if variation_id is missing
-            $formatted[$planCode] = [
-                'name'  => $plan['data_plan'] ?? 'Unnamed Plan',
-                'price' => $plan['price'] ?? 0,
-            ];
-        }
-
-        if (empty($formatted)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'No plans found for this network.'
-            ], 404);
-        }
-
-        return response()->json([
-            'status' => true,
-            'data'   => $formatted
-        ]);
-    }
 
 
     // BUY AIRTIME FLOW
@@ -357,123 +309,309 @@ class UssdController extends Controller
     }
 
     //BUY DATA FLOW
-    private function buyDataMenu(array $inputs, string $phoneNumber)
-    {
-        $networks = [
-            "1" => "mtn",
-            "2" => "glo",
-            "3" => "airtel",
-            "4" => "9mobile",
-            "5" => "smile",
-        ];
+private function buyDataMenu(array $inputs, string $phoneNumber)
+{
+    // --------------------------------------------------------------
+    // Helper: Normalize Nigerian numbers to +234xxxxxxxxxx
+    // --------------------------------------------------------------
+    $normalize = function ($num) use ($phoneNumber) {
+        $num = preg_replace('/\D+/', '', $num);
+        if ($num === '') return $phoneNumber;
+        if (strlen($num) === 11 && $num[0] === '0') return '+234' . substr($num, 1);
+        if (strlen($num) === 10 && in_array($num[0], ['7', '8', '9'])) return '+234' . $num;
+        if (str_starts_with($num, '234')) return '+' . $num;
+        if (str_starts_with($num, '+')) return $num;
+        return '+234' . $num;
+    };
 
-        // === Helper to normalize any Nigerian phone number ===
-        $normalize = function (string $num) {
-            $num = preg_replace('/\D+/', '', $num);
-            if (strlen($num) === 11 && str_starts_with($num, '0')) return '+234' . substr($num, 1);
-            if (strlen($num) === 10 && in_array(substr($num, 0, 1), ['7', '8', '9'])) return '+234' . $num;
-            if (str_starts_with($num, '234')) return '+' . $num;
-            if (str_starts_with($num, '+')) return $num;
-            return '+234' . $num;
-        };
+    // --------------------------------------------------------------
+    // Log everything (useful for debugging)
+    // --------------------------------------------------------------
+    \Log::info('USSD BUY-DATA', [
+        'phone'       => $phoneNumber,
+        'inputs'      => $inputs,
+        'count'       => count($inputs),
+        'last'        => $inputs ? end($inputs) : null,
+        'session_id'  => session()->getId(),
+        'has_plans'   => session()->has('ussd_data_plans'),
+        'page'        => session('ussd_page', 'none'),
+    ]);
 
-        switch (count($inputs)) {
-            case 1:
-                // Select Network
-                return "CON Select Data Network\n1. MTN\n2. Glo\n3. Airtel\n4. 9mobile\n5. Smile\n\n0. Back\n00. Main Menu";
+    // --------------------------------------------------------------
+    // Clean USSD input (remove dial codes)
+    // --------------------------------------------------------------
+    $inputs = array_values(array_filter($inputs, fn($i) => !preg_match('/^\*\d+\*$/', $i) && $i !== '*384*7178#'));
+    $inputCount = count($inputs);
+    $lastInput  = $inputs ? trim(end($inputs)) : '';
 
-            case 2:
-                if ($inputs[1] === "0") return $this->goBack();
-                if ($inputs[1] === "00") return $this->mainMenu();
-                if (!isset($networks[$inputs[1]])) return "END Invalid network. Session ended.";
+    // --------------------------------------------------------------
+    // Available networks
+    // --------------------------------------------------------------
+    $networks = [
+        '1' => 'mtn',
+        '2' => 'glo',
+        '3' => 'airtel',
+        '4' => '9mobile',
+        '5' => 'smile',
+    ];
 
-                return "CON Enter recipient phone number or press 1 to use your number:\n\n0. Back\n00. Main Menu";
+    // ==============================================================
+    // MAIN FLOW
+    // ==============================================================
+    switch ($inputCount) {
+        // ----------------------------------------------------------
+        // 0 – First screen: choose network
+        // ----------------------------------------------------------
+        case 0:
+            return "CON Select Data Network\n"
+                . "1. MTN\n2. Glo\n3. Airtel\n4. 9mobile\n5. Smile\n\n"
+                . "0. Back\n00. Main Menu";
 
-            case 3:
-                if ($inputs[2] === "0") return $this->goBack("1");
-                if ($inputs[2] === "00") return $this->mainMenu();
+        // ----------------------------------------------------------
+        // 1 – Network selected → ask for recipient
+        // ----------------------------------------------------------
+        case 1:
+            if ($lastInput === '0') return $this->goBack();
+            if ($lastInput === '00') return $this->mainMenu();
+            if (!isset($networks[$lastInput])) return "END Invalid network. Session ended.";
 
-                $recipientRaw = trim($inputs[2]);
-                $recipient = ($recipientRaw === "1") ? $phoneNumber : $normalize($recipientRaw);
-                $inputs[2] = $recipient;
+            session(['ussd_network' => $networks[$lastInput]]);
 
-                // Load data plans from your own API controller
-                $network = $networks[$inputs[1]];
-                $response = Http::get(url("/api/data-plans/{$network}"));
+            return "CON Enter recipient phone number or press 1 to use your number:\n\n"
+                . "0. Back\n00. Main Menu";
 
-                if ($response->failed()) return "END Failed to load data plans.";
-                $data = $response->json();
+        // ----------------------------------------------------------
+        // 2 – Phone number received → fetch data plans
+        // ----------------------------------------------------------
+        case 2:
+            if ($lastInput === '0') return $this->goBack('1');
+            if ($lastInput === '00') return $this->mainMenu();
 
-                if (empty($data['data'])) return "END No data plans found.";
+            $recipient = ($lastInput === '1') ? $phoneNumber : $normalize($lastInput);
+            $networkId = session('ussd_network') ?? $networks[$inputs[0]] ?? null;
 
-                $plans = array_values($data['data']); // numeric index
-                session([
-                    'ussd_data_plans' => $plans,
-                    'ussd_page' => 1,
+            if (!$networkId) {
+                return "END Session expired. Please start again.";
+            }
+
+            $api = $this->getDataPlans($networkId);
+            if (!$api['status'] || empty($api['data'])) return "END No data plans available.";
+
+            $plans = array_map(
+                fn($key, $p) => array_merge($p, ['variation_id' => $key]),
+                array_keys($api['data']),
+                $api['data']
+            );
+
+            session([
+                'ussd_data_plans' => $plans,
+                'ussd_recipient'  => $recipient,
+                'ussd_network'    => $networkId,
+                'ussd_page'       => 1,
+            ]);
+
+            return $this->showDataPlansPage(1, $plans);
+
+        // ----------------------------------------------------------
+        // 3+ – Pagination / Plan selection / PIN entry
+        // ----------------------------------------------------------
+        default:
+            // ✅ Safety check — restart session if lost
+            if (!session()->has('ussd_data_plans') || !session()->has('ussd_network')) {
+                \Log::warning('USSD session lost — restarting', ['phone' => $phoneNumber]);
+                return "END Session expired. Please start again.";
+            }
+
+            $plans = session('ussd_data_plans', []);
+            $page = max(1, (int) session('ussd_page', 1));
+            $perPage = 5;
+            $totalPages = $plans ? ceil(count($plans) / $perPage) : 1;
+
+            if (in_array($lastInput, ['8', '9'])) {
+                if ($lastInput === '9' && $page < $totalPages) $page++;
+                elseif ($lastInput === '8' && $page > 1) $page--;
+                session(['ussd_page' => $page]);
+                return $this->showDataPlansPage($page, $plans);
+            }
+
+            if ($lastInput === '0') return $this->goBack('2');
+            if ($lastInput === '00') return $this->mainMenu();
+
+            // Plan selection
+            if (!is_numeric($lastInput)) return "END Invalid input. Enter a number.";
+            $selection = (int)$lastInput;
+            $offset = ($page - 1) * $perPage;
+            $idx = $offset + ($selection - 1);
+
+            if (!isset($plans[$idx])) return "END Invalid plan selected.";
+
+            $selected = $plans[$idx];
+            session(['ussd_selected_plan' => $selected]);
+
+            // Next stage — ask for PIN
+            return "CON Enter your 4-digit PIN\n\n0. Back\n00. Main Menu";
+
+        // ----------------------------------------------------------
+        // 4 – PIN entered → process data purchase
+        // ----------------------------------------------------------
+        case 4:
+            $pin = $lastInput;
+            if (!is_numeric($pin) || strlen($pin) !== 4) return "END Invalid PIN. Must be 4 digits.";
+
+            if (!session()->has('ussd_selected_plan') || !session()->has('ussd_recipient')) {
+                return "END Session expired. Please start again.";
+            }
+
+            $user = User::where('mobile', $normalize($phoneNumber))
+                ->orWhere('mobile', $phoneNumber)
+                ->first();
+            if (!$user) return "END User not found.";
+
+            $bal = Balance::where('user_id', $user->id)->first();
+            if (!$bal || !Hash::check($pin, $bal->pin)) return "END Invalid PIN.";
+
+            $plan = session('ussd_selected_plan');
+            $networkId = session('ussd_network');
+            $recipient = session('ussd_recipient');
+            $price = $plan['price'];
+            $varId = $plan['variation_id'];
+            $name = $plan['name'];
+
+            if ($bal->balance < $price) return "END Insufficient balance. ₦{$bal->balance}";
+
+            $bal->decrement('balance', $price);
+
+            $dp = DataPurchase::create([
+                'user_id'      => $user->id,
+                'phone_number' => $recipient,
+                'data_plan_id' => $varId,
+                'network_id'   => $networkId,
+                'amount'       => $price,
+                'status'       => 'PENDING',
+            ]);
+
+            $tx = Transaction::create([
+                'user_id'     => $user->id,
+                'amount'      => $price,
+                'beneficiary' => $recipient,
+                'description' => "Data: {$name}",
+                'status'      => 'PENDING',
+            ]);
+
+            $payload = [
+                'request_id'   => 'REQ_' . strtoupper(Str::random(12)),
+                'phone'        => $recipient,
+                'service_id'   => $networkId,
+                'variation_id' => $varId,
+            ];
+
+            try {
+                $resp = Http::withToken(env('EBILLS_API_TOKEN'))
+                    ->timeout(15)
+                    ->post('https://ebills.africa/wp-json/api/v2/data', $payload)
+                    ->json();
+            } catch (\Exception $e) {
+                $bal->increment('balance', $price);
+                $dp->update(['status' => 'FAILED']);
+                $tx->update(['status' => 'ERROR']);
+                return "END Service unavailable. Refunded.";
+            }
+
+            if (($resp['code'] ?? '') === 'success') {
+                $dp->update(['status' => 'SUCCESS']);
+                $tx->update(['status' => 'SUCCESS']);
+
+                session()->forget([
+                    'ussd_data_plans',
+                    'ussd_network',
+                    'ussd_recipient',
+                    'ussd_page',
+                    'ussd_selected_plan',
                 ]);
 
-                return $this->showDataPlansPage(1, $plans);
+                return "END SUCCESS!\n{$name} sent to {$recipient}\nBalance: ₦{$bal->balance}";
+            }
 
-            case 4:
-                $plans = session('ussd_data_plans', []);
-                $page = session('ussd_page', 1);
-                $perPage = 5;
-                $totalPages = ceil(count($plans) / $perPage);
-
-                // Handle pagination control
-                if ($inputs[3] === "1" && $page < $totalPages) {
-                    $page++;
-                    session(['ussd_page' => $page]);
-                    return $this->showDataPlansPage($page, $plans);
-                }
-
-                if ($inputs[3] === "9" && $page > 1) {
-                    $page--;
-                    session(['ussd_page' => $page]);
-                    return $this->showDataPlansPage($page, $plans);
-                }
-
-                $planIndex = intval($inputs[3]) - 1;
-                $planList = array_values($plans);
-
-                if (!isset($planList[$planIndex])) return "END Invalid data plan selected.";
-
-                $plan = $planList[$planIndex];
-                $inputs[3] = $plan;
-
-                return "CON Enter your 4-digit PIN\n\n0. Back\n00. Main Menu";
-
-            // === PIN entry and purchase confirmation logic ===
-            // (same as your existing case 5 & 6 code)
-        }
+            $bal->increment('balance', $price);
+            $dp->update(['status' => 'FAILED']);
+            $tx->update(['status' => 'ERROR']);
+            return "END Failed. Refunded.\n" . ($resp['message'] ?? 'Unknown error');
     }
+}
 
-    /**
-     * Helper to paginate data plans (5 per page)
-     */
-    private function showDataPlansPage(int $page, array $plans)
+/**
+ * Paginated Data Plan Menu
+ */
+private function showDataPlansPage(int $page, array $plans): string
+{
+    $perPage = 5;
+    $total = count($plans);
+    $totalPages = $total ? ceil($total / $perPage) : 1;
+    $page = max(1, min($page, $totalPages));
+    $offset = ($page - 1) * $perPage;
+    $slice = array_slice($plans, $offset, $perPage);
+
+    $menu = "CON Select Data Plan (Page {$page}/{$totalPages})\n";
+    $i = 1;
+    foreach ($slice as $p) {
+        $menu .= "{$i}. {$p['name']} - ₦{$p['price']}\n";
+        $i++;
+    }
+    $menu .= "\n";
+
+    if ($page < $totalPages) $menu .= "9. Next Page\n";
+    if ($page > 1) $menu .= "8. Prev Page\n";
+
+    $menu .= "\n0. Back\n00. Main Menu";
+    return $menu;
+}
+
+    // Fetch Data Plans
+    public function getDataPlans($networkId)
     {
-        $perPage = 5;
-        $total = count($plans);
-        $totalPages = ceil($total / $perPage);
-        $offset = ($page - 1) * $perPage;
+        return Cache::remember("data_plans_{$networkId}", 600, function () use ($networkId) {
+            $networkId = strtolower($networkId);
 
-        $slice = array_slice($plans, $offset, $perPage, true);
+            try {
+                $response = Http::timeout(10)
+                    ->get('https://ebills.africa/wp-json/api/v2/variations/data');
 
-        $menu = "CON Select Data Plan (Page {$page}/{$totalPages})\n";
-        $i = $offset + 1;
+                if ($response->failed()) {
+                    return [
+                        'status' => false,
+                        'message' => 'Failed to fetch data from provider.',
+                        'data' => []
+                    ];
+                }
 
-        foreach ($slice as $plan) {
-            $menu .= "{$i}. {$plan['name']} - ₦{$plan['price']}\n";
-            $i++;
-        }
+                $allData = $response->json()['data'] ?? [];
 
-        if ($page < $totalPages) $menu .= "\n1. Next Page";
-        if ($page > 1) $menu .= "\n9. Prev Page";
+                $filteredPlans = collect($allData)->filter(function ($item) use ($networkId) {
+                    return strtolower($item['service_id']) === $networkId;
+                });
 
-        $menu .= "\n\n0. Back\n00. Main Menu";
+                $formatted = [];
+                foreach ($filteredPlans as $plan) {
+                    $planCode = $plan['variation_id'] ?? uniqid();
+                    $formatted[$planCode] = [
+                        'name'  => $plan['data_plan'] ?? 'Unnamed Plan',
+                        'price' => $plan['price'] ?? 0,
+                    ];
+                }
 
-        return $menu;
+                return [
+                    'status' => true,
+                    'message' => 'OK',
+                    'data' => $formatted
+                ];
+            } catch (\Exception $e) {
+                return [
+                    'status' => false,
+                    'message' => 'Connection error: ' . $e->getMessage(),
+                    'data' => []
+                ];
+            }
+        });
     }
 
 

@@ -110,13 +110,13 @@ class RegisteredUserController extends Controller
                 // Update balance +100
                 $balance = Balance::where('user_id', $referer->id)->first();
                 if ($balance) {
-                    $balance->increment('balance', 100);
+                    $balance->increment('balance', 0);
                 }
 
                 // Create transaction record
                 Transaction::create([
                     'user_id'     => $referer->id,
-                    'amount'      => 100,
+                    'amount'      => 0,
                     'cash_back'   => 0,
                     'charges'     => 0,
                     'beneficiary' => $referer->name . ' | ' . $referer->mobile,

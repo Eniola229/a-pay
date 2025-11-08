@@ -267,64 +267,70 @@
 
 <div class="container-fluid col-12 col-md-8 col-lg-6">
   <div class="airtime-card mt-4"> 
-    <h3 class="text-center">Pay Electricity Bill</h3>
-    <p class="text-center">Kindly note that service fee is ₦100 for any amount</p>
+    <h3 class="text-center">Betting</h3>
+    <p class="text-center">Fund your betting account</p>
     <form id="electricity-form">
         <div class="mb-3 position-relative">
-            <label for="meter_number">Meter Number</label>
+            <label for="customer_id">Customer ID (betting account id)</label>
             <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-bolt"></i></span>
-                <input type="text" id="meter_number" class="form-control" placeholder="Enter meter number" required>
+                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                <input type="text" id="customer_id" class="form-control" placeholder="Enter customer id" required>
             </div>
         </div>
     <div class="mb-3">
-        <label for="provider_id">Select Provider</label>
+        <label for="service_id">Select Betting Provider</label>
         <div class="provider-container">
-            <label class="provider-box" data-provider="abuja-electric">
-                <input type="radio" name="provider_id" value="abuja-electric">
-                <i class="fas fa-plug"></i> Abuja (AEDC)
+            <label class="provider-box" data-provider="1xBet">
+                <input type="radio" name="service_id" value="1xBet">
+                <i class="fas fa-futbol"></i> 1xBet
             </label>
-            <label class="provider-box" data-provider="eko-electric">
-                <input type="radio" name="provider_id" value="eko-electric">
-                <i class="fas fa-plug"></i> Eko (EKEDC)
+            <label class="provider-box" data-provider="BangBet">
+                <input type="radio" name="service_id" value="BangBet">
+                <i class="fas fa-futbol"></i> BangBet
             </label>
-            <label class="provider-box" data-provider="ibadan-electric">
-                <input type="radio" name="provider_id" value="ibadan-electric">
-                <i class="fas fa-plug"></i> Ibadan (IBEDC)
+            <label class="provider-box" data-provider="Bet9ja">
+                <input type="radio" name="service_id" value="Bet9ja">
+                <i class="fas fa-futbol"></i> Bet9ja
             </label>
-            <label class="provider-box" data-provider="ikeja-electric">
-                <input type="radio" name="provider_id" value="ikeja-electric">
-                <i class="fas fa-plug"></i> Ikeja (IKEDC)
+            <label class="provider-box" data-provider="BetKing">
+                <input type="radio" name="service_id" value="BetKing">
+                <i class="fas fa-futbol"></i> BetKing
             </label>
-            <label class="provider-box" data-provider="jos-electric">
-                <input type="radio" name="provider_id" value="jos-electric">
-                <i class="fas fa-plug"></i> Jos (JED)
+            <label class="provider-box" data-provider="BetLand">
+                <input type="radio" name="service_id" value="BetLand">
+                <i class="fas fa-futbol"></i> BetLand
             </label>
-            <label class="provider-box" data-provider="kaduna-electric">
-                <input type="radio" name="provider_id" value="kaduna-electric">
-                <i class="fas fa-plug"></i> Kaduna (KAEDCO)
+            <label class="provider-box" data-provider="BetLion">
+                <input type="radio" name="service_id" value="BetLion">
+                <i class="fas fa-futbol"></i> BetLion
             </label>
-            <label class="provider-box" data-provider="kano-electric">
-                <input type="radio" name="provider_id" value="kano-electric">
-                <i class="fas fa-plug"></i> Kano (KEDCO)
+            <label class="provider-box" data-provider="BetWay">
+                <input type="radio" name="service_id" value="BetWay">
+                <i class="fas fa-futbol"></i> BetWay
             </label>
-            <label class="provider-box" data-provider="portharcourt-electric">
-                <input type="radio" name="provider_id" value="portharcourt-electric">
-                <i class="fas fa-plug"></i> Portharcourt (PHED)
+            <label class="provider-box" data-provider="CloudBet">
+                <input type="radio" name="service_id" value="CloudBet">
+                <i class="fas fa-futbol"></i> CloudBet
             </label>
-        </div>
-    </div>
-
-    <div class="mb-3">
-        <label for="variation_id">Select Type</label>
-        <div class="type-container">
-            <label class="type-box" data-type="prepaid">
-                <input type="radio" name="variation_id" value="prepaid" checked>
-                <i class="fas fa-user"></i> PREPAID
+             <label class="provider-box" data-provider="LiveScoreBet">
+                <input type="radio" name="service_id" value="LiveScoreBet">
+                <i class="fas fa-futbol"></i> LiveScoreBet
             </label>
-            <label class="type-box" data-type="postpaid">
-                <input type="radio" name="variation_id" value="postpaid">
-                <i class="fas fa-user"></i> POSTPAID
+            <label class="provider-box" data-provider="MerryBet">
+                <input type="radio" name="service_id" value="MerryBet">
+                <i class="fas fa-futbol"></i> MerryBet
+            </label>
+             <label class="provider-box" data-provider="NaijaBet">
+                <input type="radio" name="service_id" value="NaijaBet">
+                <i class="fas fa-futbol"></i> NaijaBet
+            </label>
+            <label class="provider-box" data-provider="NairaBet">
+                <input type="radio" name="service_id" value="NairaBet">
+                <i class="fas fa-futbol"></i> NairaBet
+            </label>
+             <label class="provider-box" data-provider="SupaBet">
+                <input type="radio" name="service_id" value="SupaBet">
+                <i class="fas fa-futbol"></i> SupaBet
             </label>
         </div>
     </div>
@@ -386,12 +392,11 @@ $(document).ready(function () {
         e.preventDefault();
 
         // Get values
-        const meterNumber = $('#meter_number').val();
-        const providerId = $("input[name='provider_id']:checked").val(); // Get checked provider
+        const CustomerId = $('#customer_id').val();
+        const serviceId = $("input[name='service_id']:checked").val(); // Get customer
         const amount = $('#amount_hidden').val();
-        const variationId = $("input[name='variation_id']:checked").val(); // Get checked variation type
 
-        if (!meterNumber || !providerId || !amount || !variationId) {
+        if (!CustomerId || !serviceId || !amount) {
             Swal.fire("Error", "Please fill all fields.", "error");
             return;
         }
@@ -422,11 +427,10 @@ $(document).ready(function () {
                 $('#pay-btn').text('Processing...').prop('disabled', true);
 
                 // Submit data
-                $.post("{{ route('pay.electricity') }}", {
-                    meter_number: meterNumber,
-                    provider_id: providerId,
+                $.post("{{ route('pay.betting') }}", {
+                    customer_id: CustomerId,
+                    service_id: serviceId,
                     amount: amount,
-                    variation_id: variationId,
                     pin: pin,
                     _token: "{{ csrf_token() }}"
                 })

@@ -48,7 +48,6 @@
         border-radius: 15px;
         padding: 40px 30px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
-        max-width: 700px;
         width: 100%;
     }
 
@@ -156,7 +155,41 @@
     }
 
 
+    .btn-custom {
+        padding: 15px 10px;
+        font-size: 14px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
 
+    .btn-custom i {
+        font-size: 22px;
+        margin-bottom: 6px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Mobile view spacing fix */
+    @media (max-width: 576px) {
+        .service-card {
+            width: 95%;
+            padding: 20px 15px;
+        }
+
+        .btn-custom {
+            margin-bottom: 10px;
+            font-size: 13px;
+            padding: 12px;
+        }
+
+        .btn-custom i {
+            font-size: 20px;
+        }
+    }
     </style>
         <!--**********************************
             Nav header start
@@ -349,35 +382,34 @@
 </div>
                     @endif
                     @if($balance && !empty($balance->pin))
-                    <div class="container d-flex justify-content-center align-items-center vh-100">
-                        <div class="service-card text-center">
-                            <h4 class="service-heading">Our Services</h4>
+                    <div class="container my-4">
+                        <div class="service-card card text-center shadow-sm rounded p-4 mx-auto">
+                            <h5 class="service-heading mb-4 fw-semibold">Services</h5>
+
                             <div class="row g-3 justify-content-center">
-                                <div class="col-12 col-md-auto">
-                                    <a href="{{ url('/airtime/buy') }}" class="btn btn-primary btn-custom">
-                                        <i class="fa fa-mobile"></i> Airtime
+                                <div class="col-6 col-sm-6 col-md-3">
+                                    <a href="{{ url('/airtime/buy') }}" class="btn btn-primary btn-custom w-100">
+                                        <i class="fa fa-mobile-screen-button"></i><br>Airtime
                                     </a>
                                 </div>
-                                <div class="col-12 col-md-auto">
-                                    <a href="{{ url('/data/buy') }}" class="btn btn-success btn-custom">
-                                        <i class="fa fa-wifi"></i> Data
+
+                                <div class="col-6 col-sm-6 col-md-3">
+                                    <a href="{{ url('/data/buy') }}" class="btn btn-success btn-custom w-100">
+                                        <i class="fa fa-wifi"></i><br>Data
                                     </a>
                                 </div>
-                                <div class="col-12 col-md-auto">
-                                    <a href="{{ url('/electricity') }}" class="btn btn-warning btn-custom">
-                                        <i class="fa fa-bolt"></i> Electricity
+
+                                <div class="col-6 col-sm-6 col-md-3">
+                                    <a href="{{ url('/electricity') }}" class="btn btn-warning btn-custom w-100 text-white">
+                                        <i class="fa fa-bolt"></i><br>Electricity
                                     </a>
                                 </div>
-                                <!-- <div class="col-12 col-md-auto p-2">
-                                    <a href="{{ url('/send/to-pay') }}" class="btn btn-primary btn-custom">
-                                        <i class="fa fa-money"></i> To A-Pay
+
+                                <div class="col-6 col-sm-6 col-md-3">
+                                    <a href="{{ url('/betting') }}" class="btn btn-danger btn-custom w-100">
+                                        <i class="fa-solid fa-futbol"></i><br>Betting
                                     </a>
-                                </div> -->
-                           <!--     <div class="col-12 col-md-auto"> 
-                                    <a href="{{ url('/borrow/credit#limit') }}" class="btn btn-success btn-custom">
-                                        <i class="fa fa-wifi"></i> Borrow Airtime/Data
-                                    </a>
-                                </div> -->
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -71,22 +71,22 @@
 <body>
     <div class="container">
         <div class="header">
-            A-Pay Data Purchase Notification
+            A-Pay Betting Topup Notification
         </div>
         <div class="content">
             <p>Hello {{ $user->name }},</p>
-            <p>Your data purchase request has been 
+            <p>Your betting top up request has been 
                 <span class="status {{ $status == 'SUCCESS' ? 'success' : 'failed' }}">
                     {{ $status == 'SUCCESS' ? 'successful ✅' : 'failed ❌' }}
                 </span>.
             </p>
 
-            <p><strong>Phone Number:</strong> {{ $phoneNumber }}</p>
-            <p><strong>Data Plan:</strong> {{ $planName }}</p>
-            <p><strong>Amount:</strong> ₦{{ number_format($amount, 2) }}</p>
+            <p><strong>Customer ID:</strong> {{ $customerID }}</p>
+            <p><strong>Service ID:</strong> {{ $serviceID }}</p>
+            <p><strong>Amount:</strong> ₦{{ number_format($amountPaid, 2) }}</p>
 
             @if ($status == 'SUCCESS')
-                <p>Thank you for using A-Pay! Your data will be available shortly.</p>
+                <p>Thank you for using A-Pay!</p>
                 <a href="{{ url('/') }}" class="btn btn-success">Go to Dashboard</a>
             @else
                 <p>We apologize for the inconvenience. Your funds have been refunded.</p>
