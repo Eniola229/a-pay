@@ -67,10 +67,11 @@ class BettingPurchaseController extends Controller
         $transaction = Transaction::create([
             'user_id'     => $user->id,
             'amount'      => $request->amount,
-            'beneficiary' => $request->customer_id | $request->service_id,
+            'beneficiary' => $request->customer_id . ' | ' . $request->service_id,
             'description' => "Betting Topup for " . $request->customer_id,
             'status'      => 'PENDING'
         ]);
+
 
         // Ebills API integration
         $apiToken = env('EBILLS_API_TOKEN'); // Set this in your .env

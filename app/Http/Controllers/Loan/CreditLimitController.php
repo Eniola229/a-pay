@@ -22,12 +22,14 @@ class CreditLimitController extends Controller
 
         // Count and sum APay transactions
         $apayTransactions = Transaction::where('user_id', $user->id)
-                        ->whereNotIn('status', ['PENDING', 'ERROR'])
-                        ->count();
+                            ->whereNotIn('status', ['PENDING', 'ERROR'])
+                            ->whereRaw('LOWER(description) NOT LIKE ?', ['%referral bonus for inviting%'])
+                            ->count();
 
         $totalTransactionAmount = Transaction::where('user_id', $user->id)
-                              ->whereNotIn('status', ['PENDING', 'ERROR'])
-                              ->sum('amount');
+                                  ->whereNotIn('status', ['PENDING', 'ERROR'])
+                                  ->whereRaw('LOWER(description) NOT LIKE ?', ['%referral bonus for inviting%'])
+                                  ->sum('amount');
 
         // Check for pending loan (but allow borrow if credit limit > 0)
         $pendingLoan = Borrow::where('user_id', $user->id)
@@ -54,10 +56,10 @@ class CreditLimitController extends Controller
         }
 
         // Check minimum APay transaction requirement
-        if ($apayTransactions < 7) {
+        if ($apayTransactions < 10) {
             return view('credit_limit', [
                 'requirementNotMet' => true,
-                'requiredCount' => 7,
+                'requiredCount' => 10,
                 'currentCount' => $apayTransactions,
                 'balance' => $balance,
                 'borrowHistory' => $borrowHistory
@@ -73,7 +75,7 @@ class CreditLimitController extends Controller
         }
 
         // Reward transaction frequency
-        if ($apayTransactions >= 7 && $apayTransactions < 20) {
+        if ($apayTransactions >= 10 && $apayTransactions < 20) {
             $limit += 1000;
         } elseif ($apayTransactions >= 20 && $apayTransactions < 50) {
             $limit += 2500;

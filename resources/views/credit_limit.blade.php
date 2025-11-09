@@ -290,8 +290,14 @@
                       <td>{{ $index + 1 }}</td>
                       <td>₦{{ number_format($loan->amount, 2) }}</td>
                       <td>{{ ucfirst($loan->status) }}</td>
-                      <td>{{ $loan->repayment_status }}</td>
-                      <td>{{ $loan->created_at->format('d M Y') }}</td>
+                      <td>
+                        @if($loan->created_at->diffInDays(now()) > 14 && $loan->repayment_status !== 'PAID')
+                            OVERDUE
+                        @else
+                            {{ $loan->repayment_status }}
+                        @endif
+                    </td>
+                    <td>{{ $loan->created_at->format('d M Y') }}</td>
                       <td>@if($loan->status !== 'rejected' & $loan->repayment_status !== 'PAID')
                             <a href="{{ url('/topup') }}" class="btn btn-sm btn-success">Repay</a>
                         @endif

@@ -28,6 +28,7 @@ use App\Http\Controllers\EmailVerificationController;
 
 
 
+
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -114,6 +115,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/transactions', [TransactionsController::class, 'view'])->name('trans');
     //Loan/Borrow
     Route::get('/borrow/credit_limit', [CreditLimitController::class, 'view'])->name('creditlimit');
+
 });
 
 //ADMIN

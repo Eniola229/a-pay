@@ -8,11 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Ramsey\Uuid\Uuid;
 
-class Transaction extends Authenticatable
+class WhatsappSession extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'transactions';
+    protected $table = 'whatsapp_sessions';
     protected $keyType = 'uuid';
     public $incrementing = false;
     protected $primaryKey = 'id';
@@ -34,17 +34,7 @@ class Transaction extends Authenticatable
      */
     protected $fillable = [
         'user_id',
-        'amount',
-        'cash_back',
-        'charges',
-        'beneficiary',
-        'description',
-        'status',
-        'reference'
+        'context',
+        'data',
     ];
-
-        public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
 }

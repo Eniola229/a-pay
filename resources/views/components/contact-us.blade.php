@@ -23,7 +23,7 @@
         }
 </style>
         <button id="contactUsButton" class="btn btn-primary">
-          <i class="fas fa-envelope"></i> Contact Us
+          <i class="fas fa-envelope"></i>
         </button>
 <!-- Contact Us Modal -->
 <div class="modal fade" id="contactUsModal" tabindex="-1" aria-labelledby="contactUsModalLabel" aria-hidden="true">

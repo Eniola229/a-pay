@@ -160,6 +160,7 @@
                     <th>Customer Email</th>
                     <th>Complain</th>
                     <th>Category</th>
+                    <th>Created At</th>
                 </tr>
             </thead>
             <tbody>
@@ -170,6 +171,7 @@
                         <td>{{ $complain->email }}</td>
                         <td>{{ $complain->complaint }}</td>
                         <td>{{ $complain->category }}</td>
+                        <td>{{ $complain->created_at->format('d M Y, h:i A') }}</td>
                         <td>
                            <!--  <button class="btn btn-primary btn-sm view-receipt" style="background: green; border: none;" 
                                     data-id="{{ $complain->id }}" 
