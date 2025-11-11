@@ -25,7 +25,9 @@ class ElectricityPaymentReceipt extends Mailable
                         'meterNumber' => $this->details['meterNumber'],
                         'provider'    => $this->details['provider'],
                         'amount'      => $this->details['amount'],
-                        'status'      => $this->details['status']
+                        'token'      => $this->details['token'],
+                        'units'      => $this->details['units'],
+                        'status'      => $this->details['status'],
                     ]);
     }
 }

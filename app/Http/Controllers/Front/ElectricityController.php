@@ -132,15 +132,21 @@ class ElectricityController extends Controller
                     'meterNumber' => $request->meter_number,
                     'provider' => $request->provider_id,
                     'amount' => $request->amount,
+                    'token' => $responseData['token'],
+                    'units' => $responseData['units'],
                     'status' => 'SUCCESS'
                 ];
 
 
 
                 // Send email
-                Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+                try {
+                    Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+                } catch (\Exception $e) {
+                    Log::error('Email send failed', ['error' => $e->getMessage()]);
+                }
 
-                return response()->json(['status' => true, 'message' => 'EYour electricity bill has been paid successfully. Please check your transaction history for the token.']);
+                return response()->json(['status' => true, 'message' => 'Your electricity bill has been paid successfully. Please check your transaction history for the token.']);
             } else {
                 // Extract the error message from the API response
                 $errorMessage = $responseData['message'] ?? 'Payment failed due to an unknown error.';
@@ -161,7 +167,12 @@ class ElectricityController extends Controller
                 $transaction->update(['status' => 'ERROR']);
                 $electricityPurchase->update(['status' => 'FAILED']);
 
-                Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+                try {
+                    Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+                } catch (\Exception $e) {
+                    Log::error('Email send failed', ['error' => $e->getMessage()]);
+                }
+
 
                 return response()->json(['status' => false, 'message' => $errorMessage], 500);
             }
@@ -171,8 +182,6 @@ class ElectricityController extends Controller
 
             $errorMessage = $responseData['message'] ?? 'Failed to connect to the payment gateway.';
             $errorData = json_encode($responseData);
-
-
 
             // Save error details
             Errors::create([
@@ -193,10 +202,17 @@ class ElectricityController extends Controller
                 'meterNumber' => $request->meter_number,
                 'provider' => $request->provider_id,
                 'amount' => $request->amount,
+                'token' => 0,
+                'units' => 0,
                 'status' => 'FAILED'
             ];
 
-            Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+            try {
+                Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+            } catch (\Exception $e) {
+                Log::error('Email send failed', ['error' => $e->getMessage()]);
+            }
+
 
             return response()->json(['status' => false, 'message' => "An error occurred. Please try again later."], 500);
         }

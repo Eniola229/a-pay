@@ -22,6 +22,11 @@ class TopUpController extends Controller
         return view('topup', compact('balance'));
     }
 
+    public function webhooktopup()
+    {
+        return view('webhooktopup');
+    }
+
     // Initialize the payment transaction with Paystack
     public function initialize(Request $request)
     {
