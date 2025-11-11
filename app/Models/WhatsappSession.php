@@ -36,5 +36,6 @@ class WhatsappSession extends Authenticatable
         'user_id',
         'context',
         'data',
+        'updated_at '
     ];
 }

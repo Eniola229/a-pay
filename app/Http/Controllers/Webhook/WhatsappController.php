@@ -182,24 +182,27 @@ class WhatsappController extends Controller
 
         // 4️⃣ Airtime
         // Airtime handling
-        if (preg_match('/(airtime|recharge|top\s?up|buy\s?airtime)/i', $message)) {
+         if (preg_match('/(airtime|recharge|top\s?up|buy\s?airtime)/i', $message)) {
 
             $session = WhatsappSession::where('user_id', $user->id)
                         ->where('context', 'airtime')
                         ->latest()
                         ->first();
 
-            $sessionData = json_decode($session->data ?? '{}', true);
+            $sessionData = json_decode($session->data ?? '{}', true) ?? [];
 
             // Try to extract phone, amount, network from message
             preg_match('/(0\d{10})/', $message, $phoneMatch); 
-            preg_match('/\b(\d{2,5})\b/', $message, $amountMatch); 
+            
+            // Extract amount - look for numbers that are NOT part of phone number (2-6 digits, preferably with space or "of")
+            preg_match('/(?:of\s+)?(\d{2,6})(?:\s|$|to)/', $message, $amountMatch);
+            
             preg_match('/\b(mtn|glo|airtel|9mobile)\b/i', $message, $networkMatch); 
 
             // Merge with session data if exists
-            $phone = $phoneMatch[1] ?? $sessionData['phone'] ?? null;
-            $amount = isset($amountMatch[1]) && (int)$amountMatch[1] >= 10 ? (float)$amountMatch[1] : $sessionData['amount'] ?? null;
-            $network = isset($networkMatch[1]) ? strtolower($networkMatch[1]) : $sessionData['network'] ?? null;
+            $phone = $phoneMatch[1] ?? ($sessionData['phone'] ?? null);
+            $amount = isset($amountMatch[1]) && (int)$amountMatch[1] >= 10 ? (float)$amountMatch[1] : ($sessionData['amount'] ?? null);
+            $network = isset($networkMatch[1]) ? strtolower($networkMatch[1]) : ($sessionData['network'] ?? null);
 
             // Auto-detect network if missing
             if (!$network && $phone) {
@@ -220,13 +223,13 @@ class WhatsappController extends Controller
 
             // If there is no session and no phone/amount/network, show help
             if (!$session && !$phone && !$amount && !$network) {
-                return "📱 To buy airtime, send:\n*airtime network amount phone*\nExample: airtime MTN 500 08012345678";
+                return "📱 To buy airtime, send in any of these formats:\n\n*airtime 500 09079916807*\nor\n*send airtime of 500 to 09079916807*\nor\n*airtime AIRTEL 500 09079916807*\n\nChoose any format! 😊";
             }
 
             // Update or create session
             if (!$session) {
                 $session = new WhatsappSession();
-                $session->id = \Str::uuid();
+                $session->id = Str::uuid();
                 $session->user_id = $user->id;
                 $session->context = 'airtime';
             }
@@ -239,20 +242,21 @@ class WhatsappController extends Controller
             $session->save();
 
             // Respond based on missing info
+
             if (!$phone && !$network && !$amount) {
-                return "📱 To buy airtime, send:\n*airtime network amount phone*\nExample: airtime MTN 500 08012345678";
+                return "📱 To buy airtime, send:\n\n*airtime 500 09079916807*\nor\n*send airtime of 500 to 09079916807*\n\nEnjoy! 😊";
             }
 
             if ($phone && !$network && !$amount) {
-                return "💡 You want to buy airtime for *{$phone}*.\nPlease tell me the *network* and *amount*.\nExample: airtime MTN 500 {$phone}";
+                return "🎯 You want to buy airtime for *{$phone}*.\n\n💡 Please tell me the *amount*.\n\nExample: *airtime 500 {$phone}*";
             }
 
             if ($phone && $network && !$amount) {
-                return "💰 You want to buy *" . strtoupper($network) . "* airtime for *{$phone}*.\nHow much do you want to recharge?\nJust reply with the amount (number only).";
+                return "🎯 You want to buy *" . strtoupper($network) . "* airtime for *{$phone}*.\n\n💰 How much? Reply with:\n\n*airtime " . strtoupper($network) . " 500 {$phone}*\n\nor just: *500* (we'll remember your number 😊)";
             }
 
             if ($phone && $amount && !$network) {
-                return "📶 You want to buy *₦{$amount}* airtime for *{$phone}*.\nPlease tell me the *network* (MTN, GLO, Airtel, 9mobile).";
+                return "💰 You want to buy *₦" . number_format($amount) . "* airtime for *{$phone}*.\n\n📶 Which network?\n\nExample: *airtime MTN " . $amount . " {$phone}*";
             }
 
             if ($phone && $network && $amount) {
@@ -270,35 +274,66 @@ class WhatsappController extends Controller
                         'amount' => $amount
                     ]);
                     $session->save();
-                    return "💰 You entered *₦{$amount}*.\nPlease tell me the phone number you want to recharge.";
+                    
+                    // Check if we have all info now
+                    if ($sessionData['network']) {
+                        return $this->processAirtimePurchase($user, $sessionData['network'], $amount, $phone);
+                    }
+                    
+                    return "💰 Got it! *₦" . number_format($amount) . "* for *{$phone}*.\n\n📶 Which network? (MTN, GLO, Airtel, 9mobile)";
                 } else {
-                    return "💡 I see you entered *₦{$amount}*.\nPlease tell me the phone number you want to recharge.";
+                    return "💡 I see you want *₦" . number_format($amount) . "* airtime.\n\n📱 What's the phone number? (e.g., 09079916807)";
                 }
             }
 
-            return "⚠️ Please provide correct details.\nExample: airtime MTN 500 08012345678";
+            return "⚠️ Please provide correct details.\n\nExample: *airtime 500 09079916807*";
         }
-
-
         // 5️⃣ Data
+        // Check if user wants to see data plans for a specific network
+        if (preg_match('/\b(mtn|airtel|glo|9mobile)\b/i', $message, $networkMatch)) {
+            $requestedNetwork = strtolower($networkMatch[1]);
+            
+            // Only show plans if they don't have a phone number (just want to browse)
+            if (!preg_match('/(0\d{10})/', $message)) {
+                // Fetch data plans from API
+                $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+                $allPlans = $response->json()['data'] ?? [];
+                $networkPlans = collect($allPlans)->where('service_id', $requestedNetwork)->values();
+
+                if ($networkPlans->isEmpty()) {
+                    return "⚠️ No data plans found for *" . strtoupper($requestedNetwork) . "*.";
+                }
+
+                $planListMsg = "💾 Available *" . strtoupper($requestedNetwork) . "* data plans:\n\n";
+                foreach ($networkPlans as $p) {
+                    $planListMsg .= "- " . $p['data_plan'] . " (₦" . $p['price'] . ")\n";
+                }
+                $planListMsg .= "\n\n✨ Which plan catches your eye? 👀\n\n📝 Just reply with your choice in this format:\n\n*data 09079916807 1GB*\n\nFor example:\n*data 09079916807 100MB*\n\nOr:\n*data 09079916807 5GB*";
+                return $planListMsg;
+            }
+        }
         if (preg_match('/\bdata\b/i', $message)) {
 
-            $session = WhatsappSession::where('user_id', $user->id)
-                        ->where('context', 'data')
-                        ->latest()
-                        ->first();
+            // Handle cancel command
+            if (preg_match('/\bcancel\b/i', $message)) {
+                return "❌ Cancelled. Type 'menu' to see other options.";
+            }
 
-            $sessionData = json_decode($session->data ?? '{}', true);
-
+            // Extract phone and plan from message
             preg_match('/(0\d{10})/', $message, $phoneMatch);
             preg_match('/\b(\d+(?:GB|MB|gb|mb))\b/', $message, $planMatch);
 
-            $phone = $phoneMatch[1] ?? $sessionData['phone'] ?? null;
-            $plan = $planMatch[1] ?? $sessionData['plan'] ?? null;
-            $network = $sessionData['network'] ?? null;
+            $phone = $phoneMatch[1] ?? null;
+            $plan = $planMatch[1] ?? null;
 
-            // Auto-detect network
-            if ($phone && !$network) {
+            // === CASE 1: User typed "data" but NO number ===
+            if (!$phone) {
+                return "🎉 Oh, you want to buy data? Great choice!\n\n📱 Send your phone number in this format:\n\n*data 09079916807*\n\nMake sure it's your correct phone number so we can send the data to the right place! 😊";
+            }
+
+            // === CASE 2: User has phone but NO plan - Show available plans ===
+            if ($phone && !$plan) {
+                // Auto-detect network from phone prefix
                 $prefix = substr($phone, 0, 4);
                 $networkPrefixes = [
                     'mtn' => ['0803','0806','0703','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
@@ -306,83 +341,90 @@ class WhatsappController extends Controller
                     'airtel' => ['0802','0808','0708','0812','0701','0902','0907','0901','0912'],
                     '9mobile' => ['0809','0817','0818','0909','0908']
                 ];
+
+                $network = null;
                 foreach ($networkPrefixes as $net => $prefixes) {
                     if (in_array($prefix, $prefixes)) {
                         $network = $net;
                         break;
                     }
                 }
-            }
 
-            // Update/create session
-            if (!$session) {
-                $session = new WhatsappSession();
-                $session->id = Str::uuid();
-                $session->user_id = $user->id;
-                $session->context = 'data';
-            }
+                if (!$network) {
+                    return "⚠️ Invalid phone number. Please use a valid Nigerian number.";
+                }
 
-            $session->data = json_encode([
-                'phone' => $phone,
-                'network' => $network,
-                'plan' => $plan
-            ]);
-            $session->save();
-
-            // Step 1: Ask for phone
-            if (!$phone) {
-                return "💾 To buy data, send your phone number.\nExample: 08031234567";
-            }
-
-            // Step 2: Ask user to select plan
-            if ($phone && $network && !$plan) {
+                // Fetch data plans from API
                 $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
                 $allPlans = $response->json()['data'] ?? [];
-                $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->all();
+                $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->values();
 
-                if (empty($networkPlans)) {
+                if ($networkPlans->isEmpty()) {
                     return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
                 }
 
-                $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for {$phone}:\n";
+                $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for {$phone}:\n\n";
                 foreach ($networkPlans as $p) {
                     $planListMsg .= "- " . $p['data_plan'] . " (₦" . $p['price'] . ")\n";
                 }
-                $planListMsg .= "\nReply with the plan you want to buy (e.g., 1GB).";
+                $planListMsg .= "\n✨ Which plan catches your eye? 👀\n\n📝 Just reply with your choice in this format:\n\n*data 09079916807 1GB*\n\nFor example:\n*data 09079916807 100MB*\n\nOr:\n*data 09079916807 5GB*";
                 return $planListMsg;
             }
 
-            // Step 3: Process purchase if phone, network, and plan exist
-            if ($phone && $network && $plan) {
-                $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-                $allPlans = $response->json()['data'] ?? [];
-                $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->all();
+            // === CASE 3: User has both phone AND plan - Process purchase ===
+            if ($phone && $plan) {
+                // Auto-detect network
+                $prefix = substr($phone, 0, 4);
+                $networkPrefixes = [
+                    'mtn' => ['0803','0806','0703','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
+                    'glo' => ['0805','0807','0811','0705','0815','0905','0915'],
+                    'airtel' => ['0802','0808','0708','0812','0701','0902','0907','0901','0912'],
+                    '9mobile' => ['0809','0817','0818','0909','0908']
+                ];
 
-                $selectedPlan = null;
-                foreach ($networkPlans as $p) {
-                    if (strtolower($p['data_plan']) === strtolower($plan)) {
-                        $selectedPlan = $p;
+                $network = null;
+                foreach ($networkPrefixes as $net => $prefixes) {
+                    if (in_array($prefix, $prefixes)) {
+                        $network = $net;
                         break;
                     }
                 }
 
+                if (!$network) {
+                    return "⚠️ Invalid phone number.";
+                }
+
+                // Fetch all plans and find the matching one
+                $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+                $allPlans = $response->json()['data'] ?? [];
+                $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->all();
+
+                // Find matching plan
+                $selectedPlan = collect($networkPlans)->first(function ($p) use ($plan) {
+                    $planData = strtolower(trim($p['data_plan']));
+                    $userPlan = strtolower(trim($plan));
+                    return strpos($planData, $userPlan) === 0;
+                });
+
                 if (!$selectedPlan) {
-                    return "⚠️ The plan *{$plan}* is not available for *" . strtoupper($network) . "*.\nPlease choose a valid plan.";
+                    return "⚠️ The plan *{$plan}* is not available for *" . strtoupper($network) . "*.\n\nPlease choose a valid plan and reply:\n*data {$phone} [PLAN]*";
                 }
 
                 $planName = $selectedPlan['data_plan'];
                 $planPrice = $selectedPlan['price'];
                 $variationId = $selectedPlan['variation_id'];
 
+                // Check user balance
                 $balance = Balance::where('user_id', $user->id)->first();
-                if ($balance->balance < $planPrice) {
-                    return "⚠️ Insufficient balance. Your wallet has ₦{$balance->balance}, but this plan costs ₦{$planPrice}.";
+                if (!$balance || $balance->balance < $planPrice) {
+                    $shortBy = $planPrice - ($balance->balance ?? 0);
+                    return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$planPrice}\n🔴 Short by: ₦{$shortBy}\n\nPlease fund your wallet and try again! 💳";
                 }
 
-                $balance->balance -= $planPrice;
-                $balance->save();
+                // Deduct balance
+                $balance->decrement('balance', $planPrice);
 
-                // Create transaction & data purchase
+                // Create transaction record
                 $transaction = Transaction::create([
                     'user_id' => $user->id,
                     'amount' => $planPrice,
@@ -391,6 +433,7 @@ class WhatsappController extends Controller
                     'status' => 'PENDING'
                 ]);
 
+                // Create data purchase record
                 $dataPurchase = DataPurchase::create([
                     'user_id' => $user->id,
                     'phone_number' => $phone,
@@ -400,50 +443,46 @@ class WhatsappController extends Controller
                     'status' => 'PENDING'
                 ]);
 
-                // Call Ebills API
+                // Call API to process purchase
                 $apiToken = env('EBILLS_API_TOKEN');
                 $requestId = 'REQ_' . strtoupper(Str::random(12));
-                $payload = [
-                    'request_id' => $requestId,
-                    'phone' => $phone,
-                    'service_id' => $network,
-                    'variation_id' => $variationId,
-                ];
 
                 try {
-                    $response = Http::withToken($apiToken)->timeout(15)->post('https://ebills.africa/wp-json/api/v2/data', $payload);
+                    $response = Http::withToken($apiToken)
+                        ->timeout(15)
+                        ->post('https://ebills.africa/wp-json/api/v2/data', [
+                            'request_id' => $requestId,
+                            'phone' => $phone,
+                            'service_id' => $network,
+                            'variation_id' => $variationId,
+                        ]);
                     $responseData = $response->json();
                 } catch (\Exception $e) {
                     return "⚠️ Could not reach data provider. Please try again later.";
                 }
 
-                if ($response->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
+                // Handle success
+                if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
                     $transaction->update(['status' => 'SUCCESS']);
                     $dataPurchase->update(['status' => 'SUCCESS']);
 
                     $cashback = CashbackService::calculate($planPrice);
-                    $balance->balance += $cashback;
-                    $balance->save();
-                    $transaction->cash_back += $cashback;
-                    $transaction->save();
+                    $balance->increment('balance', $cashback);
+                    $transaction->update(['cash_back' => $cashback]);
 
-                    $session->delete();
-
-                    return "✅ Success! You purchased *{$planName}* for *{$phone}* on *" . strtoupper($network) . "* for ₦{$planPrice}.\n💰 Cashback earned: ₦{$cashback}";
+                    return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$planName}* data has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$planPrice}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your data! 📡🚀";
                 } else {
                     Log::error('Data purchase failed', ['response' => $responseData]);
                     $balance->increment('balance', $planPrice);
                     $transaction->update(['status' => 'ERROR']);
                     $dataPurchase->update(['status' => 'FAILED']);
-                    $session->delete();
 
-                    return "⚠️ Data purchase failed. Please try again later.";
-                } 
+                    return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$planPrice} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
+                }
             }
 
-            return "⚠️ Please provide correct details.\nExample: data 08031234567";
+            return "⚠️ Please follow the format:\n*data 09079916807*";
         }
-
         // 6️⃣ Electricity
         if (preg_match('/electric|bill|meter/i', $message)) {
             return "⚡ To pay electricity bill, send:\n\n*electric meter_no amount*\nExample: electric 1234567890 5000";
@@ -638,7 +677,7 @@ class WhatsappController extends Controller
         $balance = Balance::where('user_id', $user->id)->first();
 
         if (!$balance || $balance->balance < $amount) {
-            return "💸 Insufficient balance. Please fund your wallet to continue.";
+            return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳";
         }
 
         $balance->balance -= $amount;
@@ -693,14 +732,15 @@ class WhatsappController extends Controller
                 $transaction->save();
             }
 
-            return "✅ Airtime of ₦{$amount} to {$phone} ({$network}) was successful!";
+            return "
+           🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your data! 📡🚀";
         } else {
             $balance->balance += $amount;
             $balance->save();
             $transaction->update(['status' => 'ERROR']);
             $airtime->update(['status' => 'FAILED']);
 
-            return "❌ Airtime purchase failed. Please try again later.";
+            return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
         }
     }
 
