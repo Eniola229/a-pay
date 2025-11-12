@@ -89,7 +89,7 @@
                     <p>
                         For inquiries or complaints, please contact us:
                         <br><span style="color: green;">Lagos, Nigeria</span><br>
-                        <span style="color: green;">+234 803 590 6313</span><br>
+                        <span style="color: green;">+234 907 991 6807</span><br>
                         <span style="color: green;">africteam@gmail.com</span>
                     </p>
 

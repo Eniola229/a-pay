@@ -104,10 +104,15 @@ class WhatsappController extends Controller
             $session->user_id = $user->id;
             $session->save();
 
-            return $this->sendMessage(
+             return $this->sendMessage(
                 $from,
-                "🎉✅ Congratulations *{$name}*! You have been successfully registered with A-Pay using your WhatsApp number as your mobile.You can now access and enjoy all our services. \n\n💚 Type *menu* to go back to the main menu and start transacting...
-"
+                "🎉✅ *Congratulations {$name}!* 🎊\n\n" .
+                "You have been successfully registered with *A-Pay* using your WhatsApp number as your mobile. 📱✨\n\n" .
+                "You can now enjoy all our services: 💸 Airtime, 📶 Data, 💡 Bills, and more!\n\n" .
+                "➡️ Type *menu* to return to the main menu and start transacting.\n\n" .
+                "🔒 *For your security, please enable WhatsApp Lock.*\n\n" .
+                "💰 To fund your wallet, type: *fund amount* (e.g., *fund 1000*)\n\n" .
+                "📌 __Please pin this chat for quick and easy access!__"
             );
         }
         // detect intent

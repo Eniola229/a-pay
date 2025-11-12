@@ -32,7 +32,7 @@
         <div class="container">
             <div class="row justify-content-between">
                 <div class="col-12 col-md d-flex align-items-center">
-                    <p class="mb-0 phone"><span class="mailus">Phone no:</span> <a href="#">+234 803 590 6313</a> or <span class="mailus">email us:</span> <a href="#">africteam@gmail.com</a></p>
+                    <p class="mb-0 phone"><span class="mailus">Phone no:</span> <a href="#">+234 907 991 6807</a> or <span class="mailus">email us:</span> <a href="#">africteam@gmail.com</a></p>
                 </div>
                 <div class="col-12 col-md d-flex justify-content-md-end">
                     <div class="social-media">
