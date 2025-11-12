@@ -624,7 +624,7 @@ class WhatsappController extends Controller
                 $balance->increment('balance', $totalAmount);
                 $transaction->update(['status' => 'ERROR']);
                 $electricityPurchase->update(['status' => 'FAILED']);
-                return "⚠️ Could not reach payment provider. Please try again later. Your balance has been restored.";
+                return "⚠️ Could not reach provider. Please try again later. Your balance has been restored.";
             }
 
             // Handle success
@@ -698,6 +698,28 @@ class WhatsappController extends Controller
         if (preg_match('/\b(thank you|thanks|thx|sharp)\b/i', $message)) {
             return "💚 You’re welcome! 😊\n\n" .
                    "If you’d like to return to the main menu, just type:\n➡️ *menu*";
+        }
+
+        // 💬 Founder / CEO / President Info
+        if (preg_match('/who\s+is\s+(the\s+)?(founder|ceo|president)\s+of\s+a-?pay/i', $message)) {
+            return "💚 Joshua Adeyemi is the founder and CEO of *A-Pay*, a Nigerian software engineer based in Lagos. He builds solutions that solve real-world problems.\n\n" .
+                   "If you’d like to return to the main menu, type:\n➡️ *menu*";
+        }
+
+        // 💬 Company Registration Info
+        if (preg_match('/a-?pay.*register(ed)?/i', $message)) {
+            return "💚 *A-Pay* operates under AfricGEM International Company Limited, a fully registered company in Nigeria under CAC.\n\n" .
+                   "Registration Number: 8088462\n\n" .
+                   "If you’d like to return to the main menu, type:\n➡️ *menu*";
+        }
+
+
+        // 💬 What is A-Pay / About
+        if (preg_match('/what\s+is\s+a-?pay/i', $message)) {
+            return "💚 *A-Pay* is a seamless platform that helps you:\n" .
+                   "- Buy Airtime\n- Buy Data\n- Pay Electricity Bills\n- Fund your wallet and track transactions easily.\n\n" .
+                   "All services are accessible via WhatsApp and our website.\n\n" .
+                   "Type *menu* to return to the main menu.";
         }
 
 
