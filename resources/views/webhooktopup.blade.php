@@ -11,7 +11,12 @@
                                 <h4>A-Pay | Transaction Status</h4>
                             </a>
 
-                            @if(session('message') === 'Successful!' || session('message') === 'Success')
+                            <!-- DEBUG: Show what message we're getting -->
+                            <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 12px; color: #666;">
+                                Message: "{{ session('message') }}"
+                            </div>
+
+                            @if(session('message') && (strtolower(session('message')) === 'successful!' || strtolower(session('message')) === 'success'))
                                 <!-- SUCCESS MESSAGE -->
                                 <div class="alert alert-success text-green-800 bg-green-100 p-4 rounded mb-4 border-l-4 border-green-600">
                                     <div style="text-align: center;">
@@ -86,6 +91,10 @@
                                 </a>
 
                             @endif
+
+                            <p class="mt-5 login-form__footer" style="text-align: center;">
+                                <a href="{{ route('dashboard') }}" style="color: green;">Back to Dashboard</a>
+                            </p>
                         </div>
                     </div>
                 </div>

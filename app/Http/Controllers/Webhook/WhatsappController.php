@@ -69,14 +69,26 @@ class WhatsappController extends Controller
             if (!$name || !$email) {
                 return $this->sendMessage(
                     $from,
-                    "👋 Welcome to *A-Pay!* \nPlease reply with your *Name* and *Email* in this format:\nJohn Doe john@gmail.com"
+                    "👋 Welcome to *A-Pay!* \nTo create your account, simply reply with your *Name* and *Email* in this format:\nJohn Doe john@gmail.com"
+                );
+            }
+            // Remove +234 from phone number for account number
+            $accountNumber = str_replace('+234', '', $from);
+
+            // Check if email already exists
+            $existingUser = User::where('email', $email)->first();
+
+            if ($existingUser) {
+                // Email already registered
+                return $this->sendMessage(
+                $from,
+                "⚠️ The email *{$email}* is already registered on A-Pay.\n\nIf this is your account, please chat this AI with the phone number you used to register."
                 );
             }
 
-            // Create user
-            $accountNumber = str_replace('+234', '', $from);
+            // Create new user
             $user = User::create([
-                'name' => $name,
+                'name' => ucwords(strtolower(trim($name))),
                 'mobile' => $from,
                 'email' => $email,
                 'password' => '', // empty password
@@ -94,7 +106,8 @@ class WhatsappController extends Controller
 
             return $this->sendMessage(
                 $from,
-                "🎉 Congratulations *{$name}*! You have been registered successfully with your WhatsApp number as your mobile. You can now use A-Pay services."
+                "🎉✅ Congratulations *{$name}*! You have been successfully registered with A-Pay using your WhatsApp number as your mobile.You can now access and enjoy all our services. \n\n💚 Type *menu* to go back to the main menu and start transacting...
+"
             );
         }
         // detect intent
@@ -284,7 +297,7 @@ class WhatsappController extends Controller
                     
                     return "💰 Got it! *₦" . number_format($amount) . "* for *{$phone}*.\n\n📶 Which network? (MTN, GLO, Airtel, 9mobile)";
                 } else {
-                    return "💡 I see you want *₦" . number_format($amount) . "* airtime.\n\n📱 What's the phone number? (e.g., 09079916807)";
+                    return "*🎯 You want to buy airtime?*.\n\n💡 Please tell me the *amount and number*.\n\nExample: *airtime 500 09012345678*";
                 }
             }
 
@@ -330,7 +343,7 @@ class WhatsappController extends Controller
 
             // === CASE 1: User typed "data" but NO number ===
             if (!$phone) {
-                return "🎉 Oh, you want to buy data? Great choice!\n\n📱 Send your phone number in this format:\n\n*data 09079916807*\n\nMake sure it's your correct phone number so we can send the data to the right place! 😊";
+                return "🎉 Oh, you want to buy data? Great choice!\n\n📱 Send your phone number in this format:\n\n*data 09079916807*\n\nMake sure it's your correct phone number so we can send the data plans! 😊";
             }
 
             // === CASE 2: User has phone but NO plan - Show available plans ===
@@ -654,10 +667,11 @@ class WhatsappController extends Controller
 
         return "⚠️ Invalid format.\n\nExample: *electric 1234567890 5000 eko*";
     }
-        // 7️⃣ Betting
-        if (preg_match('/bet/i', $message)) {
-            return "🎯 To fund betting account, send:\n\n*bet platform amount*\nExample: bet sportybet 1000";
-        }
+        // 7️⃣ Support / Customer Care
+            if (preg_match('/(support|customer\s*care|help|agent|contact|complain)/i', $message)) {
+                return "💚 *A-Pay Support Team*\n\nIf you need assistance, please contact our support via WhatsApp:\n👉 *09079916807*\n\nWe’re available to help you resolve any issue as quickly as possible.\n\nIf you’d like to return to the *main menu*, simply type:\n➡️ *menu*";
+            }
+
 
         // 8️⃣ Transactions
         if (preg_match('/transactions|history/i', $message)) {
@@ -680,6 +694,13 @@ class WhatsappController extends Controller
             return trim($msg);
         }
 
+        // 💬 Thank You / Appreciation
+        if (preg_match('/\b(thank you|thanks|thx|sharp)\b/i', $message)) {
+            return "💚 You’re welcome! 😊\n\n" .
+                   "If you’d like to return to the main menu, just type:\n➡️ *menu*";
+        }
+
+
         // fallback
         return "❓ Sorry, I didn’t understand that.\n\nType *menu* to see available options.";
     }
@@ -692,12 +713,16 @@ class WhatsappController extends Controller
                "1️⃣ airtime — Buy Airtime\n" .
                "2️⃣ data — Buy Data\n" .
                "3️⃣ electric — Pay Electricity Bill\n" .
-               "4️⃣ bet — Fund Betting Account\n" .
-               "5️⃣ fund — Fund Wallet\n" .
-               "6️⃣ balance — View Wallet Balance\n" .
-               "7️⃣ transactions — View Recent Transactions\n\n" .
-               "Example: *fund 2000* or *airtime MTN 500 08012345678*";
+               "4️⃣ fund — Fund Wallet\n" .
+               "5️⃣ balance — View Wallet Balance\n" .
+               "6️⃣ transactions — View Recent Transactions\n\n" .
+               "💬 *Support / Customer Care*\n" .
+               "If you need assistance, please contact us on WhatsApp:\n" .
+               "👉 *09079916807*\n\n" .
+               "We’re always ready to help you with any issue.\n\n" .
+               "💚 *Example:* fund 2000 or airtime 500 08012345678";
     }
+
 
 
     private function extractAmount($text)
@@ -749,7 +774,293 @@ class WhatsappController extends Controller
         $transaction = Transaction::where('reference', $reference)->latest()->first();
 
         if (!$transaction) {
-            return response()->json(['error' => 'Transaction not found.'], 404);
+            $html = <<<HTML
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <title>A-Pay Notification</title>
+              <style>
+                :root {
+                  --primary: #0d9b3d;
+                  --primary-dark: #0a7e33;
+                  --bg: #f3fef6;
+                  --text-dark: #052e16;
+                  --text-muted: #64748b;
+                  --warning: #facc15;
+                  --card: #ffffff;
+                  --shadow: rgba(13, 155, 61, 0.15);
+                }
+                body {
+                  margin: 0;
+                  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+                  background-color: var(--bg);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  padding: 20px;
+                  color: var(--text-dark);
+                }
+                .notification {
+                  background: var(--card);
+                  border-radius: 14px;
+                  box-shadow: 0 8px 40px var(--shadow);
+                  max-width: 480px;
+                  width: 100%;
+                  overflow: hidden;
+                  animation: fadeIn 0.5s ease-in-out;
+                }
+                .header {
+                  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+                  color: #fff;
+                  padding: 22px;
+                  text-align: center;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 22px;
+                  letter-spacing: 0.5px;
+                }
+                .content {
+                  padding: 24px;
+                  text-align: center;
+                }
+                .icon {
+                  background: #fefce8;
+                  color: var(--warning);
+                  border-radius: 50%;
+                  width: 72px;
+                  height: 72px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  font-size: 36px;
+                  margin: 0 auto 16px;
+                }
+                h2 {
+                  margin: 0;
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: var(--text-dark);
+                }
+                p {
+                  color: var(--text-muted);
+                  font-size: 15px;
+                  margin: 10px 0 20px;
+                  line-height: 1.5;
+                }
+                .details {
+                  background: #f9fefb;
+                  border: 1px solid #dcfce7;
+                  border-radius: 10px;
+                  padding: 12px 16px;
+                  text-align: left;
+                  font-size: 14px;
+                  color: var(--text-muted);
+                  margin-bottom: 18px;
+                }
+                .details strong {
+                  color: var(--text-dark);
+                }
+                .btn {
+                  background: var(--primary);
+                  color: #fff;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 10px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: background 0.2s ease-in-out;
+                }
+                .btn:hover {
+                  background: var(--primary-dark);
+                }
+                .footer {
+                  font-size: 13px;
+                  color: var(--text-muted);
+                  margin-top: 18px;
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="notification">
+                <div class="header">
+                  <h1>A-Pay</h1>
+                </div>
+                <div class="content">
+                  <div class="icon">⚠️</div>
+                  <h2>Transaction Not Found</h2>
+                  <p>We couldn’t locate any transaction matching your reference.  
+                  Please verify your transaction ID or try again later.</p>
+
+                  <div class="details">
+                    <div><strong>Status:</strong> Not Found</div>
+                    <div><strong>Code:</strong> TRANSACTION_NOT_FOUND</div>
+                  </div>
+
+                  <button class="btn" onclick="window.location.href='/'">Return to WhatsApp</button>
+
+                  <div class="footer">
+                    <p>© 2025 A-Pay Digital Services</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            HTML;
+
+            return response($html, 404)->header('Content-Type', 'text/html; charset=utf-8');
+        }
+
+        if ($transaction->status == "SUCCESS") {
+            $html = <<<HTML
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <title>A-Pay Notification</title>
+              <style>
+                :root {
+                  --primary: #0d9b3d;
+                  --primary-dark: #0a7e33;
+                  --bg: #f3fef6;
+                  --text-dark: #052e16;
+                  --text-muted: #64748b;
+                  --card: #ffffff;
+                  --shadow: rgba(13, 155, 61, 0.15);
+                }
+                body {
+                  margin: 0;
+                  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+                  background-color: var(--bg);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  padding: 20px;
+                  color: var(--text-dark);
+                }
+                .notification {
+                  background: var(--card);
+                  border-radius: 14px;
+                  box-shadow: 0 8px 40px var(--shadow);
+                  max-width: 480px;
+                  width: 100%;
+                  overflow: hidden;
+                  animation: fadeIn 0.5s ease-in-out;
+                }
+                .header {
+                  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+                  color: #fff;
+                  padding: 22px;
+                  text-align: center;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 22px;
+                  letter-spacing: 0.5px;
+                }
+                .content {
+                  padding: 24px;
+                  text-align: center;
+                }
+                .icon {
+                  background: #e8f9ee;
+                  color: var(--primary);
+                  border-radius: 50%;
+                  width: 72px;
+                  height: 72px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  font-size: 36px;
+                  margin: 0 auto 16px;
+                }
+                h2 {
+                  margin: 0;
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: var(--text-dark);
+                }
+                p {
+                  color: var(--text-muted);
+                  font-size: 15px;
+                  margin: 10px 0 20px;
+                  line-height: 1.5;
+                }
+                .details {
+                  background: #f9fefb;
+                  border: 1px solid #dcfce7;
+                  border-radius: 10px;
+                  padding: 12px 16px;
+                  text-align: left;
+                  font-size: 14px;
+                  color: var(--text-muted);
+                  margin-bottom: 18px;
+                }
+                .details strong {
+                  color: var(--text-dark);
+                }
+                .btn {
+                  background: var(--primary);
+                  color: #fff;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 10px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: background 0.2s ease-in-out;
+                }
+                .btn:hover {
+                  background: var(--primary-dark);
+                }
+                .footer {
+                  font-size: 13px;
+                  color: var(--text-muted);
+                  margin-top: 18px;
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="notification">
+                <div class="header">
+                  <h1>A-Pay</h1>
+                </div>
+                <div class="content">
+                  <div class="icon">✅</div>
+                  <h2>Transaction Already Processed</h2>
+                  <p>✅ This transaction has already been completed successfully.  
+                  Your funds have been sent — please check your wallet balance.</p>
+
+                  <div class="details">
+                    <div><strong>Status:</strong> Completed</div>
+                    <div><strong>Code:</strong> TRANSACTION_ALREADY_COMPLETED</div>
+                  </div>
+
+                  <button class="btn" onclick="window.location.href='/'">Go to WhatsApp</button>
+
+                  <div class="footer">
+                    <p>© 2025 A-Pay Digital Services</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            HTML;
+
+            return response($html, 409)->header('Content-Type', 'text/html; charset=utf-8');
+
         }
 
         // Get WhatsApp number stored in cache
@@ -823,7 +1134,147 @@ class WhatsappController extends Controller
                 $this->sendMessage($mobile, $message);
             }
 
-            return redirect()->route('webhooktopup')->with('message', 'Successful!');
+            $html = <<<HTML
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <title>A-Pay Notification</title>
+              <style>
+                :root {
+                  --primary: #0d9b3d;
+                  --primary-dark: #0a7e33;
+                  --bg: #f3fef6;
+                  --text-dark: #052e16;
+                  --text-muted: #64748b;
+                  --card: #ffffff;
+                  --shadow: rgba(13, 155, 61, 0.15);
+                }
+                body {
+                  margin: 0;
+                  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+                  background-color: var(--bg);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  padding: 20px;
+                  color: var(--text-dark);
+                }
+                .notification {
+                  background: var(--card);
+                  border-radius: 14px;
+                  box-shadow: 0 8px 40px var(--shadow);
+                  max-width: 480px;
+                  width: 100%;
+                  overflow: hidden;
+                  animation: fadeIn 0.5s ease-in-out;
+                }
+                .header {
+                  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+                  color: #fff;
+                  padding: 22px;
+                  text-align: center;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 22px;
+                  letter-spacing: 0.5px;
+                }
+                .content {
+                  padding: 24px;
+                  text-align: center;
+                }
+                .icon {
+                  background: #e8f9ee;
+                  color: var(--primary);
+                  border-radius: 50%;
+                  width: 72px;
+                  height: 72px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  font-size: 36px;
+                  margin: 0 auto 16px;
+                }
+                h2 {
+                  margin: 0;
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: var(--text-dark);
+                }
+                p {
+                  color: var(--text-muted);
+                  font-size: 15px;
+                  margin: 10px 0 20px;
+                  line-height: 1.5;
+                }
+                .details {
+                  background: #f9fefb;
+                  border: 1px solid #dcfce7;
+                  border-radius: 10px;
+                  padding: 12px 16px;
+                  text-align: left;
+                  font-size: 14px;
+                  color: var(--text-muted);
+                  margin-bottom: 18px;
+                }
+                .details strong {
+                  color: var(--text-dark);
+                }
+                .btn {
+                  background: var(--primary);
+                  color: #fff;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 10px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: background 0.2s ease-in-out;
+                }
+                .btn:hover {
+                  background: var(--primary-dark);
+                }
+                .footer {
+                  font-size: 13px;
+                  color: var(--text-muted);
+                  margin-top: 18px;
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="notification">
+                <div class="header">
+                  <h1>A-Pay</h1>
+                </div>
+                <div class="content">
+                  <div class="icon">🎉</div>
+                  <h2>Transaction Successful</h2>
+                  <p>{$message}</p>
+
+                  <div class="details">
+                    <div><strong>Status:</strong> Success</div>
+                    <div><strong>Code:</strong> TRANSACTION_SUCCESSFUL</div>
+                  </div>
+
+                  <button class="btn" onclick="window.location.href='/'">Go to WhatsApp</button>
+
+                  <div class="footer">
+                    <p>© 2025 A-Pay Digital Services</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            HTML;
+
+            return response($html, 200)->header('Content-Type', 'text/html; charset=utf-8');
+
 
         } else {
             // Payment failed
@@ -834,7 +1285,150 @@ class WhatsappController extends Controller
                 $this->sendMessage($mobile, "❌ Top-up failed. Please try again.");
             }
 
-            return redirect()->route('webhooktopup')->with('message', 'Failed');
+            $html = <<<HTML
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <title>A-Pay Notification</title>
+              <style>
+                :root {
+                  --primary: #0d9b3d;
+                  --primary-dark: #0a7e33;
+                  --bg: #f3fef6;
+                  --text-dark: #052e16;
+                  --text-muted: #64748b;
+                  --danger: #dc2626;
+                  --danger-light: #fee2e2;
+                  --card: #ffffff;
+                  --shadow: rgba(220, 38, 38, 0.15);
+                }
+                body {
+                  margin: 0;
+                  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+                  background-color: var(--bg);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  padding: 20px;
+                  color: var(--text-dark);
+                }
+                .notification {
+                  background: var(--card);
+                  border-radius: 14px;
+                  box-shadow: 0 8px 40px var(--shadow);
+                  max-width: 480px;
+                  width: 100%;
+                  overflow: hidden;
+                  animation: fadeIn 0.5s ease-in-out;
+                }
+                .header {
+                  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+                  color: #fff;
+                  padding: 22px;
+                  text-align: center;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 22px;
+                  letter-spacing: 0.5px;
+                }
+                .content {
+                  padding: 24px;
+                  text-align: center;
+                }
+                .icon {
+                  background: var(--danger-light);
+                  color: var(--danger);
+                  border-radius: 50%;
+                  width: 72px;
+                  height: 72px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  font-size: 36px;
+                  margin: 0 auto 16px;
+                }
+                h2 {
+                  margin: 0;
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: var(--text-dark);
+                }
+                p {
+                  color: var(--text-muted);
+                  font-size: 15px;
+                  margin: 10px 0 20px;
+                  line-height: 1.5;
+                }
+                .details {
+                  background: #f9fefb;
+                  border: 1px solid #fee2e2;
+                  border-radius: 10px;
+                  padding: 12px 16px;
+                  text-align: left;
+                  font-size: 14px;
+                  color: var(--text-muted);
+                  margin-bottom: 18px;
+                }
+                .details strong {
+                  color: var(--text-dark);
+                }
+                .btn {
+                  background: var(--primary);
+                  color: #fff;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 10px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: background 0.2s ease-in-out;
+                }
+                .btn:hover {
+                  background: var(--primary-dark);
+                }
+                .footer {
+                  font-size: 13px;
+                  color: var(--text-muted);
+                  margin-top: 18px;
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="notification">
+                <div class="header">
+                  <h1>A-Pay</h1>
+                </div>
+                <div class="content">
+                  <div class="icon">❌</div>
+                  <h2>Payment Failed</h2>
+                  <p>We encountered an issue while processing your payment.  
+                  Please verify your payment details or try again later.</p>
+
+                  <div class="details">
+                    <div><strong>Status:</strong> Failed</div>
+                    <div><strong>Code:</strong> PAYMENT_FAILED</div>
+                  </div>
+
+                  <button class="btn" onclick="window.location.href='/'">Try Again</button>
+
+                  <div class="footer">
+                    <p>© 2025 A-Pay Digital Services</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+            HTML;
+
+            return response($html, 400)->header('Content-Type', 'text/html; charset=utf-8');
+
         }
     }
 
@@ -899,7 +1493,7 @@ class WhatsappController extends Controller
             }
 
             return "
-           🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your data! 📡🚀";
+           🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀";
         } else {
             $balance->balance += $amount;
             $balance->save();

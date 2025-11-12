@@ -55,9 +55,6 @@ Route::get('/blog', function () {
     return view('blog');
 });
 
-//Webhook topup
-Route::get('/webhook-topup', [TopUpController::class, 'webhooktopup'])->name('webhooktopup');
-
 Route::post('/send-email-code', [EmailVerificationController::class, 'sendCode'])->name('send.email.code');
 
 //Contact us
