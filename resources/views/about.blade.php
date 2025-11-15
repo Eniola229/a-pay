@@ -264,13 +264,14 @@
                         </div>
                         <div class="collapse" id="collapseTwo" role="tabpanel" aria-labelledby="headingTwo">
                             <div class="card-body py-3 px-0">
-                                    <ol>
-                                        <li>Create an A-Pay account or log in to your existing one</li>
-                                        <li>Top up your wallet with funds</li>
-                                        <li>Select the service you want to purchase: airtime, data, or bill payment</li>
-                                        <li>Provide the required details (e.g., phone number, amount, meter number)</li>
-                                        <li>Confirm your transaction and get instant notification once it’s successful</li>
-                                    </ol>
+                                <ol>
+                                    <li>Save the A-Pay WhatsApp number and send "Hi" to start.</li>
+                                    <li>Create your A-Pay account or log in directly inside WhatsApp.</li>
+                                    <li>Top up your A-Pay wallet through the chat.</li>
+                                    <li>Select the service you want: airtime, data, or bill payment.</li>
+                                    <li>Provide the required details (phone number, network, amount, meter number).</li>
+                                    <li>Confirm your transaction and receive instant WhatsApp notification once successful.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
@@ -290,7 +291,7 @@
                                     <li>Debit and credit cards</li>
                                     <li>Mobile money services</li>
                                     <li>Bank transfers</li>
-                                    <li>Wallet payments </li>
+                                    <li>Wallet payments</li>
                                     <li>Other local payment options</li>
                                 </ol>
                             </div>
@@ -309,39 +310,44 @@
                         <div class="collapse" id="collapseFour" role="tabpanel" aria-labelledby="headingFour">
                             <div class="card-body py-3 px-0">
                                 <p>Yes, A-Pay ensures maximum security by:</p>
-                                <ol>
-                                    <li>Using encrypted transactions for data protection</li>
-                                    <li>Implementing two-factor authentication for login security</li>
-                                    <li>Partnering with trusted financial institutions</li>
-                                    <li>Providing fraud detection and prevention measures</li>
-                                    <li>Ensuring 24/7 security monitoring</li>
-                                </ol>
+                                    <ol>
+                                        <li>Your WhatsApp transactions are fully encrypted for maximum safety.</li>
+                                        <li>Login on WhatsApp is protected with secure verification steps.</li>
+                                        <li>A-Pay connects only with trusted and verified payment partners.</li>
+                                        <li>Smart fraud checks run automatically to keep your WhatsApp account safe.</li>
+                                        <li>24/7 monitoring ensures every WhatsApp transaction stays protected.</li>
+                                    </ol>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header p-0" id="headingFive" role="tab">
-                            <h2 class="mb-0">
-                                <button href="#collapseFive" class="d-flex py-3 px-4 align-items-center justify-content-between btn btn-link" data-parent="#accordion" data-toggle="collapse" aria-expanded="false" aria-controls="collapseFive">
-                                    <p class="mb-0">How do I contact support?</p>
-                                    <i class="fa" aria-hidden="true"></i>
-                                </button>
-                            </h2>
-                        </div>
-                        <div class="collapse" id="collapseFive" role="tabpanel" aria-labelledby="headingFive">
-                            <div class="card-body py-3 px-0">
-                                <ol>
-                                    <li>Live chat support on the A-Pay website</li>
-                                    <li>Email support for inquiries</li>
-                                    <li>Phone call support for urgent issues</li>
-                                    <li>Help center with FAQs and guides</li>
-                                    <li>Social media channels for quick assistance</li>
-                                </ol>
+                        <div class="card">
+                            <div class="card-header p-0" id="headingFive" role="tab">
+                                <h2 class="mb-0">
+                                    <button href="#collapseFive" class="d-flex py-3 px-4 align-items-center justify-content-between btn btn-link" data-parent="#accordion" data-toggle="collapse" aria-expanded="false" aria-controls="collapseFive">
+                                        <p class="mb-0">Lost Your Phone? Secure Your A-Pay Instantly</p>
+                                        <i class="fa" aria-hidden="true"></i>
+                                    </button>
+                                </h2>
+                            </div>
+                            <div class="collapse" id="collapseFive" role="tabpanel" aria-labelledby="headingFive">
+                                <div class="card-body py-3 px-0">
+                                    <ol>
+                                        <li>Click the button below to immediately block your A-Pay account and prevent unauthorized access:</li>
+                                        <li>
+                                            <a href="{{ url('block-account') }}" 
+                                               class="btn btn-danger d-flex align-items-center px-4 py-3 mt-2" 
+                                               role="button">
+                                                <i class="fab fa-lock fa-2x me-2"></i>
+                                                <span class="fw-bold" style="color: white;">Block Account</span>
+                                            </a>
+                                        </li>
+                                        <li>If you want to reopen your account later, send a message to our customer care on WhatsApp at <strong>09079916807</strong> and we will assist you in restoring access securely.</li>
+                                    </ol>
+
+                                </div>
                             </div>
                         </div>
-                    </div>
-
                 </div>
             </div>
         </div>

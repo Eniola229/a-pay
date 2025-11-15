@@ -53,6 +53,7 @@ class User extends Authenticatable
         'account_number',
         'last_login_device',
         'password',
+        'is_status'
     ];
 
     /**

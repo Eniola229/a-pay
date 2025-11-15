@@ -115,6 +115,13 @@ class WhatsappController extends Controller
                 "📌 __Please pin this chat for quick and easy access!__"
             );
         }
+
+        if ($user->is_status === 'BLOCKED') {
+            return $this->sendMessage(
+                $from,
+                "*⚠️ Your A-Pay account has been BLOCKED! 🔒* \n\n Please reach out to Customer Support on WhatsApp 📲 09079916807 to get it restored."
+            );
+        }
         // detect intent
         $response = $this->processCommand($user, $message);
 

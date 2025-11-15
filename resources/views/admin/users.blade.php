@@ -158,6 +158,7 @@
                 <th>Customer Name</th>
                 <th>Customer Mobile</th>
                     <th>Customer Email</th>
+                    <th>Account Status</th>
                     <th>Customer Balance</th>
                     <th>Customer Loan</th>
                     <th>Joined At</th>
@@ -170,6 +171,7 @@
                         <td>{{ $user->name }}</td>
                         <td>{{ $user->mobile }}</td>
                         <td>{{ $user->email }}</td>
+                        <td>{{ $user->is_status ?? "N/A" }}</td>
                         <td>₦ {{ number_format($user->balance->balance, 2) }}
                         <td>₦ {{ number_format($user->balance->owe, 2) }}
                         </td>
@@ -288,6 +290,16 @@
                         <label>Email</label>
                         <input type="email" id="edit-user-email" class="form-control" required>
                     </div>
+                <div class="form-group">
+                    <label for="edit-user-status">Status</label>
+                    <select id="edit-user-status" class="form-control" required>
+                        <option value="" disabled selected>Select status</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="BLOCKED">BLOCKED</option>
+                        <option value="SUSPENDED">SUSPENDED</option>
+                    </select>
+                </div>
+
                     <div class="form-group">
                         <label>Balance</label>
                         <input type="text" id="edit-user-balance" class="form-control" readonly>
@@ -314,15 +326,17 @@
         let userName = $(this).data('name');
         let userMobile = $(this).data('mobile');
         let userEmail = $(this).data('email');
+        let userStatus = $(this).data('is_status');
 
         $('#edit-user-id').val(userId);
         $('#edit-user-name').val(userName);
         $('#edit-user-mobile').val(userMobile);
         $('#edit-user-email').val(userEmail);
+        $('#edit-user-status').val(userStatus);
 
         // Fetch the full user details via AJAX
         $.ajax({
-            url: `/a-pay/admin/users/${userId}/edit`,
+            url: `/admin/users/${userId}/edit`,
             method: 'GET',
             dataType: 'json',
             beforeSend: function() {
@@ -351,10 +365,11 @@
             name: $('#edit-user-name').val(),
             mobile: $('#edit-user-mobile').val(),
             email: $('#edit-user-email').val(),
+            status: $('#edit-user-status').val(),
         };
 
         $.ajax({
-            url: `/a-pay/admin/users/${userId}/update`,
+            url: `/admin/users/${userId}/update`,
             method: 'POST',
             data: formData,
             beforeSend: function() {

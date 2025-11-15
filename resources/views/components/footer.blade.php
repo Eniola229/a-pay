@@ -15,7 +15,6 @@
                         <h2 class="ftco-heading-2">Quick Links</h2>
                         <ul class="list-unstyled">
                             <li><a href="{{ url('about') }}" class="py-2 d-block">About</a></li>
-                            <li><a href="{{ url('blog') }}" class="py-2 d-block">Blog</a></li>
                             <li><a href="{{ url('contact') }}" class="py-2 d-block">Contact Us</a></li>
                         </ul>
                     </div>

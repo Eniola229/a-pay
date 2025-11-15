@@ -23,6 +23,7 @@ use App\Http\Controllers\Loan\CreditLimitController;
 use App\Http\Controllers\Loan\BorrowAirtimeController;
 use App\Http\Controllers\Loan\BorrowDataController;
 use App\Http\Controllers\Ussd\UssdController;
+use App\Http\Controllers\Block\BlockAccountController;
 use App\Http\Controllers\EmailVerificationController;
 
 
@@ -55,6 +56,13 @@ Route::get('/blog', function () {
     return view('blog');
 });
 
+//Block account
+Route::get('/block-account', function () {
+    return view('block-account');
+});
+Route::post('/block-account', [BlockAccountController::class, 'blockAccount'])->name('block.account');
+
+
 Route::post('/send-email-code', [EmailVerificationController::class, 'sendCode'])->name('send.email.code');
 
 //Contact us
@@ -70,7 +78,7 @@ Route::post('/get-payment-amount', [RegistrationController::class, 'getPaymentAm
 Route::post('/register-leaners', [RegistrationController::class, 'register'])->name('register-leaners');
 Route::get('/register-leaners.com', [RegistrationController::class, 'showForm']);
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth', 'device.verified')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');
     //SET PIN
     Route::post('/set-pin', [DashboardController::class, 'setPin'])->name('set.pin');
@@ -127,7 +135,7 @@ Route::get('admin/logout', [AdminAuthController::class, 'logout'])->name('admin-
 Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/dashboard', [AdminAuthController::class, 'dashboard'])->name('admin-dashboard'); 
  Route::get('/wallet-balance', [AdminAuthController::class, 'getBalance'])->name('wallet.balance');
- Route::get('/transactions', [AdminAuthController::class, 'transactions'])->name('admin-transactions'); 
+ Route::get('/transactions', [AdminAuthController::class, 'transactions'])->name('admin.transactions'); 
  Route::get('/complians', [AdminAuthController::class, 'complians'])->name('admin-complians'); 
  Route::get('/users', [UserController::class, 'users'])->name('admin-users'); 
  Route::get('/users/{id}', [UserController::class, 'showUser'])->name('admin.users.show');

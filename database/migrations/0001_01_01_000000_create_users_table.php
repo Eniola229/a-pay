@@ -31,6 +31,7 @@ return new class extends Migration
             $table->string('last_login_device')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->enum('is_status', ['ACTIVE', 'BLOCKED', 'SUSPENDED'])->default('ACTIVE');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
