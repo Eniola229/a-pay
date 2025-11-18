@@ -9,6 +9,9 @@ use App\Http\Controllers\Ussd\DataController;
 use App\Http\Controllers\Webhook\WhatsappController;
 //Topup
 use App\Http\Controllers\Front\TopUpController;
+//Paystack
+use App\Http\Controllers\Webhook\PaystackWebhookController;
+
 
 Route::get('/env-test', function () {
     return response()->json([
@@ -26,7 +29,8 @@ Route::post('/whatsapp/webhook', [WhatsappController::class, 'handle']);
 Route::get('/whatsapp/topup/callback', [WhatsappController::class, 'whatsappCallback'])->name('whatsapp.topup.callback');
 //Webhook topup
 Route::get('/webhook-topup', [TopUpController::class, 'webhooktopup'])->name('webhooktopup');
-
+//Paystack
+Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 
 
 
