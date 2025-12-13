@@ -32,7 +32,7 @@
         <div class="container">
             <div class="row justify-content-between">
                 <div class="col-12 col-md d-flex align-items-center">
-                    <p class="mb-0 phone"><span class="mailus">Phone no:</span> <a href="#">+234 907 991 6807</a> or <span class="mailus">email us:</span> <a href="#">africteam@gmail.com</a></p>
+                    <p class="mb-0 phone"><span class="mailus">Phone no:</span> <a href="#">+234-803-590-6313</a> or <span class="mailus">email us:</span> <a href="#">a-pay@africicl.com.ng</a></p>
                 </div>
                 <div class="col-12 col-md d-flex justify-content-md-end">
                     <div class="social-media">
@@ -57,7 +57,7 @@
                     <li class="nav-item"><a href="{{ url('/') }}" class="nav-link">Home</a></li>
                     <li class="nav-item"><a href="{{ url('about') }}" class="nav-link">About</a></li>
                     <li class="nav-item"><a href="{{ url('contact') }}" class="nav-link">Contact us</a></li>
-                    <li class="nav-item cta"><a href="{{ route('login') }}" style="background: darkgreen;" class="nav-link"><span class="fw-bold"> Try A-Pay Now</span></a></li>
+                    <li class="nav-item cta"><a href="https://wa.me/2349079916807?text=Hi%20A-Pay" style="background: darkgreen;" class="nav-link"><span class="fw-bold"> Try A-Pay Now</span></a></li>
                 </ul>
             </div>
         </div>

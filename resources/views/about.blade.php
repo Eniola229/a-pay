@@ -265,7 +265,7 @@
                         <div class="collapse" id="collapseTwo" role="tabpanel" aria-labelledby="headingTwo">
                             <div class="card-body py-3 px-0">
                                 <ol>
-                                    <li>Save the A-Pay WhatsApp number and send "Hi" to start.</li>
+                                    <li>Save the A-Pay WhatsApp number (+234-907-991-6807) and send "Hi" to start.</li>
                                     <li>Create your A-Pay account or log in directly inside WhatsApp.</li>
                                     <li>Top up your A-Pay wallet through the chat.</li>
                                     <li>Select the service you want: airtime, data, or bill payment.</li>

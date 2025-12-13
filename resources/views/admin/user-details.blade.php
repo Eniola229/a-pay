@@ -247,7 +247,7 @@
                                     <tr>
                                         <td>{{ $transactions->firstItem() + $index }}</td>
                                         <td>₦ {{ number_format($transaction->amount, 2) }}</td>
-                                        <td>{{ $transaction->description ?? 'N/A' }}</td>
+                                        <td>{{ $transaction->description ?? 'N/A' }} | {{ $transaction->beneficiary ?? 'N/A' }}</td>
                                         <td>{{ ucfirst($transaction->status) }}</td>
                                         <td>{{ $transaction->created_at->format('d M, Y H:i') }}</td>
                                     </tr>

@@ -203,14 +203,14 @@ class RegisteredUserController extends Controller
         ]);
 
         // Send SMS Notification
-        $message = "Hello {$request->name}, thank you for registering with A-Pay!";
+        // $message = "Hello {$request->name}, thank you for registering with A-Pay!";
         
-        try {
-            $smsService->sendSms($request->mobile, $message);
-            return redirect()->route('login')->with('success', 'Registration successful! Virtual account created, Kindly login.');
-        } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Registration successful, but SMS could not be sent');
-        }
+        // try {
+        //     $smsService->sendSms($request->mobile, $message);
+        //     return redirect()->route('login')->with('success', 'Registration successful! Virtual account created, Kindly login.');
+        // } catch (Exception $e) {
+        //     return redirect()->back()->with('error', 'Registration successful, but SMS could not be sent');
+        // }
     }
 
 

@@ -13,7 +13,7 @@
                     <p>Recharge airtime, buy data, and pay bills easily.</p>
                     <div class="d-flex gap-3 flex-wrap">
                         <!-- WhatsApp Version -->
-                        <a href="" 
+                        <a href="https://wa.me/2349079916807?text=Hi%20A-Pay"
                            class="btn btn-primary d-flex align-items-center px-4 py-3" 
                            role="button">
                             <i class="fab fa-whatsapp fa-2x me-2"></i>
@@ -267,7 +267,7 @@
                         <div class="collapse" id="collapseTwo" role="tabpanel" aria-labelledby="headingTwo">
                             <div class="card-body py-3 px-0">
                                 <ol>
-                                    <li>Save the A-Pay WhatsApp number and send "Hi" to start.</li>
+                                    <li>Save the A-Pay WhatsApp number (+234-907-991-6807) and send "Hi" to start.</li>
                                     <li>Create your A-Pay account or log in directly inside WhatsApp.</li>
                                     <li>Top up your A-Pay wallet through the chat.</li>
                                     <li>Select the service you want: airtime, data, or bill payment.</li>
@@ -344,7 +344,7 @@
                                                 <span class="fw-bold" style="color: white;">Block Account</span>
                                             </a>
                                         </li>
-                                        <li>If you want to reopen your account later, send a message to our customer care on WhatsApp at <strong>09079916807</strong> and we will assist you in restoring access securely.</li>
+                                        <li>If you want to reopen your account later, send a message to our customer care on WhatsApp at <strong>+234-803-590-6313</strong> and we will assist you in restoring access securely.</li>
                                     </ol>
 
                                 </div>
@@ -496,7 +496,7 @@
                     </a>
 
                     <!-- Unblock Account Button -->
-                    <a href="https://wa.me/09079916807?text=UNBLOCK" 
+                    <a href="https://wa.me/+234-803-590-6313?text=UNBLOCK" 
                        class="btn btn-success d-flex align-items-center px-4 py-3" 
                        role="button">
                         <i class="fab fa-whatsapp fa-2x me-2"></i>

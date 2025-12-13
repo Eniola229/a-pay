@@ -147,6 +147,17 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::post('/notifications/store', [AdminAuthController::class, 'Notificationstore'])->name('notifications.store');
  Route::delete('/notifications/{id}', [AdminAuthController::class, 'Notificationdestroy'])->name('notifications.destroy');
  Route::get('/loans', [AdminAuthController::class, 'loans'])->name('admin-loans'); 
+
+     // Newsletter Routes
+    Route::get('/newsletter', [App\Http\Controllers\Admin\NewsletterController::class, 'index'])
+        ->name('admin.newsletter');
+    
+    Route::post('/newsletter/send', [App\Http\Controllers\Admin\NewsletterController::class, 'sendNewsletter'])
+        ->name('admin.newsletter.send');
+    
+    Route::post('/newsletter/low-balance', [App\Http\Controllers\Admin\NewsletterController::class, 'sendLowBalanceAlert'])
+        ->name('admin.newsletter.low-balance');
+    
 });
 
 require __DIR__.'/auth.php';

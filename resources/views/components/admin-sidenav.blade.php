@@ -46,6 +46,12 @@
                             <span class="nav-text">Loans</span>
                         </a>
                     </li>
+                    <li>
+                       <a class="has-arrow {{ request()->is('admin/newsletter') ? 'active' : '' }}" href="{{ url('admin/newsletter') }}" aria-expanded="false">
+                             <i class="icon-wallet menu-icon"></i>
+                            <span class="nav-text">Newletter</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
