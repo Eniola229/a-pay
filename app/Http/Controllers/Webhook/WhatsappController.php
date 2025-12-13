@@ -36,14 +36,17 @@ class WhatsappController extends Controller
 
     protected $airtimeController;
     protected $dataController;
+    protected $transferController;
 
     public function __construct(
         \App\Http\Controllers\WebhookControllers\AirtimeController $airtimeController,
-        \App\Http\Controllers\WebhookControllers\DataController $dataController
+        \App\Http\Controllers\WebhookControllers\DataController $dataController,
+        \App\Http\Controllers\WebhookControllers\TransferController $transferController
     )
     {
         $this->airtimeController = $airtimeController;
         $this->dataController = $dataController;
+        $this->transferController = $transferController;
     }
 
     public function handle(Request $request)
@@ -269,7 +272,7 @@ class WhatsappController extends Controller
         }
 
         // 2️⃣ Check funding/deposit requests
-        if (preg_match('/\b(fund|deposit|top\s*up|top-up|add\s+money|transfer)\b/i', $message)) {
+        if (preg_match('/\b(fund|deposit|top\s*up|top-up|add\s+money)\b/i', $message)) {
             return 
                 "💰 *TO FUND YOUR A-PAY WALLET*\n\n" .
                 "🏦 *Bank:* Wema Bank\n" .
@@ -317,7 +320,7 @@ class WhatsappController extends Controller
             if (!$network && $phone) {
                 $prefix = substr($phone, 0, 4);
                 $networkPrefixes = [
-                    'mtn' => ['0803','0806','0703','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
+                    'mtn' => ['0803','0806','0703','0702','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
                     'glo' => ['0805','0807','0811','0705','0815','0905','0915'],
                     'airtel' => ['0802','0808','0708','0812','0701','0902','0907','0901','0912'],
                     '9mobile' => ['0809','0817','0818','0909','0908']
@@ -441,12 +444,12 @@ class WhatsappController extends Controller
             $phone = $phoneMatch[1] ?? null;
             $plan = $planMatch[1] ?? null;
 
-            // === CASE 1: User typed "data" but NO number ===
+            // ===User typed "data" but NO number ===
             if (!$phone) {
                 return "🎉 Oh, you want to buy data? Great choice!\n\n📱 Send your phone number in this format:\n\n*data 09079916807*\n\nMake sure it's your correct phone number so we can send the data plans! 😊";
             }
 
-            // === CASE 2: User has phone but NO plan - Show available plans ===
+            // === User has phone but NO plan - Show available plans ===
             if ($phone && !$plan) {
                 // Auto-detect network from phone prefix using DataController
                 $network = $this->dataController->detectNetwork($phone);
@@ -459,7 +462,7 @@ class WhatsappController extends Controller
                 return $this->dataController->getPlans($network, $phone);
             }
 
-            // === CASE 3: User has both phone AND plan - Process purchase ===
+            // === User has both phone AND plan - Process purchase ===
             if ($phone && $plan) {
                 // Auto-detect network using DataController
                 $network = $this->dataController->detectNetwork($phone);
@@ -579,6 +582,7 @@ class WhatsappController extends Controller
                 'amount'      => $totalAmount,
                 'beneficiary' => $meterNumber,
                 'description' => "Electricity bill payment for meter " . $meterNumber,
+                'type' => 'DEBIT',
                 'status'      => 'PENDING'
             ]);
 
@@ -644,6 +648,179 @@ class WhatsappController extends Controller
 
         return "⚠️ Invalid format.\n\nExample: *electric 1234567890 5000 eko*";
     }
+
+    $transferSession = WhatsappSession::where('user_id', $user->id)
+                        ->where('context', 'transfer_confirm')
+                        ->latest()
+                        ->first();
+
+    // If there's an active transfer session and user is confirming/canceling
+    if ($transferSession && preg_match('/\b(confirm|yes|proceed|cancel|no)\b/i', $message)) {
+        $sessionData = json_decode($transferSession->data ?? '{}', true) ?? [];
+        
+        // Handle cancel
+        if (preg_match('/\b(cancel|no)\b/i', $message)) {
+            $transferSession->delete();
+            return "❌ Transfer cancelled. Type 'menu' to see other options.";
+        }
+        
+        // Handle confirm
+        if (preg_match('/\b(confirm|yes|proceed)\b/i', $message)) {
+            $amount = $sessionData['amount'] ?? null;
+            $recipient = $sessionData['recipient'] ?? null;
+            
+            if (!$amount || !$recipient) {
+                $transferSession->delete();
+                return "⚠️ Session expired. Please start a new transfer.";
+            }
+            
+            $transferSession->delete();
+            
+            // Process the transfer
+            $result = $this->transferController->transfer($user, $recipient, $amount);
+            
+            if ($result['success']) {
+                // Send credit alert to recipient
+                $creditAlertMsg = $this->transferController->sendCreditAlert(
+                    $result['recipient'],
+                    $user,
+                    $amount,
+                    $result['reference'],
+                    $result['recipient_balance']
+                );
+                
+                // Send the credit alert via WhatsApp
+                $this->sendMessage($result['recipient']->mobile, $creditAlertMsg);
+                
+                return $result['message'];
+            } else {
+                return $result['message'];
+            }
+        }
+    }
+
+    if (preg_match('/\b(transfer|send|pay)\b/i', $message)) {
+
+        // Handle cancel command
+        if (preg_match('/\bcancel\b/i', $message)) {
+            WhatsappSession::where('user_id', $user->id)
+                ->where('context', 'transfer_confirm')
+                ->delete();
+            return "❌ Transfer cancelled. Type 'menu' to see other options.";
+        }
+
+        // Extract amount and recipient
+        preg_match('/(\d+(?:\.\d{1,2})?)/', $message, $amountMatch);
+        preg_match('/((?:\+?234|0)\d{10})/', $message, $phoneMatch);
+        preg_match('/\b([1-9]\d{9})\b/', $message, $accountMatch);
+
+        $amount = isset($amountMatch[1]) ? (float)$amountMatch[1] : null;
+        $recipient = $phoneMatch[1] ?? $accountMatch[1] ?? null;
+
+        // === CASE 1: No amount and no recipient - Show help ===
+        if (!$amount && !$recipient) {
+            return "💸 *Transfer Money*\n\n" .
+                   "Send money to any A-Pay user instantly!\n\n" .
+                   "📝 Format:\n" .
+                   "*transfer [amount] [phone/account]*\n\n" .
+                   "📱 Examples:\n" .
+                   "• *transfer 5000 08012345678*\n" .
+                   "• *send 5000 to +2348012345678*\n" .
+                   "• *pay 5000 1234567890*\n\n" .
+                   "Choose any format! 💚";
+        }
+
+        // === CASE 2: Has amount but no recipient ===
+        if ($amount && !$recipient) {
+            return "💰 You want to send *₦" . number_format($amount, 2) . "*\n\n" .
+                   "📱 Who should receive it?\n\n" .
+                   "Please provide the recipient's:\n" .
+                   "• Phone number (e.g., 08012345678)\n" .
+                   "• Or A-Pay account number (10 digits)\n\n" .
+                   "Example: *transfer " . $amount . " 08012345678*";
+        }
+
+        // === CASE 3: Has recipient but no amount ===
+        if ($recipient && !$amount) {
+            $recipientUser = $this->transferController->findRecipient($recipient);
+            
+            if (!$recipientUser) {
+                return "⚠️ Recipient not found.\n\n" .
+                       "❌ *{$recipient}* is not registered on A-Pay.\n\n" .
+                       "Please check the phone number or account number and try again.";
+            }
+
+            $recipientName = $recipientUser->name ?? 'A-Pay User';
+            return "👤 Sending to: *{$recipientName}*\n" .
+                   "📱 {$recipientUser->mobile}\n\n" .
+                   "💰 How much would you like to send?\n\n" .
+                   "Example: *transfer 5000 {$recipient}*";
+        }
+
+        // === CASE 4: Has both amount and recipient - Process transfer ===
+        if ($amount && $recipient) {
+            if ($amount < 50) {
+                return "⚠️ Minimum transfer amount is ₦50.00\n\n" .
+                       "Please enter an amount of ₦50 or more.";
+            }
+
+            $recipientUser = $this->transferController->findRecipient($recipient);
+            
+            if (!$recipientUser) {
+                return "⚠️ Recipient not found.\n\n" .
+                       "❌ *{$recipient}* is not registered on A-Pay.\n\n" .
+                       "Please check and try again with the correct:\n" .
+                       "• Phone number (e.g., 08012345678)\n" .
+                       "• Or account number (10 digits)";
+            }
+
+            // Check for confirmation session
+            $session = WhatsappSession::where('user_id', $user->id)
+                        ->where('context', 'transfer_confirm')
+                        ->latest()
+                        ->first();
+
+            $sessionData = json_decode($session->data ?? '{}', true) ?? [];
+
+            // If no session or different transfer, ask for confirmation
+            if (!$session || 
+                $sessionData['amount'] != $amount || 
+                $sessionData['recipient'] != $recipient) {
+                
+                if (!$session) {
+                    $session = new WhatsappSession();
+                    $session->id = Str::uuid();
+                    $session->user_id = $user->id;
+                    $session->context = 'transfer_confirm';
+                }
+
+                $session->data = json_encode([
+                    'amount' => $amount,
+                    'recipient' => $recipient,
+                    'recipient_id' => $recipientUser->id
+                ]);
+                $session->save();
+
+                $recipientName = $recipientUser->name ?? 'A-Pay User';
+                return "⚠️ *CONFIRM TRANSFER*\n\n" .
+                       "You're about to send:\n" .
+                       "💰 Amount: *₦" . number_format($amount, 2) . "*\n\n" .
+                       "To:\n" .
+                       "👤 Name: *{$recipientName}*\n" .
+                       "📱 Phone: {$recipientUser->mobile}\n" .
+                       "🔢 Account: {$recipientUser->account_number}\n\n" .
+                       "Reply with:\n" .
+                       "• *confirm or yes* to proceed\n" .
+                       "• *cancel* to abort";
+            }
+
+            // Note: Confirmation is handled at the top of this section
+            // The session check above will catch "confirm" or "yes" responses
+        }
+
+        return "⚠️ Please follow the correct format:\n\n*transfer [amount] [phone/account]*\n\nExample: *transfer 5000 08012345678*";
+    }
+
         // 7️⃣ Support / Customer Care
             if (preg_match('/(support|customer\s*care|help|agent|contact|complain)/i', $message)) {
                 return "💚 *A-Pay Support Team*\n\nIf you need assistance, please contact our support via WhatsApp:\n👉 *+234-803-590-6313*\n\nWe’re available to help you resolve any issue as quickly as possible.\n\nIf you’d like to return to the *main menu*, simply type:\n➡️ *menu*";
@@ -709,12 +886,13 @@ class WhatsappController extends Controller
     {
         return "👋 Hi *{$user->name}*, welcome back to *A-Pay!*\n\n" .
                "Please reply with a command:\n\n" .
-               "-> airtime — Buy Airtime\n" .
-               "-> data — Buy Data\n" .
-               "-> electric — Pay Electricity Bill\n" .
-               "-> fund — Fund Wallet\n" .
-               "-> balance — View Wallet Balance\n" .
-               "-> transactions — View Recent Transactions\n\n" .
+               "▶️ airtime — Buy Airtime\n" .
+               "▶️ data — Buy Data\n" .
+               "▶️ electric — Pay Electricity Bill\n" .
+               "▶️ transfer to A-Pay — Send money to another A-Pay account\n" .
+               "▶️ fund — Fund Wallet\n" .
+               "▶️ balance — View Wallet Balance\n" .
+               "▶️ transactions — View Recent Transactions\n\n" .
                "💬 *Support / Customer Care*\n" .
                "If you need assistance, please contact us on WhatsApp:\n" .
                "👉 *+234-803-590-6313*\n\n" .
@@ -752,77 +930,5 @@ class WhatsappController extends Controller
     }
 
   
-
-    // private function processAirtimePurchase($user, $network, $amount, $phone)
-    // {
-    //     $balance = Balance::where('user_id', $user->id)->first();
-
-    //     if (!$balance || $balance->balance < $amount) {
-    //         return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳";
-    //     }
-
-    //     $balance->balance -= $amount;
-    //     $balance->save();
-
-    //     $airtime = AirtimePurchase::create([
-    //         'user_id' => $user->id,
-    //         'phone_number' => $phone,
-    //         'amount' => $amount,
-    //         'network_id' => $network,
-    //         'status' => 'PENDING'
-    //     ]);
-
-    //     $transaction = Transaction::create([
-    //         'user_id' => $user->id,
-    //         'amount' => $amount,
-    //         'beneficiary' => $phone,
-    //         'description' => strtoupper($network) . " airtime purchase for " . $phone,
-    //         'status' => 'PENDING'
-    //     ]);
-
-    //     $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
-    //     $headers = [
-    //         'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
-    //         'Content-Type' => 'application/json'
-    //     ];
-
-    //     $data = [
-    //         'request_id' => 'req_' . uniqid(),
-    //         'phone' => $phone,
-    //         'service_id' => $network,
-    //         'amount' => $amount
-    //     ];
-
-    //     try {
-    //         $response = Http::withHeaders($headers)->post($apiUrl, $data);
-    //     } catch (\Exception $e) {
-    //         $balance->balance += $amount;
-    //         $balance->save();
-    //         return "⚠️ Network error. Please try again later.";
-    //     }
-
-    //     if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
-    //         $transaction->update(['status' => 'SUCCESS']);
-    //         $airtime->update(['status' => 'SUCCESS']);
-
-    //         if (class_exists(\App\Services\CashbackService::class)) {
-    //             $cashback = app(\App\Services\CashbackService::class)->calculate($amount);
-    //             $balance->balance += $cashback;
-    //             $balance->save();
-    //             $transaction->cash_back = $cashback;
-    //             $transaction->save();
-    //         }
-
-    //         return "
-    //        🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀";
-    //     } else {
-    //         $balance->balance += $amount;
-    //         $balance->save();
-    //         $transaction->update(['status' => 'ERROR']);
-    //         $airtime->update(['status' => 'FAILED']);
-
-    //         return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
-    //     }
-    // }
 
 }

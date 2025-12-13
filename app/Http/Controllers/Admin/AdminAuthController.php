@@ -163,6 +163,7 @@ class AdminAuthController extends Controller
             'success' => (clone $query)->where('status', 'SUCCESS')->sum('amount'),
             'failed' => (clone $query)->where('status', 'ERROR')->sum('amount'),
             'wallet_topup' => (clone $query)->where('description', 'like', '%wallet top-up%')->sum('amount'),
+            'to_apay' => (clone $query)->where('reference', 'like', '%a-pay%')->sum('amount'),
             'airtime' => (clone $query)->where('description', 'like', '%airtime%')->sum('amount'),
             'data' => (clone $query)->where('description', 'like', '%data%')->sum('amount'),
             'electricity' => (clone $query)->where('description', 'like', '%electricity%')->sum('amount'),

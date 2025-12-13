@@ -21,7 +21,7 @@ class Transaction extends Authenticatable
     {
         parent::boot();
 
-        static::creating(function ($model) { // Fix: Remove type hint or use `User`
+        static::creating(function ($model) { 
             if (empty($model->id)) {
                 $model->id = Uuid::uuid4()->toString();
             }
@@ -39,6 +39,7 @@ class Transaction extends Authenticatable
         'charges',
         'beneficiary',
         'description',
+        'type',
         'status',
         'reference'
     ];

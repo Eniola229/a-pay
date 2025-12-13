@@ -111,6 +111,12 @@
                         <h4 class="text-info">₦{{ number_format($summary['wallet_topup'], 2) }}</h4>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-left-success p-3">
+                        <h6>Trasfer to A-Pay</h6>
+                        <h4 class="text-info">₦{{ number_format($summary['to_apay'], 2) }}</h4>
+                    </div>
+                </div>
                 <div class="col-md-3 mt-3">
                     <div class="card shadow-sm border-left-warning p-3">
                         <h6>Airtime Purchases</h6>

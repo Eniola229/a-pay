@@ -49,6 +49,7 @@ class AirtimeController extends Controller
             'amount' => $amount,
             'beneficiary' => $phone,
             'description' => strtoupper($network) . " airtime purchase for " . $phone,
+            'type' => 'DEBIT',
             'status' => 'PENDING'
         ]);
 

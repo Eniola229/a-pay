@@ -49,6 +49,8 @@ class PaystackWebhookController extends Controller
         $reference = $payload['reference'] ?? null;
         $amount    = ($payload['amount'] ?? 0) / 100;
         $email     = $payload['customer']['email'] ?? null;
+        $sender_name     = $payload['metadata']['sender_name'] ?? null;
+        $sender_bank     = $payload['metadata']['sender_bank'] ?? null;
 
         if (!$reference) {
             Log::warning("Paystack webhook missing reference");
@@ -93,6 +95,7 @@ class PaystackWebhookController extends Controller
                 'charges'     => 0,
                 'beneficiary' => $user->mobile,
                 'description' => "Wallet Top-up",
+                'type'      => "CREDIT",
                 'status'      => "SUCCESS",
                 'reference'   => $reference,
             ]);
@@ -106,7 +109,7 @@ class PaystackWebhookController extends Controller
 
         // WhatsApp alert
         try {
-            $this->sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance);
+            $this->sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
         } catch (\Exception $e) {
             Log::error("WhatsApp credit alert failed: " . $e->getMessage());
         }
@@ -121,11 +124,12 @@ class PaystackWebhookController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    private function sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance)
+    private function sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance, $sender_name, $sender_bank)
     {
         $msg = 
             "💳 *CREDIT ALERT*\n\n" .
             "Your A-Pay wallet has been funded.\n" .
+            "From: {$sender_name} | {$sender_bank}\n" .
             "Amount: ₦" . number_format($amount, 2) . "\n" .
             "Ref: {$reference}\n" .
             "New Balance: ₦" . number_format($newBalance, 2) . "\n\n" .
