@@ -9,6 +9,8 @@ use App\Models\AirtimePurchase;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Http;
 use App\Services\ReceiptGeneratorService;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class AirtimeController extends Controller
 {
@@ -55,12 +57,13 @@ class AirtimeController extends Controller
 
         // Prepare API call
         $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
+        $requestId = 'REQ_' . strtoupper(Str::random(12));
         $headers = [
             'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
             'Content-Type' => 'application/json'
         ];
         $data = [
-            'request_id' => 'req_' . uniqid(),
+            'request_id' => $requestId,
             'phone' => $phone,
             'service_id' => $network,
             'amount' => $amount
@@ -79,7 +82,7 @@ class AirtimeController extends Controller
         // Process response
         if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
             // Update records to success
-            $transaction->update(['status' => 'SUCCESS']);
+            $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
             $airtime->update(['status' => 'SUCCESS']);
 
             // Calculate and apply cashback
@@ -99,7 +102,7 @@ class AirtimeController extends Controller
             $balance->save();
             
             // Update records to failed
-            $transaction->update(['status' => 'ERROR']);
+            $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
             $airtime->update(['status' => 'FAILED']);
             
             return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";

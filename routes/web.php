@@ -26,11 +26,10 @@ use App\Http\Controllers\Ussd\UssdController;
 use App\Http\Controllers\Block\BlockAccountController;
 use App\Http\Controllers\EmailVerificationController;
 
-
-
-
+use App\Http\Controllers\KycController;
 
 use Illuminate\Support\Facades\Route;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -73,10 +72,16 @@ Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebho
 //2fa
 Route::get('/verify-device', [DeviceVerificationController::class, 'show'])->name('verify.device');
 Route::post('/verify-device', [DeviceVerificationController::class, 'verify']);
+Route::post('/kyc/verify-bvn', [KycController::class, 'verifyBvn'])->name('kyc.verify-bvn');
+//kyc
+Route::get('/kyc/{user}', [KycController::class, 'showForm'])->name('kyc.form');
+Route::post('/kyc/{user}', [KycController::class, 'submit'])->name('kyc.submit');
+
 
 Route::post('/get-payment-amount', [RegistrationController::class, 'getPaymentAmount']);
 Route::post('/register-leaners', [RegistrationController::class, 'register'])->name('register-leaners');
 Route::get('/register-leaners.com', [RegistrationController::class, 'showForm']);
+
 
 Route::middleware('auth', 'device.verified')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');

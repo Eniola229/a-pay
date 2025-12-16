@@ -243,12 +243,61 @@ class WhatsappController extends Controller
                 "*⚠️ Your A-Pay account has been BLOCKED! 🔒* \n\n Please reach out to Customer Support on WhatsApp 📲 09079916807 to get it restored."
             );
         }
+
+         // CHECK IF BALANCE IS 100K OR MORE AND KYC IS REQUIRED
+        $balance = $user->balance()->first();
+        if ($balance && $balance->balance >= 100000) {
+            // Check if user has KYC profile
+            if (!$user->hasKyc()) {
+                // User needs to complete KYC
+                $kycUrl = route('kyc.form', ['user' => $user->id, 'token' => encrypt($user->id)]);
+                
+                return $this->sendMessage(
+                    $from,
+                    "⚠️ *KYC VERIFICATION REQUIRED* ⚠️\n\n".
+                    "Your account balance has reached ₦100,000 or more.\n\n".
+                    "To continue using A-Pay services, please complete your KYC verification:\n\n".
+                    "🔗 {$kycUrl}\n\n".
+                    "📋 *Required Documents:*\n".
+                    "• Passport Photo 📸\n".
+                    "• BVN Number 🆔\n".
+                    "• NIN Number 🆔\n".
+                    "• Proof of Address 📄\n\n".
+                    "⏱️ This takes only 5 minutes!"
+                );
+            }
+
+            // Check if KYC is rejected
+            $kyc = $user->kycProfile;
+            if ($kyc && $kyc->isRejected()) {
+                return $this->sendMessage(
+                    $from,
+                    "❌ *KYC VERIFICATION REJECTED* ❌\n\n".
+                    "📝 *Reason:* {$kyc->rejection_reason}\n\n".
+                    "Please contact support on WhatsApp 📲 09079916807 to resolve this issue."
+                );
+            }
+
+            // Check if KYC is pending
+            if ($kyc && $kyc->isPending()) {
+                return $this->sendMessage(
+                    $from,
+                    "⏳ *KYC VERIFICATION PENDING* ⏳\n\n".
+                    "Your KYC documents are currently under review.\n\n".
+                    "You'll be notified once the verification is complete.\n\n".
+                    "⚠️ *Note:* If any errors are found, your account may be suspended until corrections are made.\n\n".
+                    "For urgent queries, contact support 📲 09079916807"
+                );
+            }
+        }
+
         // detect intent
         $response = $this->processCommand($user, $message);
 
         // reply
         $this->sendMessage($from, $response);
     }
+
     private function processCommand($user, $message)
     {
         // 1️⃣ Greetings
@@ -282,6 +331,28 @@ class WhatsappController extends Controller
                 "__Kindly PIN this message to easily access it__";
         }
 
+        //Upgrade account
+        if (preg_match('/\b(upgrade|upgrad)(e|ed|ing)?\b/i', $message)) {
+                if (!$user->hasKyc()) {
+                    // User needs to complete KYC
+                    $kycUrl = route('kyc.form', ['user' => $user->id, 'token' => encrypt($user->id)]);
+                    
+                    return
+                        "⚠️ *KYC VERIFICATION* ⚠️\n\n".
+                        "To upgrade your A-Pay account, please complete your KYC verification:\n\n".
+                        "🔗 {$kycUrl}\n\n".
+                        "📋 *Required Documents:*\n".
+                        "• Passport Photo 📸\n".
+                        "• BVN Number 🆔\n".
+                        "• NIN Number 🆔\n".
+                        "• Proof of Address 📄\n\n".
+                        "⏱️ This takes only 5 minutes!";
+                    
+                } else {
+                    return
+                        "⚠️ *This A-Pay account has previously been upgraded.* ⚠️\n\n";
+                }
+        }
         // 3️⃣ Check account details request
         if (preg_match('/\b(account|account\s+(number|details|info))\b/i', $message)) {
             return 
@@ -292,6 +363,7 @@ class WhatsappController extends Controller
                 "Transfer to the account above to top-up instantly.\n\n" .
                 "__Kindly PIN this message to easily access it__";
         }
+
         // 4️⃣ Airtime
         // Airtime handling
         if (preg_match('/(airtime|recharge|top\s?up|buy\s?airtime)/i', $message)) {
@@ -892,7 +964,8 @@ class WhatsappController extends Controller
                "▶️ transfer to A-Pay — Send money to another A-Pay account\n" .
                "▶️ fund — Fund Wallet\n" .
                "▶️ balance — View Wallet Balance\n" .
-               "▶️ transactions — View Recent Transactions\n\n" .
+               "▶️ transactions — View Recent Transactions\n" .
+               "▶️ upgrade — Upgrade your A-Pay account\n\n" .
                "💬 *Support / Customer Care*\n" .
                "If you need assistance, please contact us on WhatsApp:\n" .
                "👉 *+234-803-590-6313*\n\n" .

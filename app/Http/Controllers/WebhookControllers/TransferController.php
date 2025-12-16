@@ -151,7 +151,7 @@ class TransferController extends Controller
                 'user_id' => $recipient->id,
                 'amount' => $amount,
                 'type' => 'CREDIT',
-                'beneficiary' => $sender->name ?? $sender->mobile,
+                'beneficiary' => $recipient->name ?? $recipient->mobile,
                 'description' => "Transfer from " . ($sender->name ?? $sender->mobile),
                 'reference' => $reference,
                 'status' => 'SUCCESS'

@@ -147,7 +147,7 @@ class DataController extends Controller
 
         // Handle success
         if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
-            $transaction->update(['status' => 'SUCCESS']);
+            $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
             $dataPurchase->update(['status' => 'SUCCESS']);
 
             // Calculate and apply cashback

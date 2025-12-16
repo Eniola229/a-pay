@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->string('reference')->nullable();
             $table->enum('status', ['SUCCESS','PENDING', 'ERROR']);
+            $table->enum('status', ['CREDIT', 'DEBIT'])->nullable('nullable');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });

@@ -101,4 +101,18 @@ class User extends Authenticatable
         return $this->hasMany(Transaction::class, 'user_id', 'id');
     }
 
+    public function kycProfile()
+    {
+        return $this->hasOne(KycProfile::class);
+    }
+
+    public function hasKyc()
+    {
+        return $this->kycProfile()->exists();
+    }
+
+    public function hasApprovedKyc()
+    {
+        return $this->kycProfile()->where('status', 'APPROVED')->exists();
+    }
 }

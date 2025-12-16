@@ -49,8 +49,8 @@ class PaystackWebhookController extends Controller
         $reference = $payload['reference'] ?? null;
         $amount    = ($payload['amount'] ?? 0) / 100;
         $email     = $payload['customer']['email'] ?? null;
-        $sender_name     = $payload['metadata']['sender_name'] ?? null;
-        $sender_bank     = $payload['metadata']['sender_bank'] ?? null;
+        $sender_name = $payload['authorization']['sender_name'] ?? null;
+        $sender_bank = $payload['authorization']['sender_bank'] ?? null;
 
         if (!$reference) {
             Log::warning("Paystack webhook missing reference");
