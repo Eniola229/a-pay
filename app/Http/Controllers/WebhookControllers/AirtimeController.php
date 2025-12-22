@@ -6,14 +6,20 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Balance;
 use App\Models\AirtimePurchase;
-use App\Models\Transaction;
-use Illuminate\Support\Facades\Http;
-use App\Services\ReceiptGeneratorService;
+use App\Services\TransactionService;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 class AirtimeController extends Controller
 {
+    protected TransactionService $transactionService;
+
+    public function __construct(TransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
+
     /**
      * Process airtime purchase
      * 
@@ -25,87 +31,142 @@ class AirtimeController extends Controller
      */
     public function purchase($user, $network, $amount, $phone)
     {
-        // Check balance
-        $balance = Balance::where('user_id', $user->id)->first();
-        
-        if (!$balance || $balance->balance < $amount) {
-            return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳";
-        }
+        return DB::transaction(function () use ($user, $network, $amount, $phone) {
 
-        // Deduct balance
-        $balance->balance -= $amount;
-        $balance->save();
-
-        // Create airtime purchase record
-        $airtime = AirtimePurchase::create([
-            'user_id' => $user->id,
-            'phone_number' => $phone,
-            'amount' => $amount,
-            'network_id' => $network,
-            'status' => 'PENDING'
-        ]);
-
-        // Create transaction record
-        $transaction = Transaction::create([
-            'user_id' => $user->id,
-            'amount' => $amount,
-            'beneficiary' => $phone,
-            'description' => strtoupper($network) . " airtime purchase for " . $phone,
-            'type' => 'DEBIT',
-            'status' => 'PENDING'
-        ]);
-
-        // Prepare API call
-        $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
-        $requestId = 'REQ_' . strtoupper(Str::random(12));
-        $headers = [
-            'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
-            'Content-Type' => 'application/json'
-        ];
-        $data = [
-            'request_id' => $requestId,
-            'phone' => $phone,
-            'service_id' => $network,
-            'amount' => $amount
-        ];
-
-        // Make API call
-        try {
-            $response = Http::withHeaders($headers)->post($apiUrl, $data);
-        } catch (\Exception $e) {
-            // Refund balance on network error
-            $balance->balance += $amount;
-            $balance->save();
-            return "⚠️ Network error. Please try again later.";
-        }
-
-        // Process response
-        if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
-            // Update records to success
-            $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
-            $airtime->update(['status' => 'SUCCESS']);
-
-            // Calculate and apply cashback
-            $cashback = 0;
-            if (class_exists(\App\Services\CashbackService::class)) {
-                $cashback = app(\App\Services\CashbackService::class)->calculate($amount);
-                $balance->balance += $cashback;
-                $balance->save();
-                $transaction->cash_back = $cashback;
-                $transaction->save();
+            // -----------------------
+            // 1️⃣ Check balance
+            // -----------------------
+            $balance = Balance::where('user_id', $user->id)->first();
+            if (!$balance || $balance->balance < $amount) {
+                return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳";
             }
 
-            return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀";
-        } else {
-            // Refund balance on failure
-            $balance->balance += $amount;
-            $balance->save();
-            
-            // Update records to failed
-            $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
-            $airtime->update(['status' => 'FAILED']);
-            
-            return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
-        }
+            // -----------------------
+            // 2️⃣ Deduct balance via TransactionService (DEBIT)
+            // -----------------------
+            $requestId = 'REQ_' . strtoupper(Str::random(12));
+            try {
+                $transaction = $this->transactionService->createTransaction(
+                    $user,
+                    $amount,
+                    'DEBIT',
+                    $phone,
+                    strtoupper($network) . " airtime purchase for " . $phone,
+                    $requestId // ✅ reference
+                );
+
+                // Refresh Balance for display if needed
+                $balance->refresh();
+            } catch (\Exception $e) {
+                return "😔 Oops! Something seem wrong...";
+            }
+
+            // -----------------------
+            // 3️⃣ Create Airtime Purchase record
+            // -----------------------
+            $airtime = AirtimePurchase::create([
+                'user_id' => $user->id,
+                'phone_number' => $phone,
+                'amount' => $amount,
+                'network_id' => $network,
+                'status' => 'PENDING'
+            ]);
+
+            // -----------------------
+            // 4️⃣ Prepare API call
+            // -----------------------
+            $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
+            $headers = [
+                'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
+                'Content-Type' => 'application/json'
+            ];
+            $data = [
+                'request_id' => $requestId,
+                'phone' => $phone,
+                'service_id' => $network,
+                'amount' => $amount
+            ];
+
+            // -----------------------
+            // 5️⃣ Make API call
+            // -----------------------
+            try {
+                $response = Http::withHeaders($headers)->post($apiUrl, $data);
+            } catch (\Exception $e) {
+                // Refund balance on network error (CREDIT)
+                $refundTransaction = $this->transactionService->createTransaction(
+                    $user,
+                    $amount,
+                    'CREDIT',
+                    $phone, 
+                    'Refund for failed airtime purchase',
+                    'REFUND_' . $requestId 
+                );
+
+                $transaction->update([
+                    'status' => 'ERROR',
+                    'reference' => $requestId
+                ]);
+
+                $airtime->update(['status' => 'FAILED']);
+
+                return "⚠️ Network error. Please try again later.";
+            }
+
+            // -----------------------
+            // 6️⃣ Process API response
+            // -----------------------
+            if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
+
+                // Update records to success
+                $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
+                $airtime->update(['status' => 'SUCCESS']);
+
+                // -----------------------
+                // 7️⃣ Calculate and apply cashback
+                // -----------------------
+                $cashback = 0;
+                if (class_exists(\App\Services\CashbackService::class)) {
+                    $cashback = app(\App\Services\CashbackService::class)->calculate($amount);
+
+                    if ($cashback > 0) {
+                        $cashbackTransaction = $this->transactionService->createTransaction(
+                            $user,
+                            $cashback,
+                            'CREDIT',
+                            $phone, 
+                            'Cashback for airtime purchase',
+                            'CASHBACK_' . $requestId 
+                        );
+
+                        $cashbackTransaction->update([
+                            'status' => 'SUCCESS'
+                        ]);
+                    }
+                }
+
+                return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀";
+
+            } else {
+                // Refund balance on failure (CREDIT)
+                $refundTransaction = $this->transactionService->createTransaction(
+                    $user,
+                    $amount,
+                    'CREDIT',
+                    $phone, 
+                    'Refund for failed airtime purchase',
+                    'REFUND_' . $requestId 
+                );
+
+                $transaction->update([
+                    'status' => 'ERROR',
+                    'reference' => $requestId
+                ]);
+
+                $airtime->update(['status' => 'FAILED']);
+
+                return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
+            }
+        });
     }
 }

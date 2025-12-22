@@ -152,6 +152,13 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::post('/notifications/store', [AdminAuthController::class, 'Notificationstore'])->name('notifications.store');
  Route::delete('/notifications/{id}', [AdminAuthController::class, 'Notificationdestroy'])->name('notifications.destroy');
  Route::get('/loans', [AdminAuthController::class, 'loans'])->name('admin-loans'); 
+ Route::post('/kyc/{kyc}/approve', [UserController::class, 'approve'])->name('admin.kyc.approve');
+ Route::post('/kyc/{kyc}/reject', [UserController::class, 'reject'])->name('admin.kyc.reject');
+ Route::delete('/kyc/{kyc}/delete', [UserController::class, 'delete'])->name('admin.kyc.delete');
+
+ Route::get('/transactions/summary', [App\Http\Controllers\Admin\TransactionController::class, 'summary'])->name('transactions.summary');
+ Route::get('/kyc/summary', [App\Http\Controllers\Admin\KycController::class, 'summary'])->name('kyc.summary');
+
 
      // Newsletter Routes
     Route::get('/newsletter', [App\Http\Controllers\Admin\NewsletterController::class, 'index'])

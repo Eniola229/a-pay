@@ -121,33 +121,169 @@
                         </div>
                     </div>
 
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="card gradient-4">
+                            <div class="card-body">
+                                <h3 class="card-title text-white">Transactions Summary</h3>
+
+                                <div class="d-inline-block">
+                                    <h2 id="total_amount" class="text-white">₦ Loading...</h2>
+                                    <p id="total_transactions" class="text-white">Transactions: Loading...</p>
+                                </div>
+
+                                <div class="mt-3">
+                                    <select id="filter_transactions" class="form-control">
+                                        <option value="all">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                    </select>
+                                </div>
+
+                                <span class="float-right display-5 opacity-5">
+                                    <i class="fa fa-money"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="card gradient-2">
+                            <div class="card-body">
+                                <h3 class="card-title text-white">KYC Summary</h3>
+
+                                <div class="d-inline-block">
+                                    <h2 id="total_kyc" class="text-white">Loading...</h2>
+                                </div>
+
+                                <div class="mt-3">
+                                    <select id="filter_kyc_status" class="form-control mb-2">
+                                        <option value="all">All Status</option>
+                                        <option value="accepted">Accepted</option>
+                                        <option value="rejected">Rejected</option>
+                                        <option value="pending">Pending</option>
+                                    </select>
+
+                                    <select id="filter_kyc_date" class="form-control">
+                                        <option value="all">All Time</option>
+                                        <option value="today">Today</option>
+                                    </select>
+                                </div>
+
+                                <span class="float-right display-5 opacity-5">
+                                    <i class="fa fa-id-card"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+
                 </div>           
             </div>
             <!-- #/ container -->
         </div>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    const walletBalanceUrl = "{{ route('wallet.balance') }}";
+        <script>
+        const walletBalanceUrl = "{{ route('wallet.balance') }}";
 
-    $(document).ready(function () {
-        $.ajax({
-            url: walletBalanceUrl,
-            method: "GET",
-            success: function (response) {
-                if (response.code === "success") {
-                    const balance = response.data.balance;
-                    $('#balances').html(`₦ ${balance.toLocaleString()}`);
-                } else {
-                    $('#balances').html("₦ Error");
-                    console.error("Error fetching balance:", response.message);
+        $(document).ready(function () {
+            $.ajax({
+                url: walletBalanceUrl,
+                method: "GET",
+                success: function (response) {
+                    if (response.code === "success") {
+                        // Make sure balance is a number
+                        const balance = Number(response.data.balance);
+                        
+                        // Format as Naira with commas
+                        const formattedBalance = balance.toLocaleString('en-NG', {
+                            style: 'currency',
+                            currency: 'NGN',
+                            minimumFractionDigits: 2
+                        });
+                        
+                        $('#balances').html(formattedBalance);
+                    } else {
+                        $('#balances').html("₦ Error");
+                        console.error("Error fetching balance:", response.message);
+                    }
+                },
+                error: function () {
+                    $('#balances').html("₦ Network Error");
                 }
-            },
-            error: function () {
-                $('#balances').html("₦ Network Error");
-            }
+            });
         });
-    });
-</script>
+
+        const transactionSummaryUrl = "{{ route('transactions.summary') }}";
+
+        function fetchTransactionSummary(filter = 'all') {
+            $.ajax({
+                url: transactionSummaryUrl,
+                method: "GET",
+                data: { filter: filter },
+                success: function(response) {
+                    if (response.code === "success") {
+                        const totalAmount = Number(response.data.total_amount).toLocaleString('en-NG', {
+                            style: 'currency',
+                            currency: 'NGN',
+                            minimumFractionDigits: 2
+                        });
+                        $('#total_amount').html(totalAmount);
+                        $('#total_transactions').html(`Transactions: ${response.data.total_transactions}`);
+                    } else {
+                        $('#total_amount').html("₦ Error");
+                        $('#total_transactions').html("Transactions: Error");
+                        console.error("Error fetching summary:", response.message);
+                    }
+                },
+                error: function() {
+                    $('#total_amount').html("₦ Network Error");
+                    $('#total_transactions').html("Transactions: Network Error");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            fetchTransactionSummary(); // load default
+
+            $('#filter_transactions').change(function() {
+                const filter = $(this).val();
+                fetchTransactionSummary(filter);
+            });
+        });
+
+        const kycSummaryUrl = "{{ route('kyc.summary') }}";
+
+        function fetchKycSummary() {
+            const status = $('#filter_kyc_status').val();
+            const filter = $('#filter_kyc_date').val();
+
+            $.ajax({
+                url: kycSummaryUrl,
+                method: "GET",
+                data: { status: status, filter: filter },
+                success: function(response) {
+                    if (response.code === "success") {
+                        $('#total_kyc').html(response.data.total_kyc);
+                    } else {
+                        $('#total_kyc').html("Error");
+                    }
+                },
+                error: function() {
+                    $('#total_kyc').html("Network Error");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            fetchKycSummary(); // load total created by default
+
+            $('#filter_kyc_status, #filter_kyc_date').change(function() {
+                fetchKycSummary();
+            });
+        });
+
+
+        </script>
 
     <script>
         document.getElementById('toggleButton').addEventListener('click', function() {

@@ -18,6 +18,7 @@ use App\Models\ContactInquiry;
 use App\Models\Errors;
 use Illuminate\Support\Facades\Http;
 use App\Models\Borrow;
+use App\Models\KycProfile;
 
 
 class UserController extends Controller
@@ -46,6 +47,33 @@ class UserController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return view('admin.user-details', compact('user', 'balance', 'transactions', 'loans'));
+        //fetch user kyc
+        $kyc = KycProfile::where('user_id', $user->id)->first();
+
+        return view('admin.user-details', compact('user', 'balance', 'transactions', 'loans', 'kyc'));
+    }
+
+    public function approve(Kyc $kyc) {
+        $kyc->update(['status' => 'approved', 'rejection_reason' => null]);
+        return back()->with('success', 'KYC approved successfully');
+    }
+
+    public function reject(Request $request, Kyc $kyc) {
+        $request->validate(['rejection_reason' => 'required|string']);
+        $kyc->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->rejection_reason
+        ]);
+        return back()->with('success', 'KYC rejected');
+    }
+
+    public function delete(Kyc $kyc) {
+        // Optional: Only allow deletion if status is rejected
+        if ($kyc->status !== 'rejected') {
+            return back()->with('error', 'Only rejected KYC can be deleted');
+        }
+        
+        $kyc->delete();
+        return back()->with('success', 'KYC deleted successfully');
     }
 }

@@ -551,175 +551,59 @@ class WhatsappController extends Controller
         }
         
         // 6️⃣ Electricity
-      if (preg_match('/(electric|bill|meter|electricity)/i', $message)) {
+        if (preg_match('/(electric|bill|meter|electricity)/i', $message)) {
 
-        // Handle cancel command
-        if (preg_match('/\bcancel\b/i', $message)) {
-            return "❌ Cancelled. Type 'menu' to see other options.";
-        }
+            // Handle cancel command
+            if (preg_match('/\bcancel\b/i', $message)) {
+                return "❌ Cancelled. Type 'menu' to see other options.";
+            }
 
-        // Extract meter number and amount from message
-        // Meter number is typically 10-11 digits
-        preg_match('/(\d{10,11})/', $message, $meterMatch);
-        
-        // Extract ALL numbers in the message
-        preg_match_all('/\d+/', $message, $allNumbers);
-        
-        // Extract provider/network if mentioned (abuja, eko, ibadan, ikeja, jos, kaduna, kano, portharcourt)
-        preg_match('/\b(abuja|eko|ibadan|ikeja|jos|kaduna|kano|portharcourt)\b/i', $message, $providerMatch);
+            // Extract meter number (10-11 digits)
+            preg_match('/(\d{10,11})/', $message, $meterMatch);
 
-        $meterNumber = $meterMatch[1] ?? null;
-        $provider = isset($providerMatch[1]) ? strtolower($providerMatch[1]) : null;
-        
-        // Find the amount - it's the number that is NOT the meter number and is between 100-999999
-        $amount = null;
-        if (!empty($allNumbers[0])) {
-            foreach ($allNumbers[0] as $num) {
-                $numInt = (int)$num;
-                // Amount should be between 100 and 999999, and NOT the meter number
-                if ($numInt >= 100 && $numInt <= 999999 && $num !== $meterNumber) {
-                    $amount = (float)$num;
-                    break;
+            // Extract all numbers
+            preg_match_all('/\d+/', $message, $allNumbers);
+
+            // Extract provider/network if mentioned
+            preg_match('/\b(abuja|eko|ibadan|ikeja|jos|kaduna|kano|portharcourt)\b/i', $message, $providerMatch);
+
+            $meterNumber = $meterMatch[1] ?? null;
+            $provider = isset($providerMatch[1]) ? strtolower($providerMatch[1]) : null;
+
+            // Determine the amount (between 100-999999 and not the meter number)
+            $amount = null;
+            if (!empty($allNumbers[0])) {
+                foreach ($allNumbers[0] as $num) {
+                    $numInt = (int)$num;
+                    if ($numInt >= 100 && $numInt <= 999999 && $num !== $meterNumber) {
+                        $amount = (float)$num;
+                        break;
+                    }
                 }
             }
-        }
 
-        // Map provider to service_id
-        $providerMap = [
-            'abuja' => 'abuja-electric',
-            'eko' => 'eko-electric',
-            'ibadan' => 'ibadan-electric',
-            'ikeja' => 'ikeja-electric',
-            'jos' => 'jos-electric',
-            'kaduna' => 'kaduna-electric',
-            'kano' => 'kano-electric',
-            'portharcourt' => 'portharcourt-electric'
-        ];
-
-        // === CASE 1: User typed "electric" but NO details ===
-        if (!$meterNumber && !$amount && !$provider) {
-            return "⚡ Oh, you want to pay an electricity bill? Awesome!\n\n📝 Send in this format:\n\n*electric meter_number amount provider*\n\nExample:\n*electric 1234567890 5000 eko*\n\nProviders: abuja, eko, ibadan, ikeja, jos, kaduna, kano, portharcourt\n\nOr just the basics:\n*electric 1234567890 5000*";
-        }
-
-        // === CASE 2: Only meter number ===
-        if ($meterNumber && !$amount && !$provider) {
-            return "🎯 Meter number: *{$meterNumber}*\n\n💰 How much do you want to pay?\n\nExample: *electric {$meterNumber} 5000 eko*";
-        }
-
-        // === CASE 3: Meter + Amount but no provider ===
-        if ($meterNumber && $amount && !$provider) {
-            return "💰 Payment: *₦" . number_format($amount) . "* for meter *{$meterNumber}*\n\n📍 Which electricity provider?\n\n*abuja | eko | ibadan | ikeja | jos | kaduna | kano | portharcourt*\n\nReply: *electric {$meterNumber} {$amount} eko*";
-        }
-
-        // === CASE 4: All details provided - Process payment ===
-        if ($meterNumber && $amount && $provider) {
-            if ($amount < 500) {
-                return "⚠️ Minimum amount is ₦500.\n\nYou entered: ₦" . number_format($amount) . "\n\nPlease try again with a higher amount.";
+            // === CASE 1: User typed "electric" but NO details ===
+            if (!$meterNumber && !$amount && !$provider) {
+                return "⚡ Oh, you want to pay an electricity bill? Awesome!\n\n📝 Send in this format:\n\n*electric meter_number amount provider*\n\nExample:\n*electric 1234567890 5000 eko*\n\nProviders: abuja, eko, ibadan, ikeja, jos, kaduna, kano, portharcourt\n\nOr just the basics:\n*electric 1234567890 5000*";
             }
 
-            // Get balance
-            $balance = Balance::where('user_id', $user->id)->first();
-            if (!$balance) {
-                return "❌ Account error. Please contact support.";
+            // === CASE 2: Only meter number ===
+            if ($meterNumber && !$amount && !$provider) {
+                return "🎯 Meter number: *{$meterNumber}*\n\n💰 How much do you want to pay?\n\nExample: *electric {$meterNumber} 5000 eko*";
             }
 
-            // Calculate total (amount + service fee + system fee)
-            $serviceFee = 39;
-            $systemFee = 60;
-            $totalAmount = $amount + $serviceFee + $systemFee;
-
-            // Check balance
-            if ($balance->balance < $totalAmount) {
-                $shortBy = $totalAmount - $balance->balance;
-                return "😔 Insufficient balance.\n\n💰 Your wallet: ₦" . number_format($balance->balance) . "\n💸 Total needed: ₦" . number_format($totalAmount) . " (₦" . number_format($amount) . " + fees)\n🔴 Short by: ₦" . number_format($shortBy) . "\n\nPlease fund your wallet! 💳";
+            // === CASE 3: Meter + Amount but no provider ===
+            if ($meterNumber && $amount && !$provider) {
+                return "💰 Payment: *₦" . number_format($amount) . "* for meter *{$meterNumber}*\n\n📍 Which electricity provider?\n\n*abuja | eko | ibadan | ikeja | jos | kaduna | kano | portharcourt*\n\nReply: *electric {$meterNumber} {$amount} eko*";
             }
 
-            // Deduct balance
-            $balance->decrement('balance', $totalAmount);
-
-            // Create electricity purchase record
-            $electricityPurchase = ElectricityPurchase::create([
-                'user_id'      => $user->id,
-                'meter_number' => $meterNumber,
-                'provider_id'  => $providerMap[$provider] ?? $provider,
-                'amount'       => $amount,
-                'service_fee'  => $serviceFee,
-                'total_amount' => $totalAmount,
-                'status'       => 'PENDING'
-            ]);
-
-            // Create transaction record
-            $transaction = Transaction::create([
-                'user_id'     => $user->id,
-                'amount'      => $totalAmount,
-                'beneficiary' => $meterNumber,
-                'description' => "Electricity bill payment for meter " . $meterNumber,
-                'type' => 'DEBIT',
-                'status'      => 'PENDING'
-            ]);
-
-            // Call API to process payment
-            $apiToken = env('EBILLS_API_TOKEN');
-            $requestId = 'REQ_' . strtoupper(Str::random(12));
-
-            try {
-                $response = Http::withToken($apiToken)
-                    ->timeout(15)
-                    ->post('https://ebills.africa/wp-json/api/v2/electricity', [
-                        'request_id'   => $requestId,
-                        'customer_id'  => $meterNumber,
-                        'service_id'   => $providerMap[$provider] ?? $provider,
-                        'variation_id' => 'prepaid',
-                        'amount'       => $amount,
-                    ]);
-                $responseData = $response->json();
-            } catch (\Exception $e) {
-                $balance->increment('balance', $totalAmount);
-                $transaction->update(['status' => 'ERROR']);
-                $electricityPurchase->update(['status' => 'FAILED']);
-                return "⚠️ Could not reach provider. Please try again later. Your balance has been restored.";
-            }
-
-            // Handle success
-            if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
-                $token = $responseData['token'] ?? 'N/A';
-                $units = $responseData['units'] ?? 'N/A';
-
-                $transaction->update([
-                    'status'      => 'SUCCESS',
-                    'description' => "Electricity bill payment for meter {$meterNumber} | Token: {$token} | Units: {$units}"
-                ]);
-                $electricityPurchase->update(['status' => 'SUCCESS']);
-
-                // Send confirmation email
-                try {
-                    Mail::to($user->email)->send(new ElectricityPaymentReceipt([
-                        'user' => $user,
-                        'meterNumber' => $meterNumber,
-                        'provider' => $provider,
-                        'amount' => $amount,
-                        'token' => $token,
-                        'units' => $units,
-                        'status' => 'SUCCESS'
-                    ]));
-                } catch (\Exception $e) {
-                    Log::error('Email send failed', ['error' => $e->getMessage()]);
-                }
-
-                return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Electricity bill paid successfully!\n\n📊 Details:\n💡 Meter: *{$meterNumber}*\n🏢 Provider: *" . ucfirst($provider) . "*\n💰 Amount Paid: ₦" . number_format($amount) . "\n⚡ Token: *{$token}*\n📈 Units: *{$units}*\n\n🎁 Check your email for receipt!\n\nEnjoy your power supply! 🔌";
-            } else {
-                Log::error('Electricity payment failed', ['response' => $responseData]);
-                $balance->increment('balance', $totalAmount);
-                $transaction->update(['status' => 'ERROR']);
-                $electricityPurchase->update(['status' => 'FAILED']);
-
-                $errorMsg = $responseData['message'] ?? 'Payment failed. Please try again.';
-                return "❌ Payment failed.\n\n⚠️ " . $errorMsg . "\n\nYour balance of ₦" . number_format($totalAmount) . " has been restored.\n\nPlease try again or contact support. 📞";
+            // === CASE 4: All details provided - delegate to ElectricityController ===
+            if ($meterNumber && $amount && $provider) {
+                return app(\App\Http\Controllers\WebhookControllers\ElectricityController::class)
+                    ->purchase($user, $meterNumber, $amount, $provider);
             }
         }
 
-        return "⚠️ Invalid format.\n\nExample: *electric 1234567890 5000 eko*";
-    }
 
     $transferSession = WhatsappSession::where('user_id', $user->id)
                         ->where('context', 'transfer_confirm')

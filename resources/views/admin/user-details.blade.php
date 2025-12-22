@@ -241,6 +241,81 @@
         padding: 8px 5px;
     }
 }
+.alert {
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+    color: white;
+}
+
+.alert i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.alert .close {
+    color: white;
+    opacity: 0.8;
+    text-shadow: none;
+}
+
+.alert .close:hover {
+    opacity: 1;
+}
+
+.alert ul {
+    padding-left: 20px;
+}
+
+.document-card {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.document-preview {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.badge-success { background: #48bb78; }
+.badge-danger { background: #f56565; }
+.badge-warning { background: #ed8936; }
+.badge-info { background: #4299e1; }
+
+.modal-content {
+    border-radius: 8px;
+}
 </style>
 
  <!--**********************************
@@ -278,6 +353,42 @@
 
 <div class="content-body">
     <div class="container-fluid">
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle"></i>
+            <strong>Success!</strong> {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Error!</strong> {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        @endif
+
+        @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Please fix the following errors:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        @endif
+
         <div class="row">
             <!-- User Info Sidebar -->
             <div class="col-lg-4 col-xl-3">
@@ -297,6 +408,174 @@
                         </div>
                     </div>
                 </div>
+                @if($kyc)
+                <div class="profile-card mt-2">
+                    <div class="profile-card-body">
+                        <div class="user-info">
+                            <h3 class="user-name" style="color: white;">BVN: {{ $kyc->bvn ?? 'N/A' }}</h3>
+                            <p class="user-email">NIN: {{ $kyc->nin ?? 'N/A' }}</p>
+                            <p class="user-email">BVN PHONE NUMBER(LAST 5): {{ $kyc->bvn_phone_last_5 ?? 'N/A' }}</p>
+                            <p class="user-email">
+                                STATUS: 
+                                <span class="badge badge-{{ $kyc->status == 'approved' ? 'success' : ($kyc->status == 'rejected' ? 'danger' : 'warning') }}">
+                                    {{ ucfirst($kyc->status) ?? 'N/A' }}
+                                </span>
+                            </p>
+                            @if($kyc->created_at->diffInHours(now()) < 42)
+                                <p class="user-email">
+                                    <span class="badge badge-info">
+                                        <i class="fas fa-clock"></i> Just Uploaded {{ $kyc->created_at->diffForHumans() }}
+                                    </span>
+                                </p>
+                            @endif
+                            @if($kyc->rejection_reason)
+                                <div class="alert alert-danger mt-3">
+                                    <strong>Rejection Reason:</strong> {{ $kyc->rejection_reason }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <!-- Document Images Section -->
+                        <div class="documents-section mt-4">
+                            <h5 style="color: white; margin-bottom: 15px;">Uploaded Documents</h5>
+                            
+                            <div class="row">
+                                <!-- Passport Photo -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="document-card">
+                                        <label style="color: white; font-weight: bold;">Passport Photo:</label>
+                                        @if($kyc->passport_photo)
+                                            <div class="document-preview">
+                                                <img src="{{ $kyc->passport_photo }}" 
+                                                     alt="Passport Photo" 
+                                                     class="img-fluid rounded"
+                                                     style="max-height: 300px; width: 100%; object-fit: cover; cursor: pointer;"
+                                                     onclick="openImageModal('{{ $kyc->passport_photo }}', 'Passport Photo')">
+                                            </div>
+                                            <a href="{{ $kyc->passport_photo }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-light mt-2">
+                                                <i class="fas fa-external-link-alt"></i> View Full Size
+                                            </a>
+                                        @else
+                                            <p class="text-muted">Not uploaded</p>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Proof of Address -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="document-card">
+                                        <label style="color: white; font-weight: bold;">Proof of Address:</label>
+                                        @if($kyc->proof_of_address)
+                                            <div class="document-preview">
+                                                <img src="{{ $kyc->proof_of_address }}" 
+                                                     alt="Proof of Address" 
+                                                     class="img-fluid rounded"
+                                                     style="max-height: 300px; width: 100%; object-fit: cover; cursor: pointer;"
+                                                     onclick="openImageModal('{{ $kyc->proof_of_address }}', 'Proof of Address')">
+                                            </div>
+                                            <a href="{{ $kyc->proof_of_address }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-light mt-2">
+                                                <i class="fas fa-external-link-alt"></i> View Full Size
+                                            </a>
+                                        @else
+                                            <p class="text-muted">Not uploaded</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        @if($kyc->status == 'PENDING')
+                        <div class="balance-section mt-4">
+                            <button class="btn btn-success mr-2" onclick="approveKYC({{ $kyc->id }})">
+                                <i class="fas fa-check"></i> Approve KYC
+                            </button>
+                            <button class="btn btn-danger" onclick="showRejectModal({{ $kyc->id }})">
+                                <i class="fas fa-times"></i> Reject KYC
+                            </button>
+                        </div>
+                        @endif
+                        @if($kyc->status == 'APPROVED')
+                       <div class="balance-section mt-4">
+                            <button class="btn btn-danger" onclick="showRejectModal({{ $kyc->id }})">
+                                <i class="fas fa-times"></i> Reject KYC
+                            </button>
+                        </div>
+                        @endif
+                        @if($kyc->status == 'REJECTED')
+                       <div class="balance-section mt-4">
+                            <button class="btn btn-danger" onclick="deleteKYC({{ $kyc->id }})">
+                                <i class="fas fa-times"></i> Delete Kyc
+                            </button>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Rejection Modal -->
+                <div class="modal fade" id="rejectKYCModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content" style="background: #2d3748; color: white;">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Reject KYC</h5>
+                                <button type="button" class="close" data-dismiss="modal" style="color: white;">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <form id="rejectKYCForm" method="POST" action="{{ route('admin.kyc.reject', $kyc->id ?? 0) }}">
+                                @csrf
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label for="rejection_reason">Rejection Reason *</label>
+                                        <textarea class="form-control" 
+                                                  id="rejection_reason" 
+                                                  name="rejection_reason" 
+                                                  rows="4" 
+                                                  required
+                                                  placeholder="Please provide a clear reason for rejection..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-danger">Reject KYC</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Preview Modal -->
+                <div class="modal fade" id="imageModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content" style="background: transparent; border: none;">
+                            <div class="modal-header" style="border: none;">
+                                <h5 class="modal-title" id="imageModalLabel" style="color: white;"></h5>
+                                <button type="button" class="close" data-dismiss="modal" style="color: white;">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <img id="modalImage" src="" alt="Document" class="img-fluid" style="max-height: 80vh;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @else
+                <div class="profile-card mt-2">
+                    <div class="profile-card-body text-center">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <h4>No KYC Submitted</h4>
+                            <p>This user has not submitted KYC documents yet.</p>
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- Transactions & Actions -->
@@ -422,7 +701,70 @@
         </div>
     </div>
 </div>
+    <script>
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     const alerts = document.querySelectorAll('.alert');
+    //     alerts.forEach(function(alert) {
+    //         setTimeout(function() {
+    //             $(alert).fadeOut('slow', function() {
+    //                 $(this).remove();
+    //             });
+    //         }, 5000);
+    //     });
+    // });
 
+    function openImageModal(imageUrl, title) {
+        document.getElementById('modalImage').src = imageUrl;
+        document.getElementById('imageModalLabel').textContent = title;
+        $('#imageModal').modal('show');
+    }
+
+    function showRejectModal(kycId) {
+        const form = document.getElementById('rejectKYCForm');
+        form.action = form.action.replace(/\/\d+$/, '/' + kycId);
+        $('#rejectKYCModal').modal('show');
+    }
+
+    function approveKYC(kycId) {
+        if (confirm('Are you sure you want to approve this KYC?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/a-pay/admin/kyc/${kycId}/approve`;
+            
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = '{{ csrf_token() }}';
+            
+            form.appendChild(csrf);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function deleteKYC(kycId) {
+        if (confirm('Are you sure you want to permanently delete this KYC? This action cannot be undone.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/a-pay/admin/kyc/${kycId}/delete`;
+            
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = '{{ csrf_token() }}';
+            
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrf);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    </script>
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
     <script src="{{ asset('js/custom.min.js') }}"></script>
     <script src="{{ asset('js/settings.js') }}"></script>
