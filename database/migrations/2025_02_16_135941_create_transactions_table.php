@@ -22,6 +22,8 @@ return new class extends Migration
             $table->string('reference')->nullable();
             $table->enum('status', ['SUCCESS','PENDING', 'ERROR']);
             $table->enum('status', ['CREDIT', 'DEBIT'])->nullable('nullable');
+            $table->decimal('balance_before', 15, 2)->after('amount');
+            $table->decimal('balance_after', 15, 2)->after('balance_before');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });

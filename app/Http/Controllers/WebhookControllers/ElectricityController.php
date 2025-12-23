@@ -107,7 +107,7 @@ class ElectricityController extends Controller
                 $requestId,
                 $meterNumber 
             );
-            $electricityPurchase->update(['status' => 'FAILED']);
+            // $electricityPurchase->update(['status' => 'FAILED']);
             return "⚠️ Could not reach provider. Please try again later. Your balance has been restored.";
         }
 
@@ -122,7 +122,7 @@ class ElectricityController extends Controller
                 $requestId,
                 $meterNumber 
             );
-            $electricityPurchase->update(['status' => 'SUCCESS']);
+            // $electricityPurchase->update(['status' => 'SUCCESS']);
 
             // Send email
             try {
@@ -148,7 +148,7 @@ class ElectricityController extends Controller
                 $requestId,
                 $meterNumber 
             );
-            $electricityPurchase->update(['status' => 'FAILED']);
+            // $electricityPurchase->update(['status' => 'FAILED']);
 
             $errorMsg = $responseData['message'] ?? 'Payment failed. Please try again.';
             return "❌ Payment failed.\n\n⚠️ " . $errorMsg . "\n\nYour balance of ₦" . number_format($totalAmount) . " has been restored.\n\nPlease try again or contact support. 📞";

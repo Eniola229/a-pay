@@ -128,14 +128,14 @@ class DataController extends Controller
             // -----------------------
             // 4️⃣ Create DataPurchase record
             // -----------------------
-            $dataPurchase = DataPurchase::create([
-                'user_id' => $user->id,
-                'phone_number' => $phone,
-                'data_plan_id' => $variationId,
-                'network_id' => $network,
-                'amount' => $planPrice,
-                'status' => 'PENDING'
-            ]);
+            // $dataPurchase = DataPurchase::create([
+            //     'user_id' => $user->id,
+            //     'phone_number' => $phone,
+            //     'data_plan_id' => $variationId,
+            //     'network_id' => $network,
+            //     'amount' => $planPrice,
+            //     'status' => 'PENDING'
+            // ]);
 
             // -----------------------
             // 5️⃣ Call API
@@ -164,7 +164,7 @@ class DataController extends Controller
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
-                $dataPurchase->update(['status' => 'FAILED']);
+                // $dataPurchase->update(['status' => 'FAILED']);
 
                 return "⚠️ Could not reach data provider. Please try again later.";
             }
@@ -175,7 +175,7 @@ class DataController extends Controller
             if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
 
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
-                $dataPurchase->update(['status' => 'SUCCESS']);
+                // $dataPurchase->update(['status' => 'SUCCESS']);
 
                 // Apply cashback
                 $cashback = 0;
@@ -208,7 +208,7 @@ class DataController extends Controller
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
-                $dataPurchase->update(['status' => 'FAILED']);
+                // $dataPurchase->update(['status' => 'FAILED']);
 
                 Log::error('Data purchase failed', ['response' => $responseData]);
 

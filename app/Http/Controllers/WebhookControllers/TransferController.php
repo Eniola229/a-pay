@@ -9,9 +9,17 @@ use App\Models\Balance;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\TransactionService;
 
 class TransferController extends Controller
 {
+    protected $transactionService;
+
+    public function __construct(TransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
+
     /**
      * Find recipient by phone number or account number
      * 
@@ -115,47 +123,48 @@ class TransferController extends Controller
             ];
         }
 
-        // Process transfer in transaction
+        // Generate reference
+        $reference = 'A-PAY_' . strtoupper(uniqid());
+
+        // Process transfer using TransactionService
         DB::beginTransaction();
         
         try {
-            // Deduct from sender
-            $senderBalance->decrement('balance', $amount);
-            $newSenderBalance = $senderBalance->fresh()->balance;
-
-            // Credit recipient
-            $recipientBalance = Balance::firstOrCreate(
-                ['user_id' => $recipient->id],
-                ['balance' => 0]
+            // Create DEBIT transaction for sender
+            $senderTransaction = $this->transactionService->createTransaction(
+                $sender,
+                $amount,
+                'DEBIT',
+                $recipient->name ?? $recipient->mobile,
+                "Transfer to " . ($recipient->name ?? $recipient->mobile)
             );
-            $recipientBalance->increment('balance', $amount);
-            $newRecipientBalance = $recipientBalance->fresh()->balance;
 
-            // Generate reference
-            $reference = 'A-PAY_' . strtoupper(uniqid());
-
-            // Create transaction records
-            // Debit transaction for sender
-            $senderTransaction = Transaction::create([
-                'user_id' => $sender->id,
-                'amount' => $amount,
-                'type' => 'DEBIT',
-                'beneficiary' => $recipient->name ?? $recipient->mobile,
-                'description' => "Transfer to " . ($recipient->name ?? $recipient->mobile),
+            // Update sender transaction with reference and mark as success
+            $senderTransaction->update([
                 'reference' => $reference,
                 'status' => 'SUCCESS'
             ]);
 
-            // Credit transaction for recipient
-            $recipientTransaction = Transaction::create([
-                'user_id' => $recipient->id,
-                'amount' => $amount,
-                'type' => 'CREDIT',
-                'beneficiary' => $recipient->name ?? $recipient->mobile,
-                'description' => "Transfer from " . ($sender->name ?? $sender->mobile),
+            // Get sender's new balance from the transaction record
+            $newSenderBalance = $senderTransaction->balance_after;
+
+            // Create CREDIT transaction for recipient
+            $recipientTransaction = $this->transactionService->createTransaction(
+                $recipient,
+                $amount,
+                'CREDIT',
+                $recipient->name ?? $recipient->mobile,
+                "Transfer from " . ($sender->name ?? $sender->mobile)
+            );
+
+            // Update recipient transaction with reference and mark as success
+            $recipientTransaction->update([
                 'reference' => $reference,
                 'status' => 'SUCCESS'
             ]);
+
+            // Get recipient's new balance from the transaction record
+            $newRecipientBalance = $recipientTransaction->balance_after;
 
             DB::commit();
 

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Services;
 
 use App\Models\Transaction;
@@ -27,25 +26,27 @@ class TransactionService
         }
 
         return DB::transaction(function () use ($user, $amount, $type, $beneficiary, $description) {
-
-            // Fetch user balance
+            // Fetch user balance and lock for update
             $balance = Balance::where('user_id', $user->id)->lockForUpdate()->first();
-
+            
             if (!$balance) {
                 throw new Exception("Wallet not found for user.");
             }
+
+            // Record balance before transaction
+            $balanceBefore = $balance->balance;
+            $balanceAfter = $balanceBefore;
 
             // -----------------------
             // DEBIT: deduct balance
             // -----------------------
             if (strtoupper($type) === 'DEBIT') {
-                $updated = Balance::where('user_id', $user->id)
-                    ->where('balance', '>=', $amount)
-                    ->update(['balance' => DB::raw("balance - $amount")]);
-
-                if (!$updated) {
+                if ($balanceBefore < $amount) {
                     throw new Exception("Insufficient balance");
                 }
+
+                $balance->decrement('balance', $amount);
+                $balanceAfter = $balanceBefore - $amount;
             }
 
             // -----------------------
@@ -53,10 +54,11 @@ class TransactionService
             // -----------------------
             if (strtoupper($type) === 'CREDIT') {
                 $balance->increment('balance', $amount);
+                $balanceAfter = $balanceBefore + $amount;
             }
 
             // -----------------------
-            // Create transaction record
+            // Create transaction record with balance snapshots
             // -----------------------
             $transaction = Transaction::create([
                 'user_id' => $user->id,
@@ -64,7 +66,9 @@ class TransactionService
                 'beneficiary' => $beneficiary,
                 'description' => $description,
                 'type' => strtoupper($type),
-                'status' => 'PENDING' // default status
+                'status' => 'PENDING',
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
             ]);
 
             return $transaction;

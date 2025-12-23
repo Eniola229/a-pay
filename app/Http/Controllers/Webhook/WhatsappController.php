@@ -28,6 +28,11 @@ use App\Models\WhatsappSession;
 use App\Mail\ElectricityPaymentReceipt;
 use App\Models\ElectricityPurchase;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\WebhookControllers\RegistrationController;
+use App\Http\Controllers\WebhookControllers\UserValidationController;
+use App\Http\Controllers\WebhookControllers\AirtimeController;
+use App\Http\Controllers\WebhookControllers\DataController;
+use App\Http\Controllers\WebhookControllers\TransferController;
 
 
 
@@ -37,13 +42,19 @@ class WhatsappController extends Controller
     protected $airtimeController;
     protected $dataController;
     protected $transferController;
+    protected $registrationController;
+    protected $userValidationController;
 
     public function __construct(
-        \App\Http\Controllers\WebhookControllers\AirtimeController $airtimeController,
-        \App\Http\Controllers\WebhookControllers\DataController $dataController,
-        \App\Http\Controllers\WebhookControllers\TransferController $transferController
+        RegistrationController $registrationController,
+        UserValidationController $userValidationController,
+        AirtimeController $airtimeController,
+        DataController $dataController,
+        TransferController $transferController
     )
     {
+        $this->registrationController = $registrationController;
+        $this->userValidationController = $userValidationController;
         $this->airtimeController = $airtimeController;
         $this->dataController = $dataController;
         $this->transferController = $transferController;
@@ -54,249 +65,25 @@ class WhatsappController extends Controller
         $from = str_replace('whatsapp:', '', $request->input('From'));
         $message = strtolower(trim($request->input('Body')));
 
-        // Check if user exists in your users table
+        // Check if user exists
         $user = User::where('mobile', $from)->first();
+
+        // Handle new user registration
         if (!$user) {
-
-            // Use phone number as unique identifier for session
-            $session = WhatsappSession::firstOrCreate(
-                ['phone' => $from, 'context' => 'register'],
-                ['data' => json_encode([])]
-            );
-
-            $sessionData = json_decode($session->data ?? '{}', true);
-
-            // Parse name + email
-            if (preg_match('/([a-zA-Z ]+)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i', $message, $matches)) {
-                $name  = trim($matches[1]);
-                $email = trim($matches[2]);
-            } else {
-                $name  = $sessionData['name']  ?? null;
-                $email = $sessionData['email'] ?? null;
-            }
-
-            // Update session cache
-            $session->data = json_encode([
-                'name'  => $name,
-                'email' => $email,
-                'phone' => $from
-            ]);
-            $session->save();
-
-            // Ask for missing details
-            if (!$name || !$email) {
-                return $this->sendMessage(
-                    $from,
-                    "👋 Welcome to *A-Pay!* \n\nTo create an account, reply with your _Name_ and _Email_ like this:\n\n*John Doe john@gmail.com*"
-                );
-            }
-
-            // Check if email already exists locally
-            if (User::where('email', $email)->exists()) {
-                // FIX: Delete session on error
-                $session->delete();
-                
-                return $this->sendMessage($from,
-                    "⚠️ The email *{$email}* already exists.\n\nUse the same phone number you registered with."
-                );
-            }
-
-            // PREPARE NAME DATA
-            $parts = explode(' ', trim($name), 2);
-            $firstName = $parts[0];
-            $lastName  = $parts[1] ?? $parts[0];
-
-            // Wrap entire Paystack + User creation in a DB transaction
-            DB::beginTransaction();
-            try {
-                // CHECK IF PAYSTACK CUSTOMER ALREADY EXISTS
-                $customerLookup = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . env('PAYSTACK_SECRET_KEY')
-                ])->get("https://api.paystack.co/customer/{$email}");
-
-                $lookupData = $customerLookup->json();
-
-                if (isset($lookupData['data']['customer_code'])) {
-                    // Existing Paystack customer
-                    $customerCode = $lookupData['data']['customer_code'];
-
-                    // Update customer with new name + phone
-                    $updateCustomer = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . env('PAYSTACK_SECRET_KEY')
-                    ])->put("https://api.paystack.co/customer/{$customerCode}", [
-                        'first_name' => $firstName,
-                        'last_name'  => $lastName,
-                        'phone'      => $from,
-                    ]);
-
-                    $updateData = $updateCustomer->json();
-                    if (!($updateData['status'] ?? false)) {
-                        Log::error('Paystack update customer failed', $updateData);
-                        throw new \Exception('Failed to update Paystack customer.');
-                    }
-
-                } else {
-                    // CREATE PAYSTACK CUSTOMER
-                    $createCustomer = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . env('PAYSTACK_SECRET_KEY')
-                    ])->post('https://api.paystack.co/customer', [
-                        'email'      => $email,
-                        'first_name' => $firstName,
-                        'last_name'  => $lastName,
-                        'phone'      => $from,
-                    ]);
-
-                    $customerData = $createCustomer->json();
-
-                    if (!($customerData['status'] ?? false) || !isset($customerData['data']['customer_code'])) {
-                        Log::error('Paystack customer creation failed', $customerData);
-                        throw new \Exception('Failed to create Paystack customer.');
-                    }
-
-                    $customerCode = $customerData['data']['customer_code'];
-                }
-
-                // CREATE PAYSTACK DEDICATED VIRTUAL ACCOUNT
-                $vaResponse = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . env('PAYSTACK_SECRET_KEY')
-                ])->post('https://api.paystack.co/dedicated_account', [
-                    'customer'       => $customerCode,
-                    'preferred_bank' => 'wema-bank',
-                    'currency'       => 'NGN',
-                ]);
-
-                $vaData = $vaResponse->json();
-
-                if (!($vaData['status'] ?? false) || !isset($vaData['data']['account_number'])) {
-                    Log::error('Paystack VA creation failed', $vaData);
-                    throw new \Exception('Failed to create Paystack Virtual Account.');
-                }
-
-                // Extract account info
-                $accountNumber = $vaData['data']['account_number'];
-                $bankName      = $vaData['data']['bank']['name'] ?? null;
-                $accountName   = $vaData['data']['account_name'] ?? null;
-
-                if (!$accountNumber || !$bankName || !$accountName) {
-                    Log::error('Paystack VA missing required fields', $vaData);
-                    throw new \Exception('Incomplete Virtual Account info.');
-                }
-
-                // CREATE USER LOCALLY
-                $user = User::create([
-                    'name'           => ucwords(strtolower($name)),
-                    'mobile'         => $from,
-                    'email'          => $email,
-                    'password'       => '',
-                    'account_number' => $accountNumber,
-                ]);
-
-                Balance::create([
-                    'user_id' => $user->id,
-                    'balance' => 0,
-                ]);
-
-                // FIX: Delete session after successful registration
-                $session->delete();
-
-                DB::commit();
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                
-                // FIX: Delete session on error
-                $session->delete();
-                
-                Log::error('Registration failed', ['error' => $e->getMessage()]);
-                return $this->sendMessage($from,
-                    "❌ Registration failed: " . $e->getMessage() . "\nPlease try again."
-                );
-            }
-
-            // SEND WELCOME MESSAGE
-            $this->sendMessage(
-                $from,
-                "🎉 *Congratulations {$name}!* 🎉\n\n".
-                "Your A-Pay account has been created successfully! 🎊\n\n".
-                "You can now buy:\n".
-                "💵 Airtime\n📶 Data\n💡 Bills\n⚡ Utilities & more\n\n".
-                "Type *menu* to see available services.\n\n".
-                "__🔐 For security, enable WhatsApp Lock.__"
-            );
-
-            // SEND FUNDING ACCOUNT DETAILS
-            return $this->sendMessage(
-                $from,
-                "💰 *TO FUND YOUR A-PAY WALLET*\n\n".
-                "🏦 *Bank:* {$bankName}\n".
-                "👤 *Account Name:* {$accountName}\n".
-                "🔢 *Account Number:* {$accountNumber}\n\n".
-                "Transfer to the account above to top-up instantly.\n\n".
-                "__Kindly PIN this message for easy access.__"
-            );
+            return $this->registrationController->handleRegistration($from, $message, $this);
         }
 
-
-        if ($user->is_status === 'BLOCKED') {
-            return $this->sendMessage(
-                $from,
-                "*⚠️ Your A-Pay account has been BLOCKED! 🔒* \n\n Please reach out to Customer Support on WhatsApp 📲 09079916807 to get it restored."
-            );
+        // Validate existing user status and requirements
+        $validationResponse = $this->userValidationController->validate($user, $from, $this);
+        if ($validationResponse) {
+            return $validationResponse;
         }
 
-         // CHECK IF BALANCE IS 100K OR MORE AND KYC IS REQUIRED
-        $balance = $user->balance()->first();
-        if ($balance && $balance->balance >= 100000) {
-            // Check if user has KYC profile
-            if (!$user->hasKyc()) {
-                // User needs to complete KYC
-                $kycUrl = route('kyc.form', ['user' => $user->id, 'token' => encrypt($user->id)]);
-                
-                return $this->sendMessage(
-                    $from,
-                    "⚠️ *KYC VERIFICATION REQUIRED* ⚠️\n\n".
-                    "Your account balance has reached ₦100,000 or more.\n\n".
-                    "To continue using A-Pay services, please complete your KYC verification:\n\n".
-                    "🔗 {$kycUrl}\n\n".
-                    "📋 *Required Documents:*\n".
-                    "• Passport Photo 📸\n".
-                    "• BVN Number 🆔\n".
-                    "• NIN Number 🆔\n".
-                    "• Proof of Address 📄\n\n".
-                    "⏱️ This takes only 5 minutes!"
-                );
-            }
-
-            // Check if KYC is rejected
-            $kyc = $user->kycProfile;
-            if ($kyc && $kyc->isRejected()) {
-                return $this->sendMessage(
-                    $from,
-                    "❌ *KYC VERIFICATION REJECTED* ❌\n\n".
-                    "📝 *Reason:* {$kyc->rejection_reason}\n\n".
-                    "Please contact support on WhatsApp 📲 09079916807 to resolve this issue."
-                );
-            }
-
-            // Check if KYC is pending
-            if ($kyc && $kyc->isPending()) {
-                return $this->sendMessage(
-                    $from,
-                    "⏳ *KYC VERIFICATION PENDING* ⏳\n\n".
-                    "Your KYC documents are currently under review.\n\n".
-                    "You'll be notified once the verification is complete.\n\n".
-                    "⚠️ *Note:* If any errors are found, your account may be suspended until corrections are made.\n\n".
-                    "For urgent queries, contact support 📲 09079916807"
-                );
-            }
-        }
-
-        // detect intent
+        // Process user command
         $response = $this->processCommand($user, $message);
-
-        // reply
-        $this->sendMessage($from, $response);
+        return $this->sendMessage($from, $response);
     }
+
 
     private function processCommand($user, $message)
     {
@@ -594,7 +381,7 @@ class WhatsappController extends Controller
 
             // === CASE 3: Meter + Amount but no provider ===
             if ($meterNumber && $amount && !$provider) {
-                return "💰 Payment: *₦" . number_format($amount) . "* for meter *{$meterNumber}*\n\n📍 Which electricity provider?\n\n*abuja | eko | ibadan | ikeja | jos | kaduna | kano | portharcourt*\n\nReply: *electric {$meterNumber} {$amount} eko*";
+                return "💰 Payment: *₦" . number_format($amount) . "* for meter *{$meterNumber}*\n\n📍 Which electricity provider?\n\n*abuja | eko | ibadan | ikeja | jos | kaduna | kano | portharcourt*\n\nExample: *electric {$meterNumber} {$amount} eko*";
             }
 
             // === CASE 4: All details provided - delegate to ElectricityController ===
@@ -865,7 +652,7 @@ class WhatsappController extends Controller
         return $match[0] ?? null;
     }
 
-    private function sendMessage($to, $body)
+    public function sendMessage($to, $body)
     {
         $sid = env('TWILIO_SID');
         $token = env('TWILIO_AUTH_TOKEN');

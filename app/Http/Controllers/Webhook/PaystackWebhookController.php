@@ -5,16 +5,22 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Twilio\Rest\Client;
 use App\Models\User;
-use App\Models\Balance;
 use App\Models\Transaction;
 use App\Mail\CreditAlertMail;
+use App\Services\TransactionService;
 
 class PaystackWebhookController extends Controller
 {
+    protected $transactionService;
+
+    public function __construct(TransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
+
     public function handle(Request $request)
     {
         // Verify signature
@@ -73,36 +79,26 @@ class PaystackWebhookController extends Controller
             return response()->json(['status' => 'duplicate']);
         }
 
-        DB::beginTransaction();
         try {
-            $balance = Balance::where('user_id', $user->id)->lockForUpdate()->first();
+            // Use TransactionService to create credit transaction
+            $transaction = $this->transactionService->createTransaction(
+                $user,
+                $amount,
+                'CREDIT',
+                $user->mobile,
+                "Wallet Top-up"
+            );
 
-            if (!$balance) {
-                $balance = Balance::create([
-                    'user_id' => $user->id,
-                    'balance' => 0
-                ]);
-            }
-
-            $newBalance = bcadd($balance->balance, $amount, 2);
-            $balance->balance = $newBalance;
-            $balance->save();
-
-            $transaction = Transaction::create([
-                'user_id'     => $user->id,
-                'amount'      => $amount,
-                'cash_back'   => 0,
-                'charges'     => 0,
-                'beneficiary' => $user->mobile,
-                'description' => "Wallet Top-up",
-                'type'      => "CREDIT",
-                'status'      => "SUCCESS",
-                'reference'   => $reference,
+            // Update transaction with reference and mark as success
+            $transaction->update([
+                'reference' => $reference,
+                'status' => 'SUCCESS'
             ]);
 
-            DB::commit();
+            // Get updated balance
+            $newBalance = $user->balance()->first()->balance;
+
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error("Webhook credit error: " . $e->getMessage());
             return response()->json(['status' => 'failed'], 500);
         }

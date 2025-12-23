@@ -597,6 +597,8 @@
                                 <th>Type</th>
                                 <th>Status</th>
                                 <th>Reference</th>
+                                <th>Balance Before</th>
+                                <th>Balance After</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
@@ -613,6 +615,8 @@
                                         </span>
                                     </td>
                                     <td>{{ $transaction->reference ?? 'N/A' }}</td>
+                                    <td>₦ {{ number_format($transaction->balance_before, 2) }}</td>
+                                    <td>₦ {{ number_format($transaction->balance_after, 2) }}</td>
                                     <td>{{ $transaction->created_at->format('d M, Y H:i') }}</td>
                                 </tr>
                             @empty

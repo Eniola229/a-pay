@@ -41,7 +41,9 @@ class Transaction extends Authenticatable
         'description',
         'type',
         'status',
-        'reference'
+        'reference',
+        'balance_before',
+        'balance_after'
     ];
 
         public function user()

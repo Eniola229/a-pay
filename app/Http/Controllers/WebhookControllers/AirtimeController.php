@@ -64,13 +64,13 @@ class AirtimeController extends Controller
             // -----------------------
             // 3️⃣ Create Airtime Purchase record
             // -----------------------
-            $airtime = AirtimePurchase::create([
-                'user_id' => $user->id,
-                'phone_number' => $phone,
-                'amount' => $amount,
-                'network_id' => $network,
-                'status' => 'PENDING'
-            ]);
+            // $airtime = AirtimePurchase::create([
+            //     'user_id' => $user->id,
+            //     'phone_number' => $phone,
+            //     'amount' => $amount,
+            //     'network_id' => $network,
+            //     'status' => 'PENDING'
+            // ]);
 
             // -----------------------
             // 4️⃣ Prepare API call
@@ -108,7 +108,7 @@ class AirtimeController extends Controller
                     'reference' => $requestId
                 ]);
 
-                $airtime->update(['status' => 'FAILED']);
+                // $airtime->update(['status' => 'FAILED']);
 
                 return "⚠️ Network error. Please try again later.";
             }
@@ -120,7 +120,7 @@ class AirtimeController extends Controller
 
                 // Update records to success
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
-                $airtime->update(['status' => 'SUCCESS']);
+                // $airtime->update(['status' => 'SUCCESS']);
 
                 // -----------------------
                 // 7️⃣ Calculate and apply cashback
@@ -163,7 +163,7 @@ class AirtimeController extends Controller
                     'reference' => $requestId
                 ]);
 
-                $airtime->update(['status' => 'FAILED']);
+                // $airtime->update(['status' => 'FAILED']);
 
                 return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
             }
