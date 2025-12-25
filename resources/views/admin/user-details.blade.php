@@ -316,6 +316,140 @@
 .modal-content {
     border-radius: 8px;
 }
+
+    .edit-profile-btn {
+        margin-top: 15px;
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
+    .edit-profile-btn:hover {
+        background-color: #0056b3;
+    }
+    
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal-content {
+        background-color: #fff;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        position: relative;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .close {
+        position: absolute;
+        right: 20px;
+        top: 15px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #aaa;
+    }
+    
+    .close:hover {
+        color: #000;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+    
+    .form-group select {
+        cursor: pointer;
+        background-color: white;
+    }
+    
+    .form-group select:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 25px;
+    }
+    
+    .btn-cancel, .btn-save {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-cancel {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-cancel:hover {
+        background-color: #5a6268;
+    }
+    
+    .btn-save {
+        background-color: #28a745;
+        color: white;
+        position: relative;
+    }
+    
+    .btn-save:hover:not(:disabled) {
+        background-color: #218838;
+    }
+    
+    .btn-save:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    .btn-loader {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>
 
  <!--**********************************
@@ -399,7 +533,9 @@
                             <p class="user-email">{{ $user->email }}</p>
                             <p class="user-email">{{ $user->mobile }}</p>
                             <p class="user-email">Account Number: {{ $user->account_number ?? 'N/A'}}</p>
+                            <p class="user-email">Account Status: {{ $user->is_status ?? 'N/A'}}</p>
                             <p class="user-email">Joined at: {{ $user->created_at->format('d M Y, h:i A') }}</p>
+                            <button class="edit-profile-btn" style="background: white; color: darkgreen; border: darkgreen;" onclick="openEditModal()">Edit Profile</button>
                         </div>
                         <div class="balance-section">
                             <button class="balance-btn">
@@ -705,6 +841,60 @@
         </div>
     </div>
 </div>
+<!-- Edit Profile Modal -->
+<div id="editProfileModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2>Edit User Profile</h2>
+        <form id="editProfileForm">
+            @csrf
+            @method('PUT')
+            <input type="hidden" id="user_id" name="user_id" value="{{ $user->id }}">
+            
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" value="{{ $user->name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ $user->email }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="mobile">Mobile</label>
+                <input type="text" id="mobile" name="mobile" value="{{ $user->mobile }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="status">Account Status <span style="color: red;">*</span></label>
+                <select id="status" name="status" required>
+                    <option value="ACTIVE" {{ ($user->status ?? 'ACTIVE') == 'ACTIVE' ? 'selected' : '' }}>ACTIVE</option>
+                    <option value="INACTIVE" {{ ($user->status ?? '') == 'INACTIVE' ? 'selected' : '' }}>INACTIVE</option>
+                    <option value="SUSPENDED" {{ ($user->status ?? '') == 'SUSPENDED' ? 'selected' : '' }}>SUSPENDED</option>
+                    <option value="PENDING" {{ ($user->status ?? '') == 'PENDING' ? 'selected' : '' }}>PENDING</option>
+                    <option value="BLOCKED" {{ ($user->status ?? '') == 'BLOCKED' ? 'selected' : '' }}>BLOCKED</option>
+                </select>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    ⚠️ Changing status may affect user access
+                </small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancel</button>
+                <button type="submit" class="btn-save" id="saveBtn">
+                    <span class="btn-text">Save Changes</span>
+                    <span class="btn-loader" style="display: none;">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: spin 1s linear infinite;">
+                            <circle cx="8" cy="8" r="6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-dasharray="30" stroke-dashoffset="10"/>
+                        </svg>
+                        Updating...
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
     <script>
     // document.addEventListener('DOMContentLoaded', function() {
     //     const alerts = document.querySelectorAll('.alert');
@@ -716,6 +906,109 @@
     //         }, 5000);
     //     });
     // });
+
+    function openEditModal() {
+        document.getElementById('editProfileModal').style.display = 'block';
+    }
+    
+    function closeEditModal() {
+        document.getElementById('editProfileModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('editProfileModal');
+        if (event.target === modal) {
+            closeEditModal();
+        }
+    }
+    
+    // Handle form submission
+    document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const saveBtn = document.getElementById('saveBtn');
+        const btnText = saveBtn.querySelector('.btn-text');
+        const btnLoader = saveBtn.querySelector('.btn-loader');
+        
+        const formData = new FormData(this);
+        const userId = formData.get('user_id');
+        const data = {
+            name: formData.get('name'),
+            email: formData.get('email'),
+            mobile: formData.get('mobile'),
+            is_status: formData.get('status')  // Changed to is_status
+        };
+        
+        // Confirm status change
+        const currentStatus = "{{ $user->status ?? 'ACTIVE' }}";
+        if (data.is_status !== currentStatus) {
+            if (!confirm(`Are you sure you want to change the account status from ${currentStatus} to ${data.is_status}?`)) {
+                return;
+            }
+        }
+        
+        // Show loading state
+        saveBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'flex';
+        
+        try {
+            const response = await fetch("{{ route('admin.user.update', ':id') }}".replace(':id', userId), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            // Reset button state first
+            saveBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoader.style.display = 'none';
+            
+            if (response.ok && result.success) {
+                alert('User profile updated successfully!');
+                
+                // Update the UI with new values
+                document.getElementById('currentStatus').textContent = data.is_status;  // Changed to is_status
+                document.querySelector('.user-name').textContent = data.name;
+                document.querySelectorAll('.user-email')[0].textContent = data.email;
+                document.querySelectorAll('.user-email')[1].textContent = data.mobile;
+                
+                closeEditModal();
+                
+                // Optional: Reload page after 1 second
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                // Show detailed error messages
+                if (result.errors) {
+                    let errorMsg = 'Validation Errors:\n\n';
+                    for (let field in result.errors) {
+                        errorMsg += `• ${field}: ${result.errors[field].join(', ')}\n`;
+                    }
+                    alert(errorMsg);
+                } else {
+                    alert('Error: ' + (result.message || 'Failed to update profile'));
+                }
+                console.error('Full error response:', result);
+            }
+        } catch (error) {
+            // Reset button state
+            saveBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoader.style.display = 'none';
+            
+            console.error('Fetch error:', error);
+            alert('Network error: Unable to connect to the server. Please check your connection and try again.');
+        }
+    });
 
     function openImageModal(imageUrl, title) {
         document.getElementById('modalImage').src = imageUrl;

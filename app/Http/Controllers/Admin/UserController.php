@@ -19,6 +19,7 @@ use App\Models\Errors;
 use Illuminate\Support\Facades\Http;
 use App\Models\Borrow;
 use App\Models\KycProfile;
+use Illuminate\Validation\Rule;
 
 
 class UserController extends Controller
@@ -75,5 +76,49 @@ class UserController extends Controller
         
         $kyc->delete();
         return back()->with('success', 'KYC deleted successfully');
+    }
+
+      public function updateUser(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'is_status' => 'required|in:ACTIVE,INACTIVE,SUSPENDED,PENDING,BLOCKED',
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    Rule::unique('users')->ignore($user->id),
+                ],
+                'mobile' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    Rule::unique('users')->ignore($user->id),
+                ],
+            ]);
+            
+            $user->update($validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'User profile updated successfully',
+                'user' => $user
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

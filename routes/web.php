@@ -97,7 +97,7 @@ Route::middleware('auth', 'device.verified')->group(function () {
     Route::get('/topup', [TopUpController::class, 'index'])->name('topup');
     Route::post('/topup/initialize', [TopUpController::class, 'initialize'])->name('topup.initialize');
     Route::get('/topup/callback', [TopUpController::class, 'callback'])->name('topup.callback');
-    // This route will be used by jQuery to fetch the current balance
+    // This route will be used to fetch the current balance
     Route::get('/balance', [TopUpController::class, 'getBalance'])->name('balance');
     //Withdraw 
     Route::get('/withdraw', [WithdrawalController::class, 'index'])->name('withdraw');
@@ -144,6 +144,7 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/complians', [AdminAuthController::class, 'complians'])->name('admin-complians'); 
  Route::get('/users', [UserController::class, 'users'])->name('admin-users'); 
  Route::get('/users/{id}', [UserController::class, 'showUser'])->name('admin.users.show');
+ Route::put('/user/{id}/update', [UserController::class, 'updateUser'])->name('admin.user.update');
  Route::get('/errors', [AdminAuthController::class, 'errors'])->name('admin-errors'); 
  Route::post('/transactions/update', [AdminAuthController::class, 'updateTransaction'])->name('transactions.update');
  Route::get('/users/{id}/edit', [AdminAuthController::class, 'Useredit']);
