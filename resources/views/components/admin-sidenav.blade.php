@@ -23,7 +23,7 @@
                     <li>
                        <a class="has-arrow {{ request()->is('admin/errors') ? 'active' : '' }}" href="{{ url('admin/errors') }}" aria-expanded="false">
                             <i class="icon-wallet menu-icon"></i>
-                            <span class="nav-text">Errors</span>
+                            <span class="nav-text">Logs</span>
                         </a>
                     </li>
                     </li>

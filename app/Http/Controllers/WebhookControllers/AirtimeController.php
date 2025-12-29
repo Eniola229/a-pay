@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Balance;
 use App\Models\AirtimePurchase;
+use App\Models\Logged;
 use App\Services\TransactionService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
@@ -44,7 +45,7 @@ class AirtimeController extends Controller
             // -----------------------
             // 2️⃣ Deduct balance via TransactionService (DEBIT)
             // -----------------------
-            $requestId = 'REQ_' . strtoupper(Str::random(12));
+            $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
             try {
                 $transaction = $this->transactionService->createTransaction(
                     $user,
@@ -52,7 +53,7 @@ class AirtimeController extends Controller
                     'DEBIT',
                     $phone,
                     strtoupper($network) . " airtime purchase for " . $phone,
-                    $requestId // ✅ reference
+                    $requestId 
                 );
 
                 // Refresh Balance for display if needed
@@ -93,6 +94,16 @@ class AirtimeController extends Controller
             try {
                 $response = Http::withHeaders($headers)->post($apiUrl, $data);
             } catch (\Exception $e) {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'AIRTIME',
+                    'message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString(),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
+
                 // Refund balance on network error (CREDIT)
                 $refundTransaction = $this->transactionService->createTransaction(
                     $user,
@@ -117,7 +128,15 @@ class AirtimeController extends Controller
             // 6️⃣ Process API response
             // -----------------------
             if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
-
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'AIRTIME',
+                    'message' => 'Airtime purchase successful',
+                    'stack_trace' => json_encode($response->json()), // Full response
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'SUCCESS',
+                ]);
                 // Update records to success
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
                 // $airtime->update(['status' => 'SUCCESS']);
@@ -155,12 +174,22 @@ class AirtimeController extends Controller
                     'CREDIT',
                     $phone, 
                     'Refund for failed airtime purchase',
-                    'REFUND_' . $requestId 
+                    'REFUND_' . $requestId,
                 );
 
                 $transaction->update([
                     'status' => 'ERROR',
                     'reference' => $requestId
+                ]);
+
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'AIRTIME',
+                    'message' => $response->json('message') ?? 'API request failed',
+                    'stack_trace' => json_encode($response->json(), JSON_PRETTY_PRINT), // Pretty format
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
                 ]);
 
                 // $airtime->update(['status' => 'FAILED']);

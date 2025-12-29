@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Balance;
+use App\Models\Logged;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -124,7 +125,7 @@ class TransferController extends Controller
         }
 
         // Generate reference
-        $reference = 'A-PAY_' . strtoupper(uniqid());
+        $reference = 'A-PAY_' . now()->format('YmdHis') . strtoupper(uniqid());
 
         // Process transfer using TransactionService
         DB::beginTransaction();
@@ -163,6 +164,16 @@ class TransferController extends Controller
                 'status' => 'SUCCESS'
             ]);
 
+            Logged::create([
+                    'user_id' => $sender->id,
+                    'for' => 'TRANSFER',
+                    'message' => "Transfer to " . ($recipient->name ? $recipient->name . " (" . $recipient->mobile . ")" : $recipient->mobile),
+                    'stack_trace' => "null",
+                    't_reference' => $reference,
+                    'from' => 'EBILLS',
+                    'type' => 'SUCCESS',
+            ]);
+
             // Get recipient's new balance from the transaction record
             $newRecipientBalance = $recipientTransaction->balance_after;
 
@@ -179,6 +190,15 @@ class TransferController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Logged::create([
+                    'user_id' => $sender->id,
+                    'for' => 'TRANSFER',
+                    'message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString(),
+                    't_reference' => $reference,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+            ]);
             Log::error('Transfer failed: ' . $e->getMessage());
             
             return [

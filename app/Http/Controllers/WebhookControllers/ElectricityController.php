@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Balance;
 use App\Models\ElectricityPurchase;
+use App\Models\Logged;
 use App\Services\TransactionService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -57,7 +58,7 @@ class ElectricityController extends Controller
         }
 
         // Generate unique request ID for transaction reference
-        $requestId = 'REQ_' . strtoupper(Str::random(12));
+        $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
 
         // Deduct balance and create DEBIT transaction
         try {
@@ -67,7 +68,7 @@ class ElectricityController extends Controller
                 'DEBIT',
                 $meterNumber, 
                 "Electricity bill payment for meter " . $meterNumber,
-                $requestId // ✅ reference
+                $requestId 
             );
             $balance->refresh();
         } catch (\Exception $e) {
@@ -100,6 +101,15 @@ class ElectricityController extends Controller
                 ]);
             $responseData = $response->json();
         } catch (\Exception $e) {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'ELECTRICITY',
+                    'message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString(),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
             // Refund via TransactionService with ERROR status and reference
             $this->transactionService->refundTransaction(
                 $transaction,
@@ -113,6 +123,15 @@ class ElectricityController extends Controller
 
         // Handle success
         if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'ELECTRICITY',
+                'message' => 'Electricity purchase successful',
+                'stack_trace' => json_encode($responseData),
+                't_reference' => $requestId,
+                'from' => 'EBILLS',
+                'type' => 'SUCCESS',
+            ]);
             $token = $responseData['token'] ?? 'N/A';
             $units = $responseData['units'] ?? 'N/A';
 
@@ -151,6 +170,15 @@ class ElectricityController extends Controller
             // $electricityPurchase->update(['status' => 'FAILED']);
 
             $errorMsg = $responseData['message'] ?? 'Payment failed. Please try again.';
+            Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'ELECTRICITY',
+                    'message' => json_encode($responseData),
+                    'stack_trace' => json_encode($responseData),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+            ]);
             return "❌ Payment failed.\n\n⚠️ " . $errorMsg . "\n\nYour balance of ₦" . number_format($totalAmount) . " has been restored.\n\nPlease try again or contact support. 📞";
         }
     }

@@ -143,7 +143,7 @@ class WhatsappController extends Controller
         // 3️⃣ Check account details request
         if (preg_match('/\b(account|account\s+(number|details|info))\b/i', $message)) {
             return 
-                "💰 *YOUR ACCOUNT DETAILS*\n\n" .
+                "💰 *YOUR VIRTUAL ACCOUNT DETAILS*\n\n" .
                 "🏦 *Bank:* Wema Bank\n" .
                 "👤 *Account Name:* AFRICICL/" . strtoupper($user->name) . "\n" .
                 "🔢 *Account Number:* {$user->account_number}\n\n" .

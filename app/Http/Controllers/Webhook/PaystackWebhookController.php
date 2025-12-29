@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Twilio\Rest\Client;
 use App\Models\User;
+use App\Models\Logged;
 use App\Models\Transaction;
 use App\Mail\CreditAlertMail;
 use App\Services\TransactionService;
@@ -95,11 +96,30 @@ class PaystackWebhookController extends Controller
                 'status' => 'SUCCESS'
             ]);
 
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'Wallet Top-up',
+                'message' => 'Wallet top-up successful',
+                'stack_trace' => json_encode($payload),
+                't_reference' => $reference,
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'SUCCESS',
+            ]);
+
             // Get updated balance
             $newBalance = $user->balance()->first()->balance;
 
         } catch (\Exception $e) {
             Log::error("Webhook credit error: " . $e->getMessage());
+        Logged::create([
+            'user_id' => $user->id,
+            'for' => 'Wallet Top-up',
+            'message' => $e->getMessage(),
+            'stack_trace' => $e->getTraceAsString() . "\n\nPayload: " . json_encode($payload, JSON_PRETTY_PRINT),
+            't_reference' => $reference,
+            'from' => 'PAYSTACK_WEBHOOK',
+            'type' => 'FAILED',
+        ]);
             return response()->json(['status' => 'failed'], 500);
         }
 

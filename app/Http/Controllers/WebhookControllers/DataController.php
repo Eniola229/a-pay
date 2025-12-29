@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Balance;
 use App\Models\DataPurchase;
+use App\Models\Logged;
 use App\Services\TransactionService;
 use App\Services\CashbackService;
 use Illuminate\Support\Facades\Http;
@@ -109,7 +110,7 @@ class DataController extends Controller
             // -----------------------
             // 3️⃣ Deduct balance via TransactionService (DEBIT)
             // -----------------------
-            $requestId = 'REQ_' . strtoupper(Str::random(12));
+            $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
             try {
                 $transaction = $this->transactionService->createTransaction(
                     $user,
@@ -117,7 +118,7 @@ class DataController extends Controller
                     'DEBIT',
                     $phone, 
                     "Data purchase: {$planName}",
-                    $requestId // ✅ reference
+                    $requestId 
                 );
 
                 $balance->refresh();
@@ -153,6 +154,15 @@ class DataController extends Controller
                     ]);
                 $responseData = $response->json();
             } catch (\Exception $e) {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'DATA',
+                    'message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString(),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
                 // Refund balance on network error
                 $refundTransaction = $this->transactionService->createTransaction(
                     $user,
@@ -160,7 +170,7 @@ class DataController extends Controller
                     'CREDIT',
                     $phone, 
                     'Refund for failed data purchase',
-                    'REFUND_' . $requestId // ✅ reference
+                    'REFUND_' . $requestId 
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
@@ -173,6 +183,15 @@ class DataController extends Controller
             // 6️⃣ Handle API response
             // -----------------------
             if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'DATA',
+                    'message' => 'Data purchase successful - Code: ' . ($responseData['code'] ?? 'N/A'),
+                    'stack_trace' => json_encode($responseData),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'SUCCESS',
+                ]);
 
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
                 // $dataPurchase->update(['status' => 'SUCCESS']);
@@ -188,7 +207,7 @@ class DataController extends Controller
                             'CREDIT',
                             $phone, 
                             'Cashback for data purchase',
-                            'CASHBACK_' . $requestId // ✅ reference
+                            'CASHBACK_' . $requestId 
                         );
                         $cashbackTransaction->update(['status' => 'SUCCESS']);
                     }
@@ -204,12 +223,21 @@ class DataController extends Controller
                     'CREDIT',
                     $phone, 
                     'Refund for failed data purchase',
-                    'REFUND_' . $requestId // ✅ reference
+                    'REFUND_' . $requestId 
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
                 // $dataPurchase->update(['status' => 'FAILED']);
 
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'DATA',
+                    'message' => json_encode($responseData),
+                    'stack_trace' => json_encode($responseData),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
                 Log::error('Data purchase failed', ['response' => $responseData]);
 
                 return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$planPrice} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";

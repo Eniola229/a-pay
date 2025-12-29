@@ -8,11 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Ramsey\Uuid\Uuid;
 
-class Transaction extends Authenticatable
+class Logged extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'transactions';
+    protected $table = 'logs';
     protected $keyType = 'uuid';
     public $incrementing = false;
     protected $primaryKey = 'id';
@@ -34,25 +34,13 @@ class Transaction extends Authenticatable
      */
     protected $fillable = [
         'user_id',
-        'amount',
-        'cash_back',
-        'charges',
-        'beneficiary',
-        'description',
+        'from',
+        'for',
+        'message',
         'type',
-        'status',
-        'reference',
-        'balance_before',
-        'balance_after',
-        'admin_edited',
-        'edited_by_admin_id',
-        'edited_at'
+        'stack_trace'
     ];
 
-    protected $casts = [
-        'admin_edited' => 'boolean',
-        'edited_at' => 'datetime',
-    ];
         public function user()
     {
         return $this->belongsTo(User::class);

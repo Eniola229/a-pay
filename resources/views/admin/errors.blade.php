@@ -151,54 +151,82 @@
         ***********************************-->
 
       <div class="container-fluid col-xl-8 col-lg-10 col-md-12 p-4">
-<div class="container table-container">
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered custom-table">
-            <thead>
-                    <th>Title</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($errors as $error)
-                    <tr>
-                        <td>{{ $error->title }}</td>
-                        <td>{{ $error->error_message }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
+        <div class="container table-container">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered custom-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>For</th>
+                            <th>From</th>
+                            <th>Type</th>
+                            <th>Stack Trace</th>
+                            <th>Message</th>
+                            <th>Transaction Reference</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($logs as $log)
+                            <tr>
+                                <td>
+                                    @if($log->user)
+                                        {{ $log->user->name ?? $log->user->email }}
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                                <td>{{ $log->for }}</td>
+                                <td>{{ $log->from }}</td>
+                                <td>
+                                    <span class="badge badge-{{ $log->type === 'FAILED' ? 'danger' : 'success' }}">
+                                        {{ $log->type }}
+                                    </span>
+                                </td>
+                                <td>{{ $log->stack_trace }}</td>
+                                <td>{{ $log->message }}</td>
+                                <td>{{ $log->t_reference }}</td>
+                                <td>{{ $log->created_at->format('d M Y, h:i A') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center">No logs found</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
         <!-- Pagination links -->
-        @if ($errors->hasPages())
+        @if ($logs->hasPages())
             <div class="bootstrap-pagination">
                 <nav>
                     <ul class="pagination">
                         {{-- Previous Page Link --}}
-                        @if ($errors->onFirstPage())
+                        @if ($logs->onFirstPage())
                             <li class="page-item disabled">
                                 <a class="page-link"><span aria-hidden="true">&laquo;</span></a>
                             </li>
                         @else
                             <li class="page-item">
-                                <a class="page-link" href="{{ $errors->previousPageUrl() }}" aria-label="Previous">
+                                <a class="page-link" href="{{ $logs->previousPageUrl() }}" aria-label="Previous">
                                     <span aria-hidden="true">&laquo;</span>
                                 </a>
                             </li>
                         @endif
 
                         {{-- Pagination Elements --}}
-                        @foreach ($errors->links()->elements[0] as $page => $url)
-                            <li class="page-item {{ $errors->currentPage() == $page ? 'active' : '' }}">
+                        @foreach ($logs->links()->elements[0] as $page => $url)
+                            <li class="page-item {{ $logs->currentPage() == $page ? 'active' : '' }}">
                                 <a class="page-link" href="{{ $url }}">{{ $page }}</a>
                             </li>
                         @endforeach
 
                         {{-- Next Page Link --}}
-                        @if ($errors->hasMorePages())
+                        @if ($logs->hasMorePages())
                             <li class="page-item">
-                                <a class="page-link" href="{{ $errors->nextPageUrl() }}" aria-label="Next">
+                                <a class="page-link" href="{{ $logs->nextPageUrl() }}" aria-label="Next">
                                     <span aria-hidden="true">&raquo;</span>
                                 </a>
                             </li>
