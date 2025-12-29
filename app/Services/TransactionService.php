@@ -45,7 +45,7 @@ class TransactionService
                     throw new Exception("Insufficient balance");
                 }
 
-                $balance->decrement('balance', $amount);
+                $balance->decrementBalance($amount);
                 $balanceAfter = $balanceBefore - $amount;
             }
 
@@ -53,7 +53,7 @@ class TransactionService
             // CREDIT: add balance
             // -----------------------
             if (strtoupper($type) === 'CREDIT') {
-                $balance->increment('balance', $amount);
+                $balance->incrementBalance($amount);
                 $balanceAfter = $balanceBefore + $amount;
             }
 

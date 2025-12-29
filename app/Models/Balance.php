@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Facades\DB;
 
 class Balance extends Authenticatable
 {
@@ -34,8 +35,41 @@ class Balance extends Authenticatable
      */
     protected $fillable = [
         'user_id',
-        'balance',
         'pin',
         'owe',
     ];
+
+    public function updateBalance($amount)
+    {
+        DB::statement('SET @allow_balance_update = 1');
+        
+        $this->balance += $amount;
+        $this->save();
+        
+        DB::statement('SET @allow_balance_update = NULL');
+        
+        return $this;
+    }
+
+    public function incrementBalance($amount)
+    {
+        DB::statement('SET @allow_balance_update = 1');
+        
+        $this->increment('balance', $amount);
+        
+        DB::statement('SET @allow_balance_update = NULL');
+        
+        return $this;
+    }
+
+    public function decrementBalance($amount)
+    {
+        DB::statement('SET @allow_balance_update = 1');
+        
+        $this->decrement('balance', $amount);
+        
+        DB::statement('SET @allow_balance_update = NULL');
+        
+        return $this;
+    }
 }

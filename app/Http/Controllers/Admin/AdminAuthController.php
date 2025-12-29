@@ -266,8 +266,11 @@ class AdminAuthController extends Controller
                 
                 if ($balance) {
                     $balanceBefore = $balance->balance;
-                    $balance->balance += $transaction->amount;
-                    $balance->save();
+                    
+                    // Use the protected method instead of direct update
+                    $balance->incrementBalance($transaction->amount);
+                    
+                    $balanceAfter = $balance->fresh()->balance; // Get the updated balance
                     
                     // Create refund transaction
                     Transaction::create([
@@ -277,9 +280,9 @@ class AdminAuthController extends Controller
                         'description' => "Refund for failed transaction: " . $transaction->description,
                         'status' => 'SUCCESS',
                         'type' => 'CREDIT',
-                        'reference' => 'REF-' . time() . '-' . $user->id,
+                        'reference' => 'REF-' . now()->format('YmdHis') . '-' . $user->id,
                         'balance_before' => $balanceBefore,
-                        'balance_after' => $balance->balance,
+                        'balance_after' => $balanceAfter,
                         'charges' => 0,
                         'cash_back' => 0,
                     ]);
@@ -296,7 +299,7 @@ class AdminAuthController extends Controller
                             'admin_id' => $admin->id,
                             'admin_email' => $admin->email,
                             'balance_before' => $balanceBefore,
-                            'balance_after' => $balance->balance
+                            'balance_after' => $balanceAfter
                         ]),
                         't_reference' => $transaction->reference,
                         'from' => 'ADMIN_PANEL',
@@ -307,7 +310,6 @@ class AdminAuthController extends Controller
                 }
             }
         }
-
         return response()->json(['message' => 'Transaction updated successfully']);
     }
 
