@@ -122,7 +122,7 @@
 </style>
     <div class="container py-5">
         <div class="topup-card">
-            <h4>Top Up Your Balance</h4>
+<!--             <h4>Top Up Your Balance</h4>
             <h5>Current Balance: ₦
                 <span>
                     @if(!$balance)
@@ -132,20 +132,20 @@
                     @endif
                 </span>
             </h5>
+ -->
 
-            <p class="text-muted">Enter Amount (in Naira):</p>
-
-            <form id="topupForm" action="{{ route('topup.initialize') }}" method="POST">
+            <!-- <form id="topupForm" action="{{ route('topup.initialize') }}" method="POST"> -->
                 @csrf
                 <div class="form-group">
-                    <input type="text" class="form-control input-default" name="amount" id="amount" placeholder="e.g. 10,000" required>
-                    <small id="formatted-label" style="color: green;"></small>
+                    <h3>YOUR VIRTUAL ACCOUNT DETAILS</h3>
                 </div>
 
                 <div class="form-group mt-3">
-                    <button class="btn btn-topup" type="submit">Top Up Now</button>
+                    <p>ACCOUNT NUMBER: <strong>{{ Auth::user()->account_number }}</strong></p>
+                    <p>NAME: <strong>AFRICICL/{{ strtoupper(optional(Auth::user())->name) }}</strong></p>
+                    <p>BANK:<strong> Wema Bank</strong></p>
                 </div>
-            </form>
+            <!-- </form> -->
         </div>
     </div>
 

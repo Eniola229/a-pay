@@ -38,7 +38,8 @@ class Logged extends Authenticatable
         'for',
         'message',
         'type',
-        'stack_trace'
+        'stack_trace',
+        't_reference'
     ];
 
         public function user()

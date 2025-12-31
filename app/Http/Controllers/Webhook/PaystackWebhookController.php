@@ -12,13 +12,16 @@ use App\Models\Logged;
 use App\Models\Transaction;
 use App\Mail\CreditAlertMail;
 use App\Services\TransactionService;
+use App\Services\SmsService;
 
 class PaystackWebhookController extends Controller
 {
     protected $transactionService;
+    protected $smsService;
 
-    public function __construct(TransactionService $transactionService)
+    public function __construct(SmsService $smsService, TransactionService $transactionService)
     {
+        $this->smsService = $smsService;
         $this->transactionService = $transactionService;
     }
 
@@ -111,26 +114,33 @@ class PaystackWebhookController extends Controller
 
         } catch (\Exception $e) {
             Log::error("Webhook credit error: " . $e->getMessage());
-        Logged::create([
-            'user_id' => $user->id,
-            'for' => 'Wallet Top-up',
-            'message' => $e->getMessage(),
-            'stack_trace' => $e->getTraceAsString() . "\n\nPayload: " . json_encode($payload, JSON_PRETTY_PRINT),
-            't_reference' => $reference,
-            'from' => 'PAYSTACK_WEBHOOK',
-            'type' => 'FAILED',
-        ]);
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'Wallet Top-up',
+                'message' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString() . "\n\nPayload: " . json_encode($payload, JSON_PRETTY_PRINT),
+                't_reference' => $reference,
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'FAILED',
+            ]);
             return response()->json(['status' => 'failed'], 500);
         }
 
-        // WhatsApp alert
+        // WhatsApp Alert
         try {
             $this->sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
         } catch (\Exception $e) {
             Log::error("WhatsApp credit alert failed: " . $e->getMessage());
         }
 
-        // Email alert
+        // SMS Alert
+        try {
+            $this->sendCreditAlertSMS($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
+        } catch (\Exception $e) {
+            Log::error("SMS credit alert failed: " . $e->getMessage());
+        }
+
+        // Email Alert
         try {
             Mail::to($user->email)->send(new CreditAlertMail($user, $amount, $transaction));
         } catch (\Exception $e) {
@@ -142,16 +152,127 @@ class PaystackWebhookController extends Controller
 
     private function sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance, $sender_name, $sender_bank)
     {
+        if (!$user || !$user->mobile) {
+            Logged::create([
+                'user_id' => $user->id ?? null,
+                'for' => 'WhatsApp Credit Alert',
+                'message' => 'Cannot send WhatsApp: Invalid user or missing mobile number',
+                'stack_trace' => json_encode(['user' => $user]),
+                't_reference' => $reference,
+                'from' => 'WHATSAPP_ALERT',
+                'type' => 'FAILED',
+            ]);
+            return false;
+        }
+
+        $sender_name = htmlspecialchars($sender_name, ENT_QUOTES, 'UTF-8');
+        $sender_bank = htmlspecialchars($sender_bank, ENT_QUOTES, 'UTF-8');
+
         $msg = 
-            "💳 *CREDIT ALERT*\n\n" .
+            "💰 *CREDIT ALERT*\n\n" .
+            "Your A-Pay wallet has been funded.\n\n" .
+            "📤 *From:* {$sender_name} | {$sender_bank}\n" .
+            "💵 *Amount:* ₦" . number_format($amount, 2) . "\n" .
+            "🔖 *Ref:* {$reference}\n" .
+            "💼 *New Balance:* ₦" . number_format($newBalance, 2) . "\n\n" .
+            "Thank you for using A-Pay! 🎉";
+        
+        try {
+            $this->sendMessage($user->mobile, $msg);
+            
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'WhatsApp Credit Alert',
+                'message' => 'Credit alert WhatsApp sent successfully',
+                'stack_trace' => json_encode(['mobile' => $user->mobile, 'amount' => $amount]),
+                't_reference' => $reference,
+                'from' => 'WHATSAPP_ALERT',
+                'type' => 'SUCCESS',
+            ]);
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'WhatsApp Credit Alert',
+                'message' => 'Failed to send credit alert WhatsApp: ' . $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                't_reference' => $reference,
+                'from' => 'WHATSAPP_ALERT',
+                'type' => 'FAILED',
+            ]);
+            
+            return false;
+        }
+    }
+
+    private function sendCreditAlertSMS($user, $amount, $reference, $newBalance, $sender_name, $sender_bank)
+    {
+        if (!$user || !$user->mobile) {
+            Logged::create([
+                'user_id' => $user->id ?? null,
+                'for' => 'SMS Credit Alert',
+                'message' => 'Cannot send SMS: Invalid user or missing mobile number',
+                'stack_trace' => json_encode(['user' => $user]),
+                't_reference' => $reference,
+                'from' => 'SMS_ALERT',
+                'type' => 'FAILED',
+            ]);
+            return false;
+        }
+
+        $sender_name = htmlspecialchars($sender_name, ENT_QUOTES, 'UTF-8');
+        $sender_bank = htmlspecialchars($sender_bank, ENT_QUOTES, 'UTF-8');
+
+        $msg = 
+            "CREDIT ALERT\n" .
             "Your A-Pay wallet has been funded.\n" .
             "From: {$sender_name} | {$sender_bank}\n" .
-            "Amount: ₦" . number_format($amount, 2) . "\n" .
+            "Amount: N" . number_format($amount, 2) . "\n" .
             "Ref: {$reference}\n" .
-            "New Balance: ₦" . number_format($newBalance, 2) . "\n\n" .
-            "Thank you for using A-Pay 💚";
+            "New Balance: N" . number_format($newBalance, 2) . "\n" .
+            "Thank you for using A-Pay";
+        
+        try {
+            $mobile = $this->formatPhoneNumber($user->mobile);
+            $this->smsService->sendSms($mobile, $msg);
+            
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'SMS Credit Alert',
+                'message' => 'Credit alert SMS sent successfully',
+                'stack_trace' => json_encode(['mobile' => $mobile, 'amount' => $amount]),
+                't_reference' => $reference,
+                'from' => 'SMS_ALERT',
+                'type' => 'SUCCESS',
+            ]);
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'SMS Credit Alert',
+                'message' => 'Failed to send credit alert SMS: ' . $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                't_reference' => $reference,
+                'from' => 'SMS_ALERT',
+                'type' => 'FAILED',
+            ]);
+            
+            return false;
+        }
+    }
+    private function formatPhoneNumber($phone)
+    {
+        $phone = preg_replace('/[^0-9+]/', '', $phone);
 
-        $this->sendMessage($user->mobile, $msg);
+        if (substr($phone, 0, 1) !== '+') {
+            $phone = '+234' . ltrim($phone, '0');
+        }
+
+        return $phone;
     }
 
     private function sendMessage($to, $body)

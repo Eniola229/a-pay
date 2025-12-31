@@ -114,7 +114,7 @@ class WhatsappController extends Controller
                 "🏦 *Bank:* Wema Bank\n" .
                 "👤 *Account Name:* AFRICICL/" . strtoupper($user->name) . "\n" .
                 "🔢 *Account Number:* {$user->account_number}\n\n" .
-                "Transfer to the account above to top-up instantly.\n\n" .
+                "Transfer to the virtual account above to top-up instantly.\n\n" .
                 "__Kindly PIN this message to easily access it__";
         }
 

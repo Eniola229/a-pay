@@ -58,7 +58,7 @@ class RegistrationController extends Controller
             return $this->sendFundingDetails(
                 $from,
                 $user->account_number,
-                $user->account_name ?? 'A-Pay Account',
+                $user->name ?? 'A-Pay Account',
                 $user->bank_name ?? 'Wema Bank',
                 $whatsappController
             );
@@ -118,7 +118,7 @@ class RegistrationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            throw $e;
+            return "There was an error, pls try again later";
         }
     }
 
@@ -249,9 +249,9 @@ class RegistrationController extends Controller
             $to,
             "💰 *TO FUND YOUR A-PAY WALLET*\n\n".
             "🏦 *Bank:* {$bankName}\n".
-            "👤 *Account Name:* {$accountName}\n".
+            "👤 *Account Name:* AFRICICL/".strtoupper($accountName)."\n".
             "🔢 *Account Number:* {$accountNumber}\n\n".
-            "Transfer to the account above to top-up instantly.\n\n".
+            "Transfer to the virtual account above to top-up instantly.\n\n".
             "__Kindly PIN this message for easy access.__"
         );
     }
