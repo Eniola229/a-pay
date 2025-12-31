@@ -175,7 +175,7 @@ class PaystackWebhookController extends Controller
             "💵 *Amount:* ₦" . number_format($amount, 2) . "\n" .
             "🔖 *Ref:* {$reference}\n" .
             "💼 *New Balance:* ₦" . number_format($newBalance, 2) . "\n\n" .
-            "Thank you for using A-Pay! 🎉";
+            "Thank you for using A-Pay! 💚";
         
         try {
             $this->sendMessage($user->mobile, $msg);

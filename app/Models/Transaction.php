@@ -41,6 +41,7 @@ class Transaction extends Authenticatable
         'description',
         'type',
         'status',
+        'source',
         'reference',
         'balance_before',
         'balance_after',

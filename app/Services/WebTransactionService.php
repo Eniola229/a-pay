@@ -87,6 +87,7 @@ class WebTransactionService
                 'description' => $description,
                 'type' => strtoupper($type),
                 'status' => 'PENDING',
+                'source' => 'WEBSITE',
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,
                 'reference' => $reference,

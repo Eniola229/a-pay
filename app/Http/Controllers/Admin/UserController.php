@@ -19,6 +19,8 @@ use App\Models\Errors;
 use Illuminate\Support\Facades\Http;
 use App\Models\Borrow;
 use App\Models\KycProfile;
+use App\Models\WhatsappMessage;
+use App\Models\Logged;
 use Illuminate\Validation\Rule;
 
 
@@ -30,30 +32,40 @@ class UserController extends Controller
         return view('admin.users', compact('users'));
     }
 
+
     public function showUser($id)
     {
         // Fetch user details
         $user = User::findOrFail($id);
-
+        
         // Fetch balance 
         $balance = $user->balance;
-
+        
         // Fetch transactions
         $transactions = Transaction::where('user_id', $id)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
-
+        
         // Fetch loans
         $loans = Borrow::where('user_id', $id)
             ->orderBy('created_at', 'desc')
             ->paginate(10);
-
-        //fetch user kyc
+        
+        // Fetch user kyc
         $kyc = KycProfile::where('user_id', $user->id)->first();
-
-        return view('admin.user-details', compact('user', 'balance', 'transactions', 'loans', 'kyc'));
+        
+        // Fetch WhatsApp messages for this user
+        $whatsappMessages = WhatsappMessage::where('phone_number', $user->mobile)
+            ->orderBy('created_at', 'desc')
+            ->paginate(15, ['*'], 'messages_page');
+        
+        // Fetch ALL logs for this user
+        $logs = Logged::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(15, ['*'], 'logs_page');
+        
+        return view('admin.user-details', compact('user', 'balance', 'transactions', 'loans', 'kyc', 'whatsappMessages', 'logs'));
     }
-
     public function approve(Kyc $kyc) {
         $kyc->update(['status' => 'approved', 'rejection_reason' => null]);
         return back()->with('success', 'KYC approved successfully');

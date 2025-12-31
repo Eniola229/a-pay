@@ -192,6 +192,7 @@
                                         data-amount="{{ number_format($transaction->amount, 2) }}"
                                         data-status="{{ $transaction->status }}"
                                         data-reference="{{ $transaction->reference ?? 'N/A' }}"
+                                        data-source="{{ $transaction->source ?? 'N/A' }}"
                                         data-beneficiary="{{ $transaction->beneficiary ?? 'N/A' }}"
                                         data-type="{{ $transaction->type ?? 'N/A' }}"
                                         data-balance-before="{{ number_format($transaction->balance_before ?? 0, 2) }}"
@@ -280,6 +281,10 @@
                             <tr>
                                 <td class="font-weight-bold">Reference:</td>
                                 <td id="receipt-reference" style="font-size: 12px;"></td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold">Source:</td>
+                                <td id="receipt-source" style="font-size: 12px;"></td>
                             </tr>
                         </table>
                     </div>
@@ -419,6 +424,7 @@ $(document).ready(function() {
         $('#receipt-description').text($(this).data('description'));
         $('#receipt-amount').text('₦' + $(this).data('amount'));
         $('#receipt-reference').text($(this).data('reference'));
+        $('#receipt-source').text($(this).data('source'));
         $('#receipt-beneficiary').text($(this).data('beneficiary'));
         $('#receipt-type').text($(this).data('type'));
         $('#receipt-balance-before').text('₦' + $(this).data('balance-before'));

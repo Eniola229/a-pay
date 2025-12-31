@@ -26,6 +26,7 @@ use App\Models\Borrow;
 use App\Models\CreditLimit;
 use App\Models\WhatsappSession;
 use App\Mail\ElectricityPaymentReceipt;
+use App\Models\WhatsappMessage;
 use App\Models\ElectricityPurchase;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\WebhookControllers\RegistrationController;
@@ -64,6 +65,20 @@ class WhatsappController extends Controller
     {
         $from = str_replace('whatsapp:', '', $request->input('From'));
         $message = strtolower(trim($request->input('Body')));
+        $messageSid = $request->input('MessageSid');
+    
+        // Log incoming message
+        WhatsappMessage::create([
+            'phone_number' => $from,
+            'direction' => 'incoming',
+            'message_body' => $request->input('Body'), // Original message
+            'message_sid' => $messageSid,
+            'status' => 'received',
+            'metadata' => [
+                'received_at' => now()->toIso8601String(),
+                'profile_name' => $request->input('ProfileName'),
+            ]
+        ]);
 
         // Check if user exists
         $user = User::where('mobile', $from)->first();
@@ -657,7 +672,7 @@ class WhatsappController extends Controller
         $sid = env('TWILIO_SID');
         $token = env('TWILIO_AUTH_TOKEN');
         $from = 'whatsapp:' . env('TWILIO_W_NUMBER');
-
+        
         if (!$sid || !$token || !$from) {
             \Log::error('Missing Twilio credentials', [
                 'sid' => $sid,
@@ -666,11 +681,50 @@ class WhatsappController extends Controller
             ]);
             return;
         }
-        $client = new Client($sid, $token);
-        $client->messages->create("whatsapp:$to", [
-            'from' => $from,
-            'body' => $body,
-        ]);
+
+        try {
+            $client = new Client($sid, $token);
+            $message = $client->messages->create("whatsapp:$to", [
+                'from' => $from,
+                'body' => $body,
+            ]);
+
+            // Log outgoing message
+            WhatsappMessage::create([
+                'phone_number' => $to,
+                'direction' => 'outgoing',
+                'message_body' => $body,
+                'message_sid' => $message->sid,
+                'status' => $message->status,
+                'metadata' => [
+                    'from' => $from,
+                    'sent_at' => now()->toIso8601String()
+                ]
+            ]);
+
+            // \Log::info('Message sent successfully', [
+            //     'to' => $to,
+            //     'message_sid' => $message->sid
+            // ]);
+
+        } catch (\Exception $e) {
+            // Log failed outgoing message
+            WhatsappMessage::create([
+                'phone_number' => $to,
+                'direction' => 'outgoing',
+                'message_body' => $body,
+                'status' => 'failed',
+                'metadata' => [
+                    'error' => $e->getMessage(),
+                    'attempted_at' => now()->toIso8601String()
+                ]
+            ]);
+
+            \Log::error('Failed to send message', [
+                'to' => $to,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
   

@@ -67,6 +67,7 @@ class TransactionService
                 'description' => $description,
                 'type' => strtoupper($type),
                 'status' => 'PENDING',
+                'source' => 'WHATSAPP',
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,
             ]);

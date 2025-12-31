@@ -450,6 +450,22 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
+
+    .table-success {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+
+    .table-info {
+        background-color: rgba(23, 162, 184, 0.1) !important;
+    }
+
+    #fullMessageContent {
+        max-height: 400px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 14px;
+        line-height: 1.6;
+    }
 </style>
 
  <!--**********************************
@@ -735,6 +751,7 @@
                                 <th>Reference</th>
                                 <th>Balance Before</th>
                                 <th>Balance After</th>
+                                <th>Source</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
@@ -753,6 +770,7 @@
                                     <td>{{ $transaction->reference ?? 'N/A' }}</td>
                                     <td>₦ {{ number_format($transaction->balance_before, 2) }}</td>
                                     <td>₦ {{ number_format($transaction->balance_after, 2) }}</td>
+                                    <td>₦ {{ $transaction->source ?? 'N/A' }}</td>
                                     <td>{{ $transaction->created_at->format('d M, Y H:i') }}</td>
                                 </tr>
                             @empty
@@ -833,6 +851,167 @@
                     </div>
                 </div>
             </div>
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h4 class="card-title">User Interection's</h4>
+                    <div class="loan-summary">
+                        <span class="badge badge-info">Total Messages: {{ $whatsappMessages->total() }}</span>
+                        <span class="badge badge-success">Incoming: {{ \App\Models\WhatsappMessage::where('phone_number', $user->mobile)->where('direction', 'incoming')->count() }}</span>
+                        <span class="badge badge-primary">Outgoing: {{ \App\Models\WhatsappMessage::where('phone_number', $user->mobile)->where('direction', 'outgoing')->count() }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Direction</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                    <th>Message SID</th>
+                                    <th>Date & Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($whatsappMessages as $index => $message)
+                                    <tr class="{{ $message->direction === 'incoming' ? 'table-success' : 'table-info' }}">
+                                        <td>{{ $whatsappMessages->firstItem() + $index }}</td>
+                                        <td>
+                                            @if($message->direction === 'incoming')
+                                                <span class="badge badge-success">
+                                                    <i class="fas fa-arrow-down"></i> Incoming
+                                                </span>
+                                            @else
+                                                <span class="badge badge-primary">
+                                                    <i class="fas fa-arrow-up"></i> Outgoing
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <div style="max-width: 300px; white-space: normal; word-wrap: break-word;">
+                                                {{ Str::limit($message->message_body, 300) }}
+                                                @if(strlen($message->message_body) > 300)
+                                                    <a href="#" onclick="showFullMessage('{{ addslashes($message->message_body) }}', '{{ $message->direction }}', '{{ $message->created_at->format('d M Y, h:i A') }}'); return false;" class="text-primary">
+                                                        <small>Read more...</small>
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-{{ 
+                                                $message->status === 'sent' || $message->status === 'delivered' || $message->status === 'received' ? 'success' : 
+                                                ($message->status === 'failed' ? 'danger' : 'warning') 
+                                            }}">
+                                                {{ ucfirst($message->status) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ $message->message_sid ?? 'N/A' }}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ $message->created_at->format('d M, Y') }}</div>
+                                            <small class="text-muted">{{ $message->created_at->format('h:i A') }}</small>
+                                            <div><small class="text-muted">{{ $message->created_at->diffForHumans() }}</small></div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle"></i>
+                                                No WhatsApp messages found for this user.
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="d-flex justify-content-center mt-3">
+                        {{ $whatsappMessages->appends(['page' => request('page')])->links('pagination::bootstrap-4') }}
+                    </div>
+                </div>
+            </div>
+                <!-- User Activity Logs Card -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h4 class="card-title">Activity Logs</h4>
+                        <div class="loan-summary">
+                            <span class="badge badge-info">Total Logs: {{ $logs->total() }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Type</th>
+                                        <th>For</th>
+                                        <th>From</th>
+                                        <th>Message</th>
+                                        <th>Reference</th>
+                                        <th>Details</th>
+                                        <th>Date & Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($logs as $index => $log)
+                                        <tr>
+                                            <td>{{ $logs->firstItem() + $index }}</td>
+                                            <td>
+                                                <span class="badge badge-{{ $log->type === 'SUCCESS' ? 'success' : ($log->type === 'PENDING' ? 'warning' : 'danger') }}">
+                                                    {{ $log->type ?? 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td><small>{{ $log->for ?? 'N/A' }}</small></td>
+                                            <td><small class="text-muted">{{ Str::limit($log->from ?? 'N/A', 20) }}</small></td>
+                                            <td>
+                                                <div style="max-width: 200px; white-space: normal; word-wrap: break-word;">
+                                                    {{ Str::limit($log->message ?? 'N/A', 130) }}
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">{{ $log->t_reference ?? 'N/A' }}</small></td>
+                                            <td>
+                                                @if($log->stack_trace)
+                                                <button class="btn btn-sm btn-info" onclick="showLogDetails('{{ addslashes($log->stack_trace) }}', '{{ $log->type }}', '{{ $log->message }}')">
+                                                    <i class="fas fa-info-circle"></i> View
+                                                </button>
+                                                @else
+                                                <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <div>{{ $log->created_at->format('d M, Y') }}</div>
+                                                <small class="text-muted">{{ $log->created_at->format('h:i A') }}</small>
+                                                <div><small class="text-muted">{{ $log->created_at->diffForHumans() }}</small></div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="8" class="text-center">
+                                                <div class="alert alert-info">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    No activity logs found for this user.
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-center mt-3">
+                            {{ $logs->appends(['page' => request('page'), 'messages_page' => request('messages_page')])->links('pagination::bootstrap-4') }}
+                        </div>
+                    </div>
+                </div>
+
+
                 <!-- Optional Back Button -->
                 <div class="mt-3">
                     <a href="{{ url('admin/users') }}" class="btn btn-secondary btn-sm">Back to Users</a>
@@ -841,60 +1020,119 @@
         </div>
     </div>
 </div>
-<!-- Edit Profile Modal -->
-<div id="editProfileModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <span class="close" onclick="closeEditModal()">&times;</span>
-        <h2>Edit User Profile</h2>
-        <form id="editProfileForm">
-            @csrf
-            @method('PUT')
-            <input type="hidden" id="user_id" name="user_id" value="{{ $user->id }}">
-            
-            <div class="form-group">
-                <label for="name">Name</label>
-                <input type="text" id="name" name="name" value="{{ $user->name }}" required>
+    <!-- Log Details Modal -->
+    <div class="modal fade" id="logDetailsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Log Details - <span id="logType"></span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Message:</strong>
+                        <div id="logMessage" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 5px;"></div>
+                    </div>
+                    <div>
+                        <strong>Stack Trace / Additional Details:</strong>
+                        <pre id="logDetailsContent" style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" value="{{ $user->email }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="mobile">Mobile</label>
-                <input type="text" id="mobile" name="mobile" value="{{ $user->mobile }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="status">Account Status <span style="color: red;">*</span></label>
-                <select id="status" name="status" required>
-                    <option value="ACTIVE" {{ ($user->status ?? 'ACTIVE') == 'ACTIVE' ? 'selected' : '' }}>ACTIVE</option>
-                    <option value="INACTIVE" {{ ($user->status ?? '') == 'INACTIVE' ? 'selected' : '' }}>INACTIVE</option>
-                    <option value="SUSPENDED" {{ ($user->status ?? '') == 'SUSPENDED' ? 'selected' : '' }}>SUSPENDED</option>
-                    <option value="PENDING" {{ ($user->status ?? '') == 'PENDING' ? 'selected' : '' }}>PENDING</option>
-                    <option value="BLOCKED" {{ ($user->status ?? '') == 'BLOCKED' ? 'selected' : '' }}>BLOCKED</option>
-                </select>
-                <small style="color: #666; display: block; margin-top: 5px;">
-                    ⚠️ Changing status may affect user access
-                </small>
-            </div>
-            
-            <div class="form-actions">
-                <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancel</button>
-                <button type="submit" class="btn-save" id="saveBtn">
-                    <span class="btn-text">Save Changes</span>
-                    <span class="btn-loader" style="display: none;">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: spin 1s linear infinite;">
-                            <circle cx="8" cy="8" r="6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-dasharray="30" stroke-dashoffset="10"/>
-                        </svg>
-                        Updating...
-                    </span>
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+    <!-- Full Message Modal -->
+    <div class="modal fade" id="fullMessageModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <span id="messageDirection"></span> Message
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <strong>Date & Time:</strong> <span id="messageDateTime"></span>
+                    </div>
+                    <div class="mt-3">
+                        <strong>Full Message:</strong>
+                        <div id="fullMessageContent" style="white-space: pre-wrap; padding: 15px; background: #f8f9fa; border-radius: 5px; margin-top: 10px;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Edit User Profile</h2>
+            <form id="editProfileForm">
+                @csrf
+                @method('PUT')
+                <input type="hidden" id="user_id" name="user_id" value="{{ $user->id }}">
+                
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" value="{{ $user->name }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ $user->email }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="mobile">Mobile</label>
+                    <input type="text" id="mobile" name="mobile" value="{{ $user->mobile }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Account Status <span style="color: red;">*</span></label>
+                    <select id="status" name="status" required>
+                        <option value="ACTIVE" {{ ($user->status ?? 'ACTIVE') == 'ACTIVE' ? 'selected' : '' }}>ACTIVE</option>
+                        <option value="INACTIVE" {{ ($user->status ?? '') == 'INACTIVE' ? 'selected' : '' }}>INACTIVE</option>
+                        <option value="SUSPENDED" {{ ($user->status ?? '') == 'SUSPENDED' ? 'selected' : '' }}>SUSPENDED</option>
+                        <option value="PENDING" {{ ($user->status ?? '') == 'PENDING' ? 'selected' : '' }}>PENDING</option>
+                        <option value="BLOCKED" {{ ($user->status ?? '') == 'BLOCKED' ? 'selected' : '' }}>BLOCKED</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        ⚠️ Changing status may affect user access
+                    </small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-save" id="saveBtn">
+                        <span class="btn-text">Save Changes</span>
+                        <span class="btn-loader" style="display: none;">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: spin 1s linear infinite;">
+                                <circle cx="8" cy="8" r="6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-dasharray="30" stroke-dashoffset="10"/>
+                            </svg>
+                            Updating...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
     <script>
     // document.addEventListener('DOMContentLoaded', function() {
     //     const alerts = document.querySelectorAll('.alert');
@@ -1060,6 +1298,26 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+
+    function showFullMessage(message, direction, dateTime) {
+        document.getElementById('fullMessageContent').textContent = message;
+        document.getElementById('messageDirection').textContent = direction.charAt(0).toUpperCase() + direction.slice(1);
+        document.getElementById('messageDirection').className = direction === 'incoming' ? 'badge badge-success' : 'badge badge-primary';
+        document.getElementById('messageDateTime').textContent = dateTime;
+        $('#fullMessageModal').modal('show');
+    }
+
+    function showLogDetails(stackTrace, logType, message) {
+        try {
+            const details = JSON.parse(stackTrace);
+            document.getElementById('logDetailsContent').textContent = JSON.stringify(details, null, 2);
+        } catch (e) {
+            document.getElementById('logDetailsContent').textContent = stackTrace;
+        }
+        document.getElementById('logType').textContent = logType || 'Unknown';
+        document.getElementById('logMessage').textContent = message || 'N/A';
+        $('#logDetailsModal').modal('show');
     }
     </script>
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
