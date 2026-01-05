@@ -134,11 +134,11 @@ class PaystackWebhookController extends Controller
         }
 
         // SMS Alert
-        try {
-            $this->sendCreditAlertSMS($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
-        } catch (\Exception $e) {
-            Log::error("SMS credit alert failed: " . $e->getMessage());
-        }
+        // try {
+        //     $this->sendCreditAlertSMS($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
+        // } catch (\Exception $e) {
+        //     Log::error("SMS credit alert failed: " . $e->getMessage());
+        // }
 
         // Email Alert
         try {

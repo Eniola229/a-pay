@@ -9,18 +9,22 @@ use App\Models\DataPurchase;
 use App\Models\Logged;
 use App\Services\TransactionService;
 use App\Services\CashbackService;
+use App\Services\ReceiptGenerator; // Added
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache; // Added for Cache
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class DataController extends Controller
 {
     protected TransactionService $transactionService;
+    protected ReceiptGenerator $receiptGenerator; // Added
 
-    public function __construct(TransactionService $transactionService)
+    public function __construct(TransactionService $transactionService, ReceiptGenerator $receiptGenerator) // Updated
     {
         $this->transactionService = $transactionService;
+        $this->receiptGenerator = $receiptGenerator; // Added
     }
 
     public function detectNetwork($phone)
@@ -28,9 +32,9 @@ class DataController extends Controller
         $prefix = substr($phone, 0, 4);
 
         $networks = [
-            'mtn' => ['0803','0806','0703','0702','0706','0810','0813','0814','0816','0903','0906','0913','0916'],
+            'mtn' => ['0803','0806','0703','0702','0706','0704','0810','0813','0814','0816','0903','0906','0913','0916'],
             'glo' => ['0805','0807','0811','0705','0815','0905','0915'],
-            'airtel' => ['0802','0808','0708','0812','0701','0902','0907','0901','0912'],
+            'airtel' => ['0802','0808','0708','0812','0701','0902','0907','0901','0912','0904'],
             '9mobile' => ['0809','0817','0818','0909','0908']
         ];
 
@@ -40,40 +44,46 @@ class DataController extends Controller
             }
         }
 
-        return null; // unknown network
+        return null; 
     }
-    /**
-     * Get available data plans for a network
-     */
+
     public function getPlans($network, $phone)
     {
-        $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-        $allPlans = $response->json()['data'] ?? [];
+        $allPlans = Cache::remember("data_plans_{$network}", 3600, function() {
+            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+            return $response->json()['data'] ?? [];
+        });
+        
         $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->values();
 
         if ($networkPlans->isEmpty()) {
             return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
         }
 
-        $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for {$phone}:\n\n";
-        foreach ($networkPlans as $p) {
-            $planListMsg .= "- " . $p['data_plan'] . " (₦" . $p['price'] . ")\n";
+        $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for *{$phone}*:\n\n";
+        $displayPlans = $networkPlans->take(50);
+        foreach ($displayPlans as $index => $p) {
+            $planListMsg .= ($index + 1) . ". " . $p['data_plan'] . " - ₦" . number_format($p['price']) . "\n";
         }
-        $planListMsg .= "\n✨ Which plan catches your eye? 👀\n\n📝 Just reply with your choice in this format:\n\n*data 09079916807 1GB*";
+        
+        if ($networkPlans->count() > 50) {
+            $planListMsg .= "\n💡 Showing first 50 plans.\n";
+        }
+        
+        $planListMsg .= "\n✨ Which plan catches your eye? 👀\n\n";
+        $planListMsg .= "📝 Reply with this format:\n\n";
+        $planListMsg .= "*data 2 09079916807* \n";
+        $planListMsg .= "or \n";
+        $planListMsg .= "*data 09079916807 2*\n\n";
+        $planListMsg .= "⏱️ *Please respond within 1 minute.*";
 
         return $planListMsg;
     }
 
-    /**
-     * Process data purchase
-     */
     public function purchase($user, $network, $phone, $plan)
     {
         return DB::transaction(function () use ($user, $network, $phone, $plan) {
 
-            // -----------------------
-            // 1️⃣ Fetch plan info
-            // -----------------------
             $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
             $allPlans = $response->json()['data'] ?? [];
             $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->all();
@@ -98,18 +108,12 @@ class DataController extends Controller
             $planPrice = $selectedPlan['price'];
             $variationId = $selectedPlan['variation_id'];
 
-            // -----------------------
-            // 2️⃣ Check balance
-            // -----------------------
             $balance = Balance::where('user_id', $user->id)->first();
             if (!$balance || $balance->balance < $planPrice) {
                 $shortBy = $planPrice - ($balance->balance ?? 0);
                 return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$planPrice} - {$planName}\n🔴 Short by: ₦{$shortBy}\n\nPlease fund your wallet and try again! 💳";
             }
 
-            // -----------------------
-            // 3️⃣ Deduct balance via TransactionService (DEBIT)
-            // -----------------------
             $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
             try {
                 $transaction = $this->transactionService->createTransaction(
@@ -120,27 +124,11 @@ class DataController extends Controller
                     "Data purchase: {$planName}",
                     $requestId 
                 );
-
                 $balance->refresh();
             } catch (\Exception $e) {
                 return "😔 Oops! Something seems wrong";
             }
 
-            // -----------------------
-            // 4️⃣ Create DataPurchase record
-            // -----------------------
-            // $dataPurchase = DataPurchase::create([
-            //     'user_id' => $user->id,
-            //     'phone_number' => $phone,
-            //     'data_plan_id' => $variationId,
-            //     'network_id' => $network,
-            //     'amount' => $planPrice,
-            //     'status' => 'PENDING'
-            // ]);
-
-            // -----------------------
-            // 5️⃣ Call API
-            // -----------------------
             $apiToken = env('EBILLS_API_TOKEN');
 
             try {
@@ -163,7 +151,7 @@ class DataController extends Controller
                     'from' => 'EBILLS',
                     'type' => 'FAILED',
                 ]);
-                // Refund balance on network error
+                
                 $refundTransaction = $this->transactionService->createTransaction(
                     $user,
                     $planPrice,
@@ -174,14 +162,10 @@ class DataController extends Controller
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
-                // $dataPurchase->update(['status' => 'FAILED']);
 
                 return "⚠️ Could not reach data provider. Please try again later.";
             }
 
-            // -----------------------
-            // 6️⃣ Handle API response
-            // -----------------------
             if ($response->successful() && ($responseData['code'] ?? '') === 'success') {
                 Logged::create([
                     'user_id' => $user->id,
@@ -194,9 +178,7 @@ class DataController extends Controller
                 ]);
 
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
-                // $dataPurchase->update(['status' => 'SUCCESS']);
 
-                // Apply cashback
                 $cashback = 0;
                 if (class_exists(CashbackService::class)) {
                     $cashback = app(CashbackService::class)->calculate($planPrice);
@@ -213,10 +195,36 @@ class DataController extends Controller
                     }
                 }
 
-                return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$planName}* data has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$planPrice}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your data! 📡🚀";
+                // === GENERATE DATA RECEIPT ===
+                try {
+                    $receiptUrl = $this->receiptGenerator->generateDataReceipt([
+                        'amount' => $planPrice,
+                        'phone' => $phone,
+                        'network' => $network,
+                        'plan' => $planName, 
+                        'reference' => $requestId,
+                        'cashback' => $cashback,
+                        'customer_name' => $user->name,
+                        'account_number' => $user->account_number,
+                        'date' => now()->format('d M Y, h:i A')
+                    ]);
+
+                    return [
+                        'type' => 'image',
+                        'receipt_url' => $receiptUrl,
+                        'message' => "✅ Your {$planName} data has been activated!"
+                    ];
+
+                } catch (\Exception $e) {
+                    \Log::error('Receipt generation failed: ' . $e->getMessage());
+                    
+                    return [
+                        'type' => 'text',
+                        'message' => "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$planName}* data has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$planPrice}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your data! 📡🚀"
+                    ];
+                }
 
             } else {
-                // Refund balance on failure
                 $refundTransaction = $this->transactionService->createTransaction(
                     $user,
                     $planPrice,
@@ -227,7 +235,6 @@ class DataController extends Controller
                 );
 
                 $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
-                // $dataPurchase->update(['status' => 'FAILED']);
 
                 Logged::create([
                     'user_id' => $user->id,
@@ -240,6 +247,13 @@ class DataController extends Controller
                 ]);
                 Log::error('Data purchase failed', ['response' => $responseData]);
 
+                // Check if a specific message exists in the API response
+                if (isset($responseData['message'])) {
+                    // Show the API error message AND inform about the refund
+                    return "❌ " . $responseData['message'] . "\n\nYour balance of ₦{$planPrice} has been refunded.";
+                }
+
+                // Otherwise, return the default generic message
                 return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$planPrice} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
             }
         });

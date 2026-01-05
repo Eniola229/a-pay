@@ -9,7 +9,7 @@
                             <p class="mb-4 pl-md-5 line" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Welcome to A-Pay</p>
                         </div>
                     </div>
-                    <h1 class="mb-4" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Your all-in-one VTU assistant on WhatsApp</h1>
+                    <h1 class="mb-4" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Your all-in-one AI Powered VTU assistant on WhatsApp</h1>
                     <p>Recharge airtime, buy data, and pay bills easily.</p>
                     <div class="d-flex gap-3 flex-wrap">
                         <!-- WhatsApp Version -->

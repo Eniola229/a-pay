@@ -26,12 +26,25 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    
     public function users(Request $request)
     {
-        $users = User::with('balance')->orderBy('created_at', 'desc')->paginate(20);
+        $query = User::with('balance')->orderBy('created_at', 'desc');
+        
+        // Check if there's a search query
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('email', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('mobile', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+        
+        $users = $query->paginate(20);
+        
         return view('admin.users', compact('users'));
     }
-
 
     public function showUser($id)
     {

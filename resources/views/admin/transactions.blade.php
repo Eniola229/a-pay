@@ -11,7 +11,7 @@
     .receipt-container {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
+ 
     .badge-lg {
         font-size: 16px;
         padding: 8px 20px;
@@ -75,18 +75,38 @@
     <!--FILTERS -->
     <div class="mb-3 p-3 bg-light rounded shadow-sm">
         <form method="GET" action="{{ route('admin.transactions') }}" id="filterForm" class="row g-2">
-            <div class="col-md-2"><input type="number" name="year" class="form-control" placeholder="Year" value="{{ request('year') }}"></div>
-            <div class="col-md-2"><input type="number" name="month" class="form-control" placeholder="Month" value="{{ request('month') }}"></div>
-            <div class="col-md-2"><input type="number" name="day" class="form-control" placeholder="Day" value="{{ request('day') }}"></div>
-            <div class="col-md-2"><input type="date" name="from" class="form-control" value="{{ request('from') }}"></div>
-            <div class="col-md-2"><input type="date" name="to" class="form-control" value="{{ request('to') }}"></div>
-            <div class="col-md-2"><input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}"></div>
-
-            <div class="col-md-2 mt-2">
-                <button type="submit" class="btn btn-success w-100"><i class="fa fa-filter"></i> Filter</button>
+            <!-- Search Bar - Full Width on Top -->
+            <div class="col-md-12 mb-2">
+                <input type="text" name="search" class="form-control form-control-lg" placeholder="🔍 Search by name, email, mobile, reference, description..." value="{{ request('search') }}">
             </div>
-            <div class="col-md-2 mt-2">
-                <a href="{{ route('admin.transactions') }}" class="btn btn-secondary w-100"><i class="fa fa-undo"></i> Reset</a>
+            
+            <!-- Date Filters -->
+            <div class="col-md-2">
+                <input type="number" name="year" class="form-control" placeholder="Year" value="{{ request('year') }}">
+            </div>
+            <div class="col-md-2">
+                <input type="number" name="month" class="form-control" placeholder="Month (1-12)" value="{{ request('month') }}" min="1" max="12">
+            </div>
+            <div class="col-md-2">
+                <input type="number" name="day" class="form-control" placeholder="Day (1-31)" value="{{ request('day') }}" min="1" max="31">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="from" class="form-control" placeholder="From" value="{{ request('from') }}">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="to" class="form-control" placeholder="To" value="{{ request('to') }}">
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-1">
+                <a href="{{ route('admin.transactions') }}" class="btn btn-secondary w-100">
+                    <i class="fa fa-undo"></i> Reset
+                </a>
             </div>
         </form>
 
@@ -547,6 +567,13 @@ $(document).ready(function() {
             }
         });
     });
+});
+// Instant Search
+$('input[name="search"]').on('keyup', function() {
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+        $('#filterForm').submit();
+    }, 600);
 });
 </script>
 

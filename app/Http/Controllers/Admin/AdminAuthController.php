@@ -131,48 +131,62 @@ class AdminAuthController extends Controller
             ], $response->status());
         }
     }
-
-    public function transactions(Request $request)
-    {
-        $query = Transaction::with('user');
-
-        // Apply filters (like your current setup)
-        if ($request->year) {
-            $query->whereYear('created_at', $request->year);
-        }
-        if ($request->month) {
-            $query->whereMonth('created_at', $request->month);
-        }
-        if ($request->day) {
-            $query->whereDay('created_at', $request->day);
-        }
-        if ($request->from && $request->to) {
-            $query->whereBetween('created_at', [$request->from, $request->to]);
-        }
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('description', 'like', "%{$request->search}%")
-                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$request->search}%"));
-            });
-        }
-
-        $transactions = $query->orderByDesc('created_at')->paginate(20);
-
-        // Totals Summary
-        $summary = [
-            'total' => (clone $query)->sum('amount'),
-            'success' => (clone $query)->where('status', 'SUCCESS')->sum('amount'),
-            'failed' => (clone $query)->where('status', 'ERROR')->sum('amount'),
-            'wallet_topup' => (clone $query)->where('description', 'like', '%wallet top-up%')->sum('amount'),
-            'to_apay' => (clone $query)->where('reference', 'like', '%a-pay%')->sum('amount'),
-            'airtime' => (clone $query)->where('description', 'like', '%airtime%')->sum('amount'),
-            'data' => (clone $query)->where('description', 'like', '%data%')->sum('amount'),
-            'electricity' => (clone $query)->where('description', 'like', '%electricity%')->sum('amount'),
-            'betting' => (clone $query)->where('description', 'like', '%betting%')->sum('amount'),
-        ];
-
-        return view('admin.transactions', compact('transactions', 'summary'));
+ 
+public function transactions(Request $request)
+{
+    $query = Transaction::with('user');
+    
+    // Apply date filters
+    if ($request->year) {
+        $query->whereYear('created_at', $request->year);
     }
+    if ($request->month) {
+        $query->whereMonth('created_at', $request->month);
+    }
+    if ($request->day) {
+        $query->whereDay('created_at', $request->day);
+    }
+    if ($request->from && $request->to) {
+        $query->whereBetween('created_at', [$request->from, $request->to]);
+    }
+    
+    // ENHANCED SEARCH - This is the only change you need
+    if ($request->search) {
+        $searchTerm = $request->search;
+        
+        $query->where(function ($q) use ($searchTerm) {
+            $q->where('description', 'like', "%{$searchTerm}%")
+              ->orWhere('reference', 'like', "%{$searchTerm}%")
+              ->orWhere('beneficiary', 'like', "%{$searchTerm}%")
+              ->orWhere('source', 'like', "%{$searchTerm}%")
+              ->orWhere('type', 'like', "%{$searchTerm}%")
+              ->orWhere('status', 'like', "%{$searchTerm}%")
+              ->orWhere('amount', 'like', "%{$searchTerm}%")
+              ->orWhereHas('user', function($userQuery) use ($searchTerm) {
+                  $userQuery->where('name', 'like', "%{$searchTerm}%")
+                           ->orWhere('email', 'like', "%{$searchTerm}%")
+                           ->orWhere('mobile', 'like', "%{$searchTerm}%");
+              });
+        });
+    }
+    
+    $transactions = $query->orderByDesc('created_at')->paginate(20);
+    
+    // Rest of your code stays the same...
+    $summary = [
+        'total' => (clone $query)->sum('amount'),
+        'success' => (clone $query)->where('status', 'SUCCESS')->sum('amount'),
+        'failed' => (clone $query)->where('status', 'ERROR')->sum('amount'),
+        'wallet_topup' => (clone $query)->where('description', 'like', '%wallet top-up%')->sum('amount'),
+        'to_apay' => (clone $query)->where('reference', 'like', '%a-pay%')->sum('amount'),
+        'airtime' => (clone $query)->where('description', 'like', '%airtime%')->sum('amount'),
+        'data' => (clone $query)->where('description', 'like', '%data%')->sum('amount'),
+        'electricity' => (clone $query)->where('description', 'like', '%electricity%')->sum('amount'),
+        'betting' => (clone $query)->where('description', 'like', '%betting%')->sum('amount'),
+    ];
+    
+    return view('admin.transactions', compact('transactions', 'summary'));
+}
 
      public function complians(Request $request)
     {

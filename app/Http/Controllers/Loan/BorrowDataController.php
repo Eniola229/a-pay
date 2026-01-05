@@ -7,32 +7,36 @@ use Illuminate\Http\Request;
 use App\Models\DataPurchase;
 use App\Models\Balance;
 use App\Models\Transaction;
-use App\Models\Errors;
+use App\Models\Logged;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use App\Mail\DataPurchaseMail;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Str;
 use App\Models\CreditLimit;
 use App\Models\Borrow;
-
+use App\Services\WebTransactionService;
 
 class BorrowDataController extends Controller
 {
-       public function showForm()
+    protected WebTransactionService $transactionService;
+
+    public function __construct(WebTransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
+
+    public function showForm()
     {
         return view('borrow_data');
     }
 
     public function getDataPlans($networkId)
     {
-        // Normalize network ID
         $networkId = strtolower($networkId);
 
-        // Fetch all data from the external API
         $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
 
         if ($response->failed()) {
@@ -42,20 +46,16 @@ class BorrowDataController extends Controller
             ], 500);
         }
 
-        // Access the 'data' key from the response
         $allData = $response->json()['data'] ?? [];
 
-        // Filter only plans for the requested network
         $filteredPlans = collect($allData)->filter(function ($item) use ($networkId) {
-            $serviceId = strtolower($item['service_id']); // Convert service_id to lowercase
+            $serviceId = strtolower($item['service_id']);
             return $serviceId === $networkId;
         });
 
-
-        // Reformat data to match the expected structure
         $formatted = [];
         foreach ($filteredPlans as $plan) {
-            $planCode = $plan['variation_id'] ?? uniqid(); // fallback if variation_id is missing
+            $planCode = $plan['variation_id'] ?? uniqid();
             $formatted[$planCode] = [
                 'name'  => $plan['data_plan'] ?? 'Unnamed Plan',
                 'price' => $plan['price'] ?? 0,
@@ -75,7 +75,6 @@ class BorrowDataController extends Controller
         ]);
     }
 
-
     public function buyData(Request $request)
     {
         $request->validate([
@@ -86,140 +85,178 @@ class BorrowDataController extends Controller
         ]);
 
         $user = Auth::user();
-        $balance = Balance::where('user_id', $user->id)->first();
-        $creditLimit = CreditLimit::where('user_id', $user->id)->first();
 
-        if (!$creditLimit) {
-            return response()->json(['status' => false, 'message' => 'ACTION NOT ALLOWED.'], 400);
-        }
+        return DB::transaction(function () use ($request, $user) {
+            
+            $balance = Balance::where('user_id', $user->id)->lockForUpdate()->first();
+            $creditLimit = CreditLimit::where('user_id', $user->id)->lockForUpdate()->first();
 
-        // Verify PIN
-        if (!Hash::check($request->pin, $balance->pin)) {
-            return response()->json(['status' => false, 'message' => 'Invalid PIN.'], 400);
-        }
+            if (!$creditLimit) {
+                return response()->json(['status' => false, 'message' => 'ACTION NOT ALLOWED.'], 400);
+            }
 
-        // Fetch data plan details
-        $pricingDataResponse = $this->getDataPlans($request->network_id);
-        $pricingData = json_decode($pricingDataResponse->getContent(), true);
+            if (!Hash::check($request->pin, $balance->pin)) {
+                return response()->json(['status' => false, 'message' => 'Invalid PIN.'], 400);
+            }
 
-        if (!$pricingData['status']) {
-            return response()->json(['status' => false, 'message' => $pricingData['message']], 500);
-        }
+            // Fetch data plan details
+            $pricingDataResponse = $this->getDataPlans($request->network_id);
+            $pricingData = json_decode($pricingDataResponse->getContent(), true);
 
-        $plans = $pricingData['data'];
-        $variationId = (int) $request->variation_id;
+            if (!$pricingData['status']) {
+                return response()->json(['status' => false, 'message' => $pricingData['message']], 500);
+            }
 
-        // Debug all variation_ids
-       // Log::info('Available plan IDs: ' . json_encode($plans));
-        //Log::info('Requested ID: ' . $variationId);
+            $plans = $pricingData['data'];
+            $variationId = (int) $request->variation_id;
 
-        // Find plan directly using the variation_id as key
-        $planDetails = $plans[$variationId] ?? null; // Check if the plan exists
+            $planDetails = $plans[$variationId] ?? null;
 
-        // Log result
-        //Log::info('Found plan: ' . json_encode($planDetails));
+            if (!$planDetails) {
+                return response()->json(['status' => false, 'message' => 'Invalid data plan selected.'], 400);
+            }
 
-        if (!$planDetails) {
-            return response()->json(['status' => false, 'message' => 'Invalid data plan selected.'], 400);
-        }
-        $planDetails = $plans[$variationId];
-        $planPrice = $planDetails['price'];
-        $planName = $planDetails['name'];
+            $planPrice = $planDetails['price'];
+            $planName = $planDetails['name'];
 
-        // Check wallet balance
-        if ($creditLimit->limit_amount < $planPrice) {
-            return response()->json(['status' => false, 'message' => 'Insufficient Credit Limit.'], 400);
-        }
+            if ($creditLimit->limit_amount < $planPrice) {
+                return response()->json(['status' => false, 'message' => 'Insufficient Credit Limit.'], 400);
+            }
 
-        // Deduct balance
-        $balance->owe += $planPrice;
-        $creditLimit->limit_amount -= $planPrice;
-        $balance->save();
-        $creditLimit->save();
+            $requestId = 'BORROW_DATA_' . now()->format('YmdHis') . strtoupper(Str::random(12));
 
-        // Create records
-        $dataPurchase = DataPurchase::create([
-            'user_id'      => $user->id,
-            'phone_number' => $request->phone_number,
-            'data_plan_id' => $request->variation_id,
-            'network_id'   => $request->network_id,
-            'amount'       => $planPrice,
-            'status'       => 'PENDING'
-        ]);
+            try {
+                $creditLimit->limit_amount -= $planPrice;
+                $balance->owe += $planPrice;
+                $creditLimit->save();
+                $balance->save();
 
-       //store borrow records
-       $borrow = Borrow::create([
-            'user_id' => $user->id,
-            'amount' => $planPrice,
-            'for' => "DATA", 
-        ]);
+                $transaction = $this->transactionService->createTransaction(
+                    $user,
+                    $planPrice,
+                    'BORROW',
+                    $request->phone_number,
+                    "Data borrowed: " . $planName,
+                    $requestId,
+                    'DATA_BORROW'
+                );
 
-        $transaction = Transaction::create([
-            'user_id'     => $user->id,
-            'amount'      => $planPrice,
-            'beneficiary' => $request->phone_number,
-            'description' => "Data purchase: " . $planName,
-            'status'      => 'PENDING'
-        ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Transaction failed: ' . $e->getMessage()
+                ], 500);
+            }
 
-        // Ebills API integration
-        $apiToken = env('EBILLS_API_TOKEN'); // Set this in your .env
-        $requestId = 'REQ_' . strtoupper(Str::random(12));
-
-        $payload = [
-            'request_id'   => $requestId,
-            'phone'        => $request->phone_number,
-            'service_id'   => $request->network_id,
-            'variation_id' => $request->variation_id,
-        ];
-
-        try {
-            $response = Http::withToken($apiToken)
-                ->timeout(15)
-                ->post('https://ebills.africa/wp-json/api/v2/data', $payload);
-
-            $responseData = $response->json();
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'We couldn’t reach our endpoint service. Please check your internet connection and try again.'
-            ], 500);
-        }
-
-        if ($response->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
-            $transaction->update(['status' => 'SUCCESS']);
-            $dataPurchase->update(['status' => 'SUCCESS']);
-            $borrow->update(['status' => 'approved']);
-
-            // Send success email
-            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
-
-            return response()->json(['status' => true, 'message' => 'Data purchased successfully']);
-        } else {
-            Log::error('Data purchase failed', ['response' => $responseData]);
-
-            Errors::create([
-                'title' => "Data",
-                'error_message' => json_encode($responseData),
+            $borrow = Borrow::create([
+                'user_id' => $user->id,
+                'amount' => $planPrice,
+                'for' => "DATA",
+                'status' => 'PENDING'
             ]);
 
-            // Refund
-            $creditLimit->increment('limit_amount', $planPrice);
-            $transaction->update(['status' => 'ERROR']);
-            $dataPurchase->update(['status' => 'FAILED']);
-            $borrow->update(['status' => 'rejected']);
+            $payload = [
+                'request_id'   => $requestId,
+                'phone'        => $request->phone_number,
+                'service_id'   => $request->network_id,
+                'variation_id' => $request->variation_id,
+            ];
 
-            $balance->owe -= $planPrice;
-            $balance->save();
+            try {
+                $response = Http::withToken(env('EBILLS_API_TOKEN'))
+                    ->timeout(15)
+                    ->post('https://ebills.africa/wp-json/api/v2/data', $payload);
 
-            // Send failure email
-            Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+                $responseData = $response->json();
+            } catch (\Exception $e) {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'BORROW_DATA',
+                    'message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString(),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
 
-            return response()->json([
-                'status' => false,
-                'message' => 'Data purchase failed. Your service provider may be unavailable. Please try again later.'
-            ], 500);
-        }
+                $creditLimit->limit_amount += $planPrice;
+                $balance->owe -= $planPrice;
+                $creditLimit->save();
+                $balance->save();
+
+                $transaction->update([
+                    'status' => 'ERROR',
+                    'reference' => $requestId
+                ]);
+
+                $borrow->update(['status' => 'rejected']);
+
+                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+
+                return response()->json([
+                    'status' => false,
+                    'message' => 'We couldn\'t reach our endpoint service. Please check your internet connection and try again.'
+                ], 500);
+            }
+
+            if ($response->successful() && isset($responseData['code']) && $responseData['code'] === 'success') {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'BORROW_DATA',
+                    'message' => 'Borrowed data purchase successful',
+                    'stack_trace' => json_encode($responseData),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'SUCCESS',
+                ]);
+
+                $transaction->update([
+                    'status' => 'SUCCESS',
+                    'reference' => $requestId
+                ]);
+
+                $borrow->update(['status' => 'approved']);
+
+                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
+
+                return response()->json([
+                    'status' => true, 
+                    'message' => 'Data borrowed and purchased successfully',
+                    'credit_limit_remaining' => $creditLimit->fresh()->limit_amount,
+                    'amount_owed' => $balance->fresh()->owe
+                ]);
+
+            } else {
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'BORROW_DATA',
+                    'message' => $responseData['message'] ?? 'API request failed',
+                    'stack_trace' => json_encode($responseData, JSON_PRETTY_PRINT),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'FAILED',
+                ]);
+
+                $creditLimit->limit_amount += $planPrice;
+                $balance->owe -= $planPrice;
+                $creditLimit->save();
+                $balance->save();
+
+                $transaction->update([
+                    'status' => 'ERROR',
+                    'reference' => $requestId
+                ]);
+
+                $borrow->update(['status' => 'rejected']);
+
+                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Data purchase failed. Your service provider may be unavailable. Please try again later.'
+                ], 500);
+            }
+        });
     }
 
     public function recentPurchases()
@@ -231,5 +268,4 @@ class BorrowDataController extends Controller
 
         return response()->json($purchases);
     }
-
 }

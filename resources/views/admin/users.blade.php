@@ -151,50 +151,64 @@
         ***********************************-->
 
       <div class="container-fluid col-xl-8 col-lg-10 col-md-12 p-4">
-<div class="container table-container">
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered custom-table">
-            <thead>
-                <th>Customer Name</th>
-                <th>Customer Mobile</th>
-                    <th>Customer Email</th>
-                    <th>Account Status</th>
-                    <th>Customer Balance</th>
-                    <th>Customer Loan</th>
-                    <th>Joined At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($users as $user)
-                    <tr>
-                        <td>{{ $user->name }}</td>
-                        <td>{{ $user->mobile }}</td>
-                        <td>{{ $user->email }}</td>
-                        <td>{{ $user->is_status ?? "N/A" }}</td>
-                        <td>₦ {{ number_format($user->balance->balance, 2) }}
-                        <td>₦ {{ number_format($user->balance->owe, 2) }}
-                        </td>
-                        <td>{{ $user->created_at->format('d M Y, h:i A') }}</td>
-                       
-                        <td>
-                        <button class="btn btn-warning btn-sm edit-user" 
-                                data-id="{{ $user->id }}" 
-                                data-name="{{ $user->name }}" 
-                                data-mobile="{{ $user->mobile }}" 
-                                data-email="{{ $user->email }}">
-                            Edit
-                        </button>
-                        <a href="{{ url('admin/users/' . $user->id) }}">
-                            <button class="btn btn-primary btn-sm">View</button>
-                        </a>
-                    </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
+        <div class="container table-container">
+            <div class="table-responsive">
+                <div class="mb-4">
+                    <div class="input-group">
+                        <input type="text" id="userSearch" class="form-control" placeholder="Search by name, email, or mobile...">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="button" id="searchBtn">
+                                <i class="fa fa-search"></i> Search
+                            </button>
+                            <button class="btn btn-secondary" type="button" id="clearBtn">
+                                <i class="fa fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted">Press Enter to search or click the search button</small>
+                </div>
+                <table class="table table-striped table-bordered custom-table">
+                    <thead>
+                        <th>Customer Name</th>
+                        <th>Customer Mobile</th>
+                            <th>Customer Email</th>
+                            <th>Account Status</th>
+                            <th>Customer Balance</th>
+                            <th>Customer Loan</th>
+                            <th>Joined At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($users as $user)
+                            <tr>
+                                <td>{{ $user->name }}</td>
+                                <td>{{ $user->mobile }}</td>
+                                <td>{{ $user->email }}</td>
+                                <td>{{ $user->is_status ?? "N/A" }}</td>
+                                <td>₦ {{ number_format($user->balance->balance, 2) }}
+                                <td>₦ {{ number_format($user->balance->owe, 2) }}
+                                </td>
+                                <td>{{ $user->created_at->format('d M Y, h:i A') }}</td>
+                               
+                                <td>
+                                <button class="btn btn-warning btn-sm edit-user" 
+                                        data-id="{{ $user->id }}" 
+                                        data-name="{{ $user->name }}" 
+                                        data-mobile="{{ $user->mobile }}" 
+                                        data-email="{{ $user->email }}">
+                                    Edit
+                                </button>
+                                <a href="{{ url('admin/users/' . $user->id) }}">
+                                    <button class="btn btn-primary btn-sm">View</button>
+                                </a>
+                            </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
         <!-- Pagination links -->
         @if ($users->hasPages())
             <div class="bootstrap-pagination">
@@ -317,8 +331,143 @@
     <!--**********************************
         Scripts
     ***********************************-->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script type="text/javascript">
+    $(document).ready(function() {
+        // Search functionality
+        function searchUsers(query) {
+            if (query.trim() === '') {
+                // If search is empty, reload the page to show all users
+                window.location.href = window.location.pathname;
+                return;
+            }
+
+            $.ajax({
+                url: window.location.pathname, // Uses the same route
+                method: 'GET',
+                data: { search: query },
+                beforeSend: function() {
+                    $('#searchBtn').html('<i class="fa fa-spinner fa-spin"></i> Searching...').prop('disabled', true);
+                    $('tbody').html('<tr><td colspan="8" class="text-center">Searching...</td></tr>');
+                },
+                success: function(response) {
+                    // Extract user data from the HTML response
+                    let $html = $(response);
+                    let $tableBody = $html.find('tbody');
+                    
+                    if ($tableBody.length && $tableBody.find('tr').length > 0) {
+                        $('tbody').html($tableBody.html());
+                        // Hide pagination when showing search results
+                        $('.bootstrap-pagination').hide();
+                    } else {
+                        $('tbody').html('<tr><td colspan="8" class="text-center">No users found</td></tr>');
+                        $('.bootstrap-pagination').hide();
+                    }
+                    
+                    $('#searchBtn').html('<i class="fa fa-search"></i> Search').prop('disabled', false);
+                    
+                    // Re-attach edit user click handlers
+                    attachEditHandlers();
+                },
+                error: function() {
+                    alert('Error searching users. Please try again.');
+                    $('#searchBtn').html('<i class="fa fa-search"></i> Search').prop('disabled', false);
+                }
+            });
+        }
+
+        function attachEditHandlers() {
+            $('.edit-user').off('click').on('click', function() {
+                let userId = $(this).data('id');
+                let userName = $(this).data('name');
+                let userMobile = $(this).data('mobile');
+                let userEmail = $(this).data('email');
+                let userStatus = $(this).data('is_status');
+
+                $('#edit-user-id').val(userId);
+                $('#edit-user-name').val(userName);
+                $('#edit-user-mobile').val(userMobile);
+                $('#edit-user-email').val(userEmail);
+                $('#edit-user-status').val(userStatus);
+
+                $.ajax({
+                    url: `/admin/users/${userId}/edit`,
+                    method: 'GET',
+                    dataType: 'json',
+                    beforeSend: function() {
+                        $('#saveUserBtn').text('Loading...').prop('disabled', true);
+                    },
+                    success: function(response) {
+                        let balanceAmount = response.balance ? parseFloat(response.balance.balance) || 0 : 0;
+                        $('#edit-user-balance').val('₦ ' + balanceAmount.toFixed(2));
+                        $('#editUserModal').modal('show');
+                        $('#saveUserBtn').text('Save Changes').prop('disabled', false);
+                    },
+                    error: function() {
+                        alert('Error fetching user details');
+                        $('#saveUserBtn').text('Save Changes').prop('disabled', false);
+                    }
+                });
+            });
+        }
+
+        // Search button click
+        $('#searchBtn').click(function() {
+            let query = $('#userSearch').val();
+            searchUsers(query);
+        });
+
+        // Clear button click
+        $('#clearBtn').click(function() {
+            $('#userSearch').val('');
+            window.location.href = window.location.pathname;
+        });
+
+        // Search on Enter key
+        $('#userSearch').keypress(function(e) {
+            if (e.which === 13) {
+                let query = $(this).val();
+                searchUsers(query);
+            }
+        });
+
+        // Initialize edit handlers for existing users
+        attachEditHandlers();
+
+        // Existing edit user form submission code
+        $('#editUserForm').submit(function(e) {
+            e.preventDefault();
+
+            let userId = $('#edit-user-id').val();
+            let formData = {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                name: $('#edit-user-name').val(),
+                mobile: $('#edit-user-mobile').val(),
+                email: $('#edit-user-email').val(),
+                status: $('#edit-user-status').val(),
+            };
+
+            $.ajax({
+                url: `/admin/users/${userId}/update`,
+                method: 'POST',
+                data: formData,
+                beforeSend: function() {
+                    $('#saveUserBtn').text('Updating...').prop('disabled', true);
+                },
+                success: function(response) {
+                    alert(response.message);
+                    location.reload();
+                },
+                error: function(xhr) {
+                    let errorMessage = xhr.responseJSON?.message || 'An error occurred';
+                    alert(errorMessage);
+                    $('#saveUserBtn').text('Save Changes').prop('disabled', false);
+                }
+            });
+        });
+    });
+
     $(document).ready(function() {
     // When "Edit" button is clicked, open modal and load user data
     $('.edit-user').click(function() {

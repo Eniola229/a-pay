@@ -8,6 +8,7 @@ use App\Models\Balance;
 use App\Models\AirtimePurchase;
 use App\Models\Logged;
 use App\Services\TransactionService;
+use App\Services\ReceiptGenerator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\DB;
 class AirtimeController extends Controller
 {
     protected TransactionService $transactionService;
+    protected ReceiptGenerator $receiptGenerator;
 
-    public function __construct(TransactionService $transactionService)
+    public function __construct(TransactionService $transactionService, ReceiptGenerator $receiptGenerator)
     {
         $this->transactionService = $transactionService;
+        $this->receiptGenerator = $receiptGenerator;
     }
 
     /**
@@ -28,7 +31,7 @@ class AirtimeController extends Controller
      * @param string $network
      * @param float $amount
      * @param string $phone
-     * @return string
+     * @return array Returns message and optional receipt URL
      */
     public function purchase($user, $network, $amount, $phone)
     {
@@ -39,7 +42,10 @@ class AirtimeController extends Controller
             // -----------------------
             $balance = Balance::where('user_id', $user->id)->first();
             if (!$balance || $balance->balance < $amount) {
-                return "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳";
+                return [
+                    'type' => 'text',
+                    'message' => "😔 Oops! Insufficient balance.\n\n💰 Your wallet: ₦" . ($balance->balance ?? 0) . "\n💸 Plan cost: ₦{$amount}\n\nPlease fund your wallet and try again! 💳"
+                ];
             }
 
             // -----------------------
@@ -56,25 +62,16 @@ class AirtimeController extends Controller
                     $requestId 
                 );
 
-                // Refresh Balance for display if needed
                 $balance->refresh();
             } catch (\Exception $e) {
-                return "😔 Oops! Something seem wrong...";
+                return [
+                    'type' => 'text',
+                    'message' => "😔 Oops! Something seems wrong..."
+                ];
             }
 
             // -----------------------
-            // 3️⃣ Create Airtime Purchase record
-            // -----------------------
-            // $airtime = AirtimePurchase::create([
-            //     'user_id' => $user->id,
-            //     'phone_number' => $phone,
-            //     'amount' => $amount,
-            //     'network_id' => $network,
-            //     'status' => 'PENDING'
-            // ]);
-
-            // -----------------------
-            // 4️⃣ Prepare API call
+            // 3️⃣ Prepare API call
             // -----------------------
             $apiUrl = 'https://ebills.africa/wp-json/api/v2/airtime';
             $headers = [
@@ -89,7 +86,7 @@ class AirtimeController extends Controller
             ];
 
             // -----------------------
-            // 5️⃣ Make API call
+            // 4️⃣ Make API call
             // -----------------------
             try {
                 $response = Http::withHeaders($headers)->post($apiUrl, $data);
@@ -119,30 +116,30 @@ class AirtimeController extends Controller
                     'reference' => $requestId
                 ]);
 
-                // $airtime->update(['status' => 'FAILED']);
-
-                return "⚠️ Network error. Please try again later.";
+                return [
+                    'type' => 'text',
+                    'message' => "⚠️ Network error. Please try again later."
+                ];
             }
 
             // -----------------------
-            // 6️⃣ Process API response
+            // 5️⃣ Process API response
             // -----------------------
             if ($response->successful() && ($response->json()['code'] ?? '') === 'success') {
                 Logged::create([
                     'user_id' => $user->id,
                     'for' => 'AIRTIME',
                     'message' => 'Airtime purchase successful',
-                    'stack_trace' => json_encode($response->json()), // Full response
+                    'stack_trace' => json_encode($response->json()),
                     't_reference' => $requestId,
                     'from' => 'EBILLS',
                     'type' => 'SUCCESS',
                 ]);
-                // Update records to success
+
                 $transaction->update(['status' => 'SUCCESS', 'reference' => $requestId]);
-                // $airtime->update(['status' => 'SUCCESS']);
 
                 // -----------------------
-                // 7️⃣ Calculate and apply cashback
+                // 6️⃣ Calculate and apply cashback
                 // -----------------------
                 $cashback = 0;
                 if (class_exists(\App\Services\CashbackService::class)) {
@@ -164,7 +161,36 @@ class AirtimeController extends Controller
                     }
                 }
 
-                return "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your *{$amount}* airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀";
+                // -----------------------
+                // 7️⃣ Generate Image Receipt
+                // -----------------------
+                try {
+                    $receiptUrl = $this->receiptGenerator->generateAirtimeReceipt([
+                        'amount' => $amount,
+                        'phone' => $phone,
+                        'network' => $network,
+                        'reference' => $requestId,
+                        'cashback' => $cashback,
+                        'customer_name' => $user->name,
+                        'account_number' => $user->account_number,
+                        'date' => now()->format('d M Y, h:i A')
+                    ]);
+
+                    return [
+                        'type' => 'image',
+                        'receipt_url' => $receiptUrl,
+                        'message' => "✅ Your ₦{$amount} airtime has been activated!"
+                    ];
+
+                } catch (\Exception $e) {
+                    // Fallback to text receipt if image generation fails
+                    \Log::error('Receipt generation failed: ' . $e->getMessage());
+                    
+                    return [
+                        'type' => 'text',
+                        'message' => "🎉🎉🎉 *SUCCESS!* 🎉🎉🎉\n\n✅ Your ₦{$amount} airtime has been activated!\n\n📱 Recipient: *{$phone}*\n🌐 Network: *" . strtoupper($network) . "*\n💰 Amount Paid: ₦{$amount}\n\n🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\n\nEnjoy your airtime! 📡🚀"
+                    ];
+                }
 
             } else {
                 // Refund balance on failure (CREDIT)
@@ -186,15 +212,25 @@ class AirtimeController extends Controller
                     'user_id' => $user->id,
                     'for' => 'AIRTIME',
                     'message' => $response->json('message') ?? 'API request failed',
-                    'stack_trace' => json_encode($response->json(), JSON_PRETTY_PRINT), // Pretty format
+                    'stack_trace' => json_encode($response->json(), JSON_PRETTY_PRINT),
                     't_reference' => $requestId,
                     'from' => 'EBILLS',
                     'type' => 'FAILED',
                 ]);
 
-                // $airtime->update(['status' => 'FAILED']);
+                 $responseData = $response->json();
 
-                return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
+                // Check for specific API error message
+                if (isset($responseData['message'])) {
+                    $message = "❌ " . $responseData['message'] . "\n\nYour balance of ₦{$amount} has been refunded.";
+                } else {
+                    $message = "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
+                }
+
+                return [
+                    'type' => 'text',
+                    'message' => $message
+                ];
             }
         });
     }
