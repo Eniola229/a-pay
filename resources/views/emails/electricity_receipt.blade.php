@@ -67,6 +67,8 @@
             <p><strong>Provider:</strong> {{ strtoupper($provider) }}</p>
             <p><strong>Token:</strong> {{ strtoupper($token) }}</p>
             <p><strong>Unit:</strong> {{ strtoupper($units) }}</p>
+            <p><strong>Address:</strong> {{ $customer_address }}</p>
+            <p><strong>Account Name:</strong> {{ $customer_name_m }}</p>
             <p><strong>Amount Paid:</strong> ₦{{ number_format($amount, 2) }}</p>
             <p><strong>Transaction Status:</strong> {{ $status }}</p>
         </div>

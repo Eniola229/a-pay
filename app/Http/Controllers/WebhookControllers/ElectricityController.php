@@ -8,28 +8,28 @@ use App\Models\Balance;
 use App\Models\ElectricityPurchase;
 use App\Models\Logged;
 use App\Services\TransactionService;
-use App\Services\ReceiptGenerator; // Added
+use App\Services\ReceiptGenerator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\DB; // Added DB
+use Illuminate\Support\Facades\DB;
 use App\Mail\ElectricityPaymentReceipt;
 
 class ElectricityController extends Controller
 {
     protected $transactionService;
-    protected $receiptGenerator; // Added
+    protected $receiptGenerator;
 
-    public function __construct(TransactionService $transactionService, ReceiptGenerator $receiptGenerator) // Updated
+    public function __construct(TransactionService $transactionService, ReceiptGenerator $receiptGenerator)
     {
         $this->transactionService = $transactionService;
-        $this->receiptGenerator = $receiptGenerator; // Added
+        $this->receiptGenerator = $receiptGenerator;
     }
 
     public function purchase($user, $meterNumber, $amount, $provider)
     {
-        return DB::transaction(function () use ($user, $meterNumber, $amount, $provider) { // Wrapped in DB::transaction
+        return DB::transaction(function () use ($user, $meterNumber, $amount, $provider) {
 
             $providerMap = [
                 'abuja' => 'abuja-electric',
@@ -46,8 +46,8 @@ class ElectricityController extends Controller
                 'portharcourt' => 'portharcourt-electric'
             ];
 
-            if ($amount < 500) {
-                return "⚠️ Minimum amount is ₦500.\n\nYou entered: ₦" . number_format($amount) . "\n\nPlease try again with a higher amount.";
+            if ($amount < 1000) {
+                return "⚠️ Minimum amount is ₦1000.\n\nYou entered: ₦" . number_format($amount) . "\n\nPlease try again with a higher amount.";
             }
 
             $balance = Balance::where('user_id', $user->id)->first();
@@ -73,7 +73,8 @@ class ElectricityController extends Controller
                     'DEBIT',
                     $meterNumber, 
                     "Electricity bill payment for meter " . $meterNumber,
-                    $requestId 
+                    $requestId,
+                   
                 );
                 $balance->refresh();
             } catch (\Exception $e) {
@@ -118,7 +119,9 @@ class ElectricityController extends Controller
                     $transaction,
                     $balance,
                     $requestId,
-                    $meterNumber 
+                    $user->mobile,
+                    "Refund for electricity purchase failed - Provider unreachable for meter {$meterNumber}",
+                    "REFUND_" . $requestId
                 );
                 
                 return "⚠️ Could not reach provider. Please try again later. Your balance has been restored.";
@@ -134,8 +137,10 @@ class ElectricityController extends Controller
                     'from' => 'EBILLS',
                     'type' => 'SUCCESS',
                 ]);
-                $token = $responseData['token'] ?? 'N/A';
-                $units = $responseData['units'] ?? 'N/A';
+                
+                // Get token and units from nested 'data' object
+                $token = $responseData['data']['token'] ?? 'N/A';
+                $units = $responseData['data']['units'] ?? 'Not Provided';
 
                 $this->transactionService->markTransactionSuccess(
                     $transaction,
@@ -152,13 +157,15 @@ class ElectricityController extends Controller
                         'amount' => $amount,
                         'token' => $token,
                         'units' => $units,
+                        'customer_address' => $responseData['data']['customer_address'] ?? 'N/A',
+                        'customer_name_m' => $responseData['data']['customer_name'] ?? 'N/A',
                         'status' => 'SUCCESS'
                     ]));
                 } catch (\Exception $e) {
                     Log::error('Email send failed', ['error' => $e->getMessage()]);
                 }
 
-                // === FIX: GENERATE ELECTRICITY RECEIPT ===
+                // === GENERATE ELECTRICITY RECEIPT ===
                 try {
                     $receiptUrl = $this->receiptGenerator->generateElectricityReceipt([
                         'amount' => $totalAmount, // Show total paid (amount + fees)
@@ -168,6 +175,8 @@ class ElectricityController extends Controller
                         'units' => $units,
                         'reference' => $requestId,
                         'customer_name' => $user->name,
+                        'customer_address' => $responseData['data']['customer_address'] ?? 'N/A',
+                        'customer_name_m' => $responseData['data']['customer_name'] ?? 'N/A',
                         'account_number' => $user->account_number,
                         'date' => now()->format('d M Y, h:i A')
                     ]);
@@ -192,7 +201,9 @@ class ElectricityController extends Controller
                     $transaction,
                     $balance,
                     $requestId,
-                    $meterNumber 
+                    $user->mobile,
+                    "Refund for electricity purchase - Payment unsuccessful for meter {$meterNumber}",
+                    "REFUND_" . $requestId
                 );
 
                 $errorMsg = $responseData['message'] ?? 'Payment failed. Please try again.';

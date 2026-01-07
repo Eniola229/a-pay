@@ -154,11 +154,10 @@ class ReceiptGenerator
         // === FOOTER (Size 12) ===
         $footerLines = [
             // ["A-Pay is powered by CBN-Licensed partners and protected by NDIC.", 12],
-            ["Buy airtime, pay bills - the smart and easy way with A-Pay all inside WhatsApp.", 12],
-            ["", 20],
-            // ["Registered under CAC: 8088462", 12],
+            ["Buy airtime, pay bills - the smart and easy way", 13],
+            ["with A-Pay all inside WhatsApp.", 13],
             // ["AfricGEM International Company Limited", 12],
-            ["", 25],
+            ["", 12],
             ["Start paying smarter at www.africicl.com.ng/a-pay", 14]
         ];
         
@@ -284,11 +283,10 @@ class ReceiptGenerator
         
         $footerLines = [
             // ["A-Pay is powered by CBN-Licensed partners and protected by NDIC.", 12],
-            ["Buy airtime, pay bills - the smart and easy way with A-Pay all inside WhatsApp.", 12],
-            ["", 20],
-            // ["Registered under CAC: 8088462", 12],
+            ["Buy airtime, pay bills - the smart and easy way", 13],
+            ["with A-Pay all inside WhatsApp.", 13],
             // ["AfricGEM International Company Limited", 12],
-            ["", 25],
+            ["", 12],
             ["Start paying smarter at www.africicl.com.ng/a-pay", 14]
         ];
         
@@ -385,6 +383,8 @@ class ReceiptGenerator
             ['Meter Number:', $data['meter_number']],
             ['Provider:', ucfirst($data['provider'])],
             ['Type:', 'Electricity Bill'],
+            ['Address:', $data['customer_address']],
+            ['Account Name:', $data['customer_name_m']],
             ['Reference:', $this->truncate($data['reference'], 20)],
             // ['Transaction ID:', $this->truncate($data['account_number'], 18)],
         ];
@@ -423,11 +423,10 @@ class ReceiptGenerator
         
         $footerLines = [
             // ["A-Pay is powered by CBN-Licensed partners and protected by NDIC.", 12],
-            ["Buy airtime, pay bills - the smart and easy way with A-Pay all inside WhatsApp.", 12],
-            ["", 20],
-            // ["Registered under CAC: 8088462", 12],
+            ["Buy airtime, pay bills - the smart and easy way", 13],
+            ["with A-Pay all inside WhatsApp.", 13],
             // ["AfricGEM International Company Limited", 12],
-            ["", 25],
+            ["", 12],
             ["Start paying smarter at www.africicl.com.ng/a-pay", 14]
         ];
         
@@ -444,8 +443,220 @@ class ReceiptGenerator
         return $this->saveAndUpload($img, $data['reference'], 'electricity');
     }
 
+
+    /**
+     * Generate Advanced Transaction Analysis Report
+     */
+    /**
+     * Generate Advanced Transaction Analysis Report
+     */
+    public function generateHistoryReport($stats)
+    {
+        $width = 600;
+        $height = 1100; // Increased height to fit new sections
+        $img = imagecreatetruecolor($width, $height);
+        
+        imageantialias($img, true);
+        
+        // --- COLOR PALETTE ---
+        $bgCanvas = imagecolorallocate($img, 243, 244, 246);
+        $cardWhite = imagecolorallocate($img, 255, 255, 255);
+        $brandGreen = imagecolorallocate($img, 16, 185, 129);
+        $brandDarkGreen = imagecolorallocate($img, 6, 78, 59);
+        $brandBlue = imagecolorallocate($img, 59, 130, 246); // Blue for Topups
+        $brandRed = imagecolorallocate($img, 239, 68, 68);   // Red for Debits
+        $textMain = imagecolorallocate($img, 31, 41, 55);
+        $textMuted = imagecolorallocate($img, 107, 114, 128);
+        $barBg = imagecolorallocate($img, 229, 231, 235);
+
+        imagefilledrectangle($img, 0, 0, $width, $height, $bgCanvas);
+        
+        // Draw Main Card
+        $this->drawCardBackground($img, 20, 20, 560, 1060, $cardWhite);
+
+        $leftPad = 50;
+        $y = 80;
+        
+        $fontPath = $this->getFontPath();
+        $useTTF = $fontPath !== null;
+
+        // === 1. HEADER ===
+        $this->drawRoundedRect($img, 50, 40, 500, 60, 12, $brandDarkGreen);
+        
+        if ($useTTF) {
+            $this->drawCenteredTextBold($img, "TRANSACTION ANALYSIS", 300, 76, 18, $cardWhite, $fontPath, $useTTF);
+        }
+
+        $y = 130;
+
+        // === 2. HERO STATS (Monthly Spend) ===
+        $label = "Total Spend (This Month)";
+        if ($useTTF) {
+            $this->drawText($img, 14, $leftPad, $y, $textMuted, $fontPath, $label);
+        }
+        $y += 60;
+
+        $monthlyAmount = "₦" . number_format($stats['month_total'], 2);
+        if ($useTTF) {
+            $this->drawStrongBoldText($img, 42, 0, $leftPad, $y, $brandGreen, $fontPath, $monthlyAmount);
+        }
+        $y += 40;
+
+        $monthName = date('F Y');
+        $metaText = "$monthName • {$stats['month_count']} Transactions";
+        if ($useTTF) {
+            $this->drawText($img, 13, $leftPad, $y, $textMuted, $fontPath, $metaText);
+        }
+        $y += 50;
+
+        // === 3. FINANCIAL FLOW (Credit vs Debit) ===
+        $this->drawDivider($img, 50, $y, 500, $barBg);
+        $y += 40;
+        
+        if ($useTTF) {
+            $this->drawBoldText($img, 16, 0, $leftPad, $y, $textMain, $fontPath, "Financial Flow");
+        }
+        $y += 35;
+
+        // Credit (In)
+        $creditAmt = "₦" . number_format($stats['month_credit'], 2);
+        if ($useTTF) {
+            $this->drawLeftRightTextBold($img, "Money In (Credit)", $creditAmt, $leftPad, 550, $y, 14, $textMuted, $brandGreen, $fontPath, $useTTF);
+        }
+        $y += 30;
+
+        // Debit (Out)
+        $debitAmt = "₦" . number_format($stats['month_debit'], 2);
+        if ($useTTF) {
+            $this->drawLeftRightTextBold($img, "Money Out (Debit)", $debitAmt, $leftPad, 550, $y, 14, $textMuted, $brandRed, $fontPath, $useTTF);
+        }
+        $y += 50;
+
+        // === 4. MONTHLY EXTRAS (Cashback & Topup) ===
+        $this->drawDivider($img, 50, $y, 500, $barBg);
+        $y += 40;
+
+        if ($useTTF) {
+            $this->drawBoldText($img, 16, 0, $leftPad, $y, $textMain, $fontPath, "Monthly Extras");
+        }
+        $y += 35;
+
+        // Cashback
+        $cashbackAmt = "₦" . number_format($stats['month_cashback'], 2);
+        if ($useTTF) {
+            $this->drawLeftRightTextBold($img, "Cashbacks Earned", $cashbackAmt, $leftPad, 550, $y, 14, $textMuted, $brandGreen, $fontPath, $useTTF);
+        }
+        $y += 30;
+
+        // Wallet Topup
+        $topupAmt = "₦" . number_format($stats['month_topup'], 2);
+        if ($useTTF) {
+            $this->drawLeftRightTextBold($img, "Wallet Top-ups", $topupAmt, $leftPad, 550, $y, 14, $textMuted, $brandBlue, $fontPath, $useTTF);
+        }
+
+        $y += 50;
+
+        // === 5. SPENDING BREAKDOWN (Visual Bars) ===
+        $this->drawDivider($img, 50, $y, 500, $barBg);
+        $y += 40;
+        
+        if ($useTTF) {
+            $this->drawBoldText($img, 16, 0, $leftPad, $y, $textMain, $fontPath, "Spending Breakdown");
+        }
+        $y += 35;
+
+        $categories = [
+            ['Airtime', $stats['airtime_total']],
+            ['Data', $stats['data_total']],
+            ['Electricity', $stats['electricity_total']],
+        ];
+        
+        $maxSpend = max($stats['airtime_total'], $stats['data_total'], $stats['electricity_total']);
+        if ($maxSpend == 0) $maxSpend = 1;
+
+        foreach ($categories as $cat) {
+            $label = $cat[0];
+            $amount = $cat[1];
+            $formattedAmount = "₦" . number_format($amount, 2);
+            
+            if ($useTTF) {
+                $this->drawLeftRightTextBold($img, $label, $formattedAmount, $leftPad, 550, $y, 14, $textMain, $textMain, $fontPath, $useTTF);
+            }
+            $y += 20;
+
+            $barWidth = 400;
+            $this->drawRoundedRect($img, $leftPad, $y, $barWidth, 8, 4, $barBg);
+
+            if ($amount > 0) {
+                $fillWidth = ($amount / $maxSpend) * $barWidth;
+                $this->drawRoundedRect($img, $leftPad, $y, $fillWidth, 8, 4, $brandGreen);
+            }
+            $y += 35;
+        }
+
+        $y += 30;
+        $this->drawDivider($img, 50, $y, 500, $barBg);
+        $y += 40;
+
+        // === 6. YEARLY SNAPSHOT (Side by Side) ===
+        $this->drawDivider($img, 50, $y, 500, $barBg);
+        $y += 40;
+
+        if ($useTTF) {
+            $this->drawBoldText($img, 16, 0, $leftPad, $y, $textMain, $fontPath, "Yearly Snapshot");
+        }
+        $y += 35;
+
+        // Labels Row
+        if ($useTTF) {
+            $this->drawLeftRightTextBold($img, "Money Out (Debit)", "Money In (Credit)", $leftPad, 550, $y, 14, $textMuted, $textMuted, $fontPath, $useTTF);
+        }
+        $y += 35;
+
+        // Amounts Row
+        $yearDebit = "₦" . number_format($stats['year_debit'], 2);
+        $yearCredit = "₦" . number_format($stats['year_credit'], 2);
+        
+        if ($useTTF) {
+            // Left: Debit (Red), Right: Credit (Green)
+            $this->drawLeftRightTextBold($img, $yearDebit, $yearCredit, $leftPad, 550, $y, 28, $brandRed, $brandGreen, $fontPath, $useTTF);
+        }
+        
+        $y += 100;
+
+        // Footer
+        if ($useTTF) {
+            $footer = "Analysis generated on " . date('d M Y, H:i');
+            $this->drawCenteredTextBold($img, $footer, 300, $y, 10, $textMuted, $fontPath, $useTTF);
+        }
+
+        return $this->saveAndUpload($img, 'analysis_' . time(), 'history');
+    }
+
+    // Helper to draw a card with shadow
+    private function drawCardBackground($img, $x, $y, $width, $height, $color)
+    {
+        // Shadow
+        $shadow = imagecolorallocate($img, 200, 200, 200);
+        imagefilledrectangle($img, $x + 4, $y + 4, $x + $width, $y + $height, $shadow);
+        // Card
+        imagefilledrectangle($img, $x, $y, $x + $width, $y + $height, $color);
+    }
+    
+    // Simple text wrapper (Non-bold, 1 color)
+    private function drawText($img, $size, $x, $y, $color, $fontPath, $text)
+    {
+        imagettftext($img, $size, 0, $x, $y, $color, $fontPath, $text);
+    }
     // === HELPER METHODS ===
     
+        private function drawDivider($img, $x, $y, $width, $color)
+    {
+        imagesetthickness($img, 1);
+        imageline($img, $x, $y, $x + $width, $y, $color);
+        imagesetthickness($img, 1);
+    }
+
     // Strong Bold for Header and Amount (2px offset shadow)
     private function drawStrongBoldText($img, $size, $angle, $x, $y, $color, $fontPath, $text)
     {

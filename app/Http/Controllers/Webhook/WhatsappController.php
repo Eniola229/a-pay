@@ -1112,7 +1112,7 @@ class WhatsappController extends Controller
         return "⚡ To pay your electricity bill, you can say it naturally:\n\n" .
                "Examples:\n" .
                "• *Pay light bill 1234567890 5000 eko*\n" .
-               "• *Electric 1234567890 5000 eko*\n\n" .
+               "• *Electric 1234567890 5000 portharcourt*\n\n" .
                "Or simply say: *electricity* and I'll guide you step by step! ⚡" .
                $sessionNotice;
     }
@@ -1370,23 +1370,111 @@ class WhatsappController extends Controller
      */
     private function handleTransactions($user)
     {
-        $latest = $user->transactions()->latest()->take(5)->get();
-        if ($latest->isEmpty()) {
+        // Fetch all successful transactions for current year
+        $transactions = $user->transactions()
+            ->where('status', 'SUCCESS')
+            ->whereYear('created_at', now()->year)
+            ->latest()
+            ->get();
+
+        if ($transactions->isEmpty()) {
             return "🧾 No recent transactions found.";
         }
 
-        $msg = "🧾 *Recent Transactions:*\n\n";
-        foreach ($latest as $t) {
-            $msg .= "• Beneficiary: {$t->beneficiary}\n";
-            $msg .= "  Amount: ₦{$t->amount}\n";
-            $msg .= "  Cash Back: ₦{$t->cash_back}\n";
-            $msg .= "  Charges: ₦{$t->charges}\n";
-            $msg .= "  Description: {$t->description}\n";
-            $msg .= "  Status: {$t->status}\n";
-            $msg .= "  Reference: {$t->reference}\n\n";
+        // Initialize Counters
+        $currentMonth = now()->month;
+        
+        $stats = [
+            'month_total' => 0,
+            'month_count' => 0,
+            'year_debit' => 0,     // New
+            'year_credit' => 0,     // New
+            'airtime_total' => 0,
+            'data_total' => 0,
+            'electricity_total' => 0,
+            'month_credit' => 0,
+            'month_debit' => 0,
+            'month_cashback' => 0,
+            'month_topup' => 0,
+        ];
+
+        // Loop and Calculate Stats
+        foreach ($transactions as $t) {
+            $desc = strtoupper($t->description ?? '');
+            $amount = (float) $t->amount;
+            $type = strtoupper($t->type ?? '');
+
+            // 1. YEARLY LOGIC (Updated)
+            if ($type == 'DEBIT' || str_contains($desc, 'PURCHASE')) {
+                $stats['year_debit'] += $amount; // Track Yearly Debit
+
+                // Category Breakdown
+                if (str_contains($desc, 'AIRTIME PURCHASE')) {
+                    $stats['airtime_total'] += $amount;
+                } elseif (str_contains($desc, 'DATA PURCHASE') || str_contains($desc, 'DATA SUBSCRIPTION')) {
+                    $stats['data_total'] += $amount;
+                } elseif (str_contains($desc, 'ELECTRICITY')) {
+                    $stats['electricity_total'] += $amount;
+                }
+            }
+
+            // Track Yearly Credit
+            if ($type == 'CREDIT') {
+                $stats['year_credit'] += $amount;
+            }
+
+            // 2. MONTHLY LOGIC
+            if ($t->created_at->month == $currentMonth) {
+                
+                // Credit vs Debit Totals
+                if ($type == 'CREDIT') {
+                    $stats['month_credit'] += $amount;
+                } elseif ($type == 'DEBIT') {
+                    $stats['month_debit'] += $amount;
+                    $stats['month_total'] += $amount; 
+                    $stats['month_count']++;
+                }
+
+                // Wallet Top-up
+                if ($type == 'CREDIT' && str_contains($desc, 'WALLET TOP-UP')) {
+                    $stats['month_topup'] += $amount;
+                }
+
+                // Cashback
+                if (str_contains($desc, 'CASHBACK')) {
+                    $stats['month_cashback'] += $amount;
+                }
+            }
+        
         }
 
-        return trim($msg);
+        // Generate Image (Receipt)
+        try {
+            $receiptGenerator = app(\App\Services\ReceiptGenerator::class);
+            $imageUrl = $receiptGenerator->generateHistoryReport($stats);
+        } catch (\Exception $e) {
+            // Fallback if image generation fails
+            $imageUrl = null;
+        }
+
+        // Format "Recent Transactions" text for the Caption
+        $recent = $transactions->take(5); 
+        $caption = "🧾 *Recent Transactions (5 shown below):*\n\n";
+        foreach ($recent as $t) {
+            $caption .= "• Beneficiary: {$t->beneficiary}\n";
+            $caption .= "  Amount: ₦{$t->amount}\n";
+            $caption .= "  Type: {$t->type}\n"; // Added Type
+            $caption .= "  Description: {$t->description}\n";
+            $caption .= "  Date: {$t->created_at->format('d M Y')}\n\n";
+        }
+        $caption .= "_To get your full transaction history, please reach out to customer support at 👉 *+234-803-590-6313* to generate your account statement_";
+
+        // Return Image + Caption
+        return [
+            'type' => 'image',
+            'receipt_url' => $imageUrl,
+            'message' => $caption
+        ];
     }
 
     /**

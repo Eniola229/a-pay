@@ -59,7 +59,8 @@ class AirtimeController extends Controller
                     'DEBIT',
                     $phone,
                     strtoupper($network) . " airtime purchase for " . $phone,
-                    $requestId 
+                    $requestId,
+                    'AIRTIME' // Service type for cashback calculation
                 );
 
                 $balance->refresh();
@@ -106,7 +107,7 @@ class AirtimeController extends Controller
                     $user,
                     $amount,
                     'CREDIT',
-                    $phone, 
+                    $user->mobile, 
                     'Refund for failed airtime purchase',
                     'REFUND_' . $requestId 
                 );
@@ -198,7 +199,7 @@ class AirtimeController extends Controller
                     $user,
                     $amount,
                     'CREDIT',
-                    $phone, 
+                    $user->mobile,
                     'Refund for failed airtime purchase',
                     'REFUND_' . $requestId,
                 );
@@ -218,10 +219,9 @@ class AirtimeController extends Controller
                     'type' => 'FAILED',
                 ]);
 
-                 $responseData = $response->json();
-
+                $responseData = $response->json();;
                 // Check for specific API error message
-                if (isset($responseData['message'])) {
+                if (isset($responseData['code']) && in_array($responseData['code'], ['invalid_service', 'duplicate_order']) && isset($responseData['message'])) {
                     $message = "❌ " . $responseData['message'] . "\n\nYour balance of ₦{$amount} has been refunded.";
                 } else {
                     $message = "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$amount} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";

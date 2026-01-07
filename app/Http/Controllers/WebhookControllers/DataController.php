@@ -122,7 +122,8 @@ class DataController extends Controller
                     'DEBIT',
                     $phone, 
                     "Data purchase: {$planName}",
-                    $requestId 
+                    $requestId,
+                    'DATA' // Service type for cashback calculation
                 );
                 $balance->refresh();
             } catch (\Exception $e) {
@@ -156,7 +157,7 @@ class DataController extends Controller
                     $user,
                     $planPrice,
                     'CREDIT',
-                    $phone, 
+                    $user->mobile, 
                     'Refund for failed data purchase',
                     'REFUND_' . $requestId 
                 );
@@ -229,7 +230,7 @@ class DataController extends Controller
                     $user,
                     $planPrice,
                     'CREDIT',
-                    $phone, 
+                    $user->mobile,
                     'Refund for failed data purchase',
                     'REFUND_' . $requestId 
                 );
@@ -247,14 +248,15 @@ class DataController extends Controller
                 ]);
                 Log::error('Data purchase failed', ['response' => $responseData]);
 
-                // Check if a specific message exists in the API response
-                if (isset($responseData['message'])) {
+                // Check if a specific message exists in the API response with invalid_service or duplicate_order code
+                if (isset($responseData['code']) && in_array($responseData['code'], ['invalid_service', 'duplicate_order']) && isset($responseData['message'])) {
                     // Show the API error message AND inform about the refund
                     return "❌ " . $responseData['message'] . "\n\nYour balance of ₦{$planPrice} has been refunded.";
                 }
-
                 // Otherwise, return the default generic message
                 return "❌ Hmm, something went wrong with your purchase.\n\nYour balance of ₦{$planPrice} has been restored.\n\nPlease try again or contact support if the issue persists. 📞";
+                
+
             }
         });
     }
