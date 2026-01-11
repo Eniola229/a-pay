@@ -877,33 +877,36 @@ class WhatsappController extends Controller
                         return "⚠️ Invalid plan number. Please select a number between 1 and " . count($plans);
                     }
                 }
-            } elseif ($phone) {
-                // User sent number and phone but no plans in session
-                // Fetch plans and try to process
-                $detectedNetwork = $this->detectNetworkFromPhone($phone);
-                if (!$detectedNetwork) {
-                    return "⚠️ Invalid phone number. Please use a valid Nigerian number.";
-                }
-                
-                $plans = Cache::remember("data_plans_{$detectedNetwork}", 3600, function() use ($detectedNetwork) {
+                } elseif ($phone) {
+                    // User sent number and phone but no plans in session
+                    // Fetch plans and try to process
+                    $detectedNetwork = $this->detectNetworkFromPhone($phone);
+                    if (!$detectedNetwork) {
+                        return "⚠️ Invalid phone number. Please use a valid Nigerian number.";
+                    }
+                    
+                    // Fetch plans directly without caching
                     $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
                     $allPlans = $response->json()['data'] ?? [];
-                    return collect($allPlans)->where('service_id', $detectedNetwork)->values()->toArray();
-                });
-                
-                if (isset($plans[$planNumber - 1])) {
-                    $selectedPlan = $plans[$planNumber - 1];
+                    $plans = collect($allPlans)->where('service_id', strtolower($detectedNetwork))->values()->toArray();
                     
-                    // Clear session
-                    WhatsappSession::where('user_id', $user->id)
-                        ->where('context', 'data')
-                        ->delete();
+                    if (empty($plans)) {
+                        return "⚠️ No data plans found for *" . strtoupper($detectedNetwork) . "*.";
+                    }
                     
-                    return $this->dataController->purchase($user, $detectedNetwork, $phone, $selectedPlan['data_plan']);
-                } else {
-                    return "⚠️ Invalid plan number. Please select a number between 1 and " . count($plans);
+                    if (isset($plans[$planNumber - 1])) {
+                        $selectedPlan = $plans[$planNumber - 1];
+                        
+                        // Clear session
+                        WhatsappSession::where('user_id', $user->id)
+                            ->where('context', 'data')
+                            ->delete();
+                        
+                        return $this->dataController->purchase($user, $detectedNetwork, $phone, $selectedPlan['data_plan']);
+                    } else {
+                        return "⚠️ Invalid plan number. Please select a number between 1 and " . count($plans);
+                    }
                 }
-            }
         }
 
         // If only network mentioned, show plans
@@ -956,26 +959,25 @@ class WhatsappController extends Controller
     }
 
     /**
-     * Show numbered data plans for specific network with caching and store in session
+     * Show numbered data plans for specific network and store in session
      */
     private function showDataPlansForPhone($network, $phone, $session)
     {
-        $plans = Cache::remember("data_plans_{$network}", 3600, function() use ($network) {
-            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-            $allPlans = $response->json()['data'] ?? [];
-            return collect($allPlans)->where('service_id', $network)->values()->toArray();
-        });
+        // Fetch plans directly without caching
+        $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+        $allPlans = $response->json()['data'] ?? [];
+        $plans = collect($allPlans)->where('service_id', strtolower($network))->values()->toArray();
         
         if (empty($plans)) {
             return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
         }
-
+        
         // Store plans in session for numbered selection
         $this->updateSessionData($session, [
             'phone' => $phone,
             'plans' => $plans
         ]);
-
+        
         $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for *{$phone}*:\n\n";
         foreach (array_slice($plans, 0, 50) as $index => $p) {
             $planListMsg .= ($index + 1) . ". " . $p['data_plan'] . " - ₦" . number_format($p['price']) . "\n";
@@ -989,21 +991,19 @@ class WhatsappController extends Controller
     }
 
     /**
-     * Show data plans for specific network with caching (when only network is mentioned)
+     * Show data plans for specific network (when only network is mentioned)
      */
     private function showDataPlansForNetwork($network, $user)
     {
-        $plans = Cache::remember("data_plans_{$network}", 3600, function() use ($network) {
-            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-            $allPlans = $response->json()['data'] ?? [];
-            // Use strtolower like in DataController for case-insensitive matching
-            return collect($allPlans)->where('service_id', strtolower($network))->values()->toArray();
-        });
+        // Fetch plans directly without caching
+        $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+        $allPlans = $response->json()['data'] ?? [];
+        $plans = collect($allPlans)->where('service_id', strtolower($network))->values()->toArray();
         
         if (empty($plans)) {
             return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
         }
-
+        
         // Get or create session for data context
         $session = $this->getOrCreateSession($user, 'data');
         
@@ -1012,8 +1012,8 @@ class WhatsappController extends Controller
             'plans' => $plans,
             'network' => $network
         ]);
-
-        // Display numbered plans (like in DataController)
+        
+        // Display numbered plans
         $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans:\n\n";
         
         $displayPlans = array_slice($plans, 0, 50);
@@ -1567,8 +1567,8 @@ class WhatsappController extends Controller
 
     /**
      * Send message via Twilio
-     */
-    public function sendMessage($to, $body)
+     */ 
+     public function sendMessage($to, $body)
     {
         $sid = env('TWILIO_SID');
         $token = env('TWILIO_AUTH_TOKEN');
@@ -1579,6 +1579,23 @@ class WhatsappController extends Controller
             return;
         }
 
+        // Check if body is an array of messages (multiple messages)
+        if (is_array($body) && isset($body[0]) && is_array($body[0])) {
+            // Multiple messages - send each one
+            foreach ($body as $message) {
+                $this->sendSingleMessage($to, $message, $sid, $token, $from);
+                // small delay between messages so they arrive in order
+                usleep(500000); // 0.5 second delay
+            }
+            return;
+        }
+
+        // Single message - send it
+        $this->sendSingleMessage($to, $body, $sid, $token, $from);
+    }
+
+    private function sendSingleMessage($to, $body, $sid, $token, $from)
+    {
         try {
             $client = new Client($sid, $token);
             
@@ -1598,28 +1615,43 @@ class WhatsappController extends Controller
                         'body' => $body['message']
                     ]);
                 }
+                
+                // Log for structured message
+                WhatsappMessage::create([
+                    'phone_number' => $to,
+                    'direction' => 'outgoing',
+                    'message_body' => $body['message'],
+                    'message_sid' => $message->sid,
+                    'status' => $message->status,
+                    'metadata' => [
+                        'from' => $from,
+                        'sent_at' => now()->toIso8601String(),
+                        'has_media' => $body['type'] === 'image'
+                    ]
+                ]);
             } else {
                 // Legacy text message
                 $message = $client->messages->create("whatsapp:$to", [
                     'from' => $from,
                     'body' => $body
                 ]);
+                
+                // Log for legacy text message
+                WhatsappMessage::create([
+                    'phone_number' => $to,
+                    'direction' => 'outgoing',
+                    'message_body' => $body,
+                    'message_sid' => $message->sid,
+                    'status' => $message->status,
+                    'metadata' => [
+                        'from' => $from,
+                        'sent_at' => now()->toIso8601String(),
+                        'has_media' => false
+                    ]
+                ]);
             }
-
-            WhatsappMessage::create([
-                'phone_number' => $to,
-                'direction' => 'outgoing',
-                'message_body' => is_array($body) ? $body['message'] : $body,
-                'message_sid' => $message->sid,
-                'status' => $message->status,
-                'metadata' => [
-                    'from' => $from,
-                    'sent_at' => now()->toIso8601String(),
-                    'has_media' => is_array($body) && $body['type'] === 'image'
-                ]
-            ]);
-
         } catch (\Exception $e) {
+            // Log failed message
             WhatsappMessage::create([
                 'phone_number' => $to,
                 'direction' => 'outgoing',
@@ -1630,7 +1662,7 @@ class WhatsappController extends Controller
                     'attempted_at' => now()->toIso8601String()
                 ]
             ]);
-
+            
             \Log::error('Failed to send message', [
                 'to' => $to,
                 'error' => $e->getMessage()

@@ -49,19 +49,19 @@ class DataController extends Controller
 
     public function getPlans($network, $phone)
     {
-        $allPlans = Cache::remember("data_plans_{$network}", 3600, function() {
-            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-            return $response->json()['data'] ?? [];
-        });
+        // Fetch plans directly without caching
+        $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+        $allPlans = $response->json()['data'] ?? [];
         
         $networkPlans = collect($allPlans)->where('service_id', strtolower($network))->values();
-
+        
         if ($networkPlans->isEmpty()) {
             return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
         }
-
+        
         $planListMsg = "💾 Available *" . strtoupper($network) . "* data plans for *{$phone}*:\n\n";
         $displayPlans = $networkPlans->take(50);
+        
         foreach ($displayPlans as $index => $p) {
             $planListMsg .= ($index + 1) . ". " . $p['data_plan'] . " - ₦" . number_format($p['price']) . "\n";
         }
@@ -76,7 +76,7 @@ class DataController extends Controller
         $planListMsg .= "or \n";
         $planListMsg .= "*data 09079916807 2*\n\n";
         $planListMsg .= "⏱️ *Please respond within 1 minute.*";
-
+        
         return $planListMsg;
     }
 
@@ -211,9 +211,15 @@ class DataController extends Controller
                     ]);
 
                     return [
-                        'type' => 'image',
-                        'receipt_url' => $receiptUrl,
-                        'message' => "✅ Your {$planName} data has been activated!"
+                        [
+                            'type' => 'image',
+                            'receipt_url' => $receiptUrl,
+                            'message' => "✅ Your {$planName} data has been activated!"
+                        ],
+                        [
+                            'type' => 'text',
+                            'message' => "🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\nYour new wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay 💚"
+                        ]
                     ];
 
                 } catch (\Exception $e) {

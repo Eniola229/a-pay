@@ -74,7 +74,6 @@ class ElectricityController extends Controller
                     $meterNumber, 
                     "Electricity bill payment for meter " . $meterNumber,
                     $requestId,
-                   
                 );
                 $balance->refresh();
             } catch (\Exception $e) {
@@ -182,9 +181,15 @@ class ElectricityController extends Controller
                     ]);
 
                     return [
-                        'type' => 'image',
-                        'receipt_url' => $receiptUrl,
-                        'message' => "✅ Electricity bill paid successfully!"
+                        [
+                            'type' => 'image',
+                            'receipt_url' => $receiptUrl,
+                            'message' => "✅ Electricity bill paid successfully!"
+                        ],
+                        [
+                            'type' => 'text',
+                            'message' => "Your new wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay 💚"
+                        ]
                     ];
 
                 } catch (\Exception $e) {

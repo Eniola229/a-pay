@@ -178,9 +178,15 @@ class AirtimeController extends Controller
                     ]);
 
                     return [
-                        'type' => 'image',
-                        'receipt_url' => $receiptUrl,
-                        'message' => "✅ Your ₦{$amount} airtime has been activated!"
+                        [
+                            'type' => 'image',
+                            'receipt_url' => $receiptUrl,
+                            'message' => "✅ Your ₦{$amount} airtime has been activated!"
+                        ],
+                        [
+                            'type' => 'text',
+                            'message' => "🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\nYour new wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay 💚"
+                        ]
                     ];
 
                 } catch (\Exception $e) {

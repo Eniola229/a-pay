@@ -125,13 +125,21 @@
                         <div class="card gradient-4">
                             <div class="card-body">
                                 <h3 class="card-title text-white">Transactions Summary</h3>
-
                                 <div class="d-inline-block">
                                     <h2 id="total_amount" class="text-white">₦ Loading...</h2>
                                     <p id="total_transactions" class="text-white">Transactions: Loading...</p>
                                 </div>
-
                                 <div class="mt-3">
+                                    <select id="filter_transaction_type" class="form-control mb-2">
+                                        <option value="all">All Transactions</option>
+                                        <option value="wallet_topup">Wallet Top-up</option>
+                                        <option value="airtime">Airtime</option>
+                                        <option value="data">Data</option>
+                                        <option value="electricity">Electricity</option>
+                                        <option value="betting">Betting</option>
+                                        <option value="to_apay">To A-Pay</option>
+                                    </select>
+                                    
                                     <select id="filter_transactions" class="form-control">
                                         <option value="all">All Time</option>
                                         <option value="today">Today</option>
@@ -139,7 +147,6 @@
                                         <option value="month">This Month</option>
                                     </select>
                                 </div>
-
                                 <span class="float-right display-5 opacity-5">
                                     <i class="fa fa-money"></i>
                                 </span>
@@ -215,11 +222,14 @@
 
         const transactionSummaryUrl = "{{ route('transactions.summary') }}";
 
-        function fetchTransactionSummary(filter = 'all') {
+        function fetchTransactionSummary(filter = 'all', type = 'all') {
             $.ajax({
                 url: transactionSummaryUrl,
                 method: "GET",
-                data: { filter: filter },
+                data: { 
+                    filter: filter,
+                    type: type
+                },
                 success: function(response) {
                     if (response.code === "success") {
                         const totalAmount = Number(response.data.total_amount).toLocaleString('en-NG', {
@@ -245,12 +255,12 @@
         $(document).ready(function() {
             fetchTransactionSummary(); // load default
 
-            $('#filter_transactions').change(function() {
-                const filter = $(this).val();
-                fetchTransactionSummary(filter);
+            $('#filter_transactions, #filter_transaction_type').change(function() {
+                const filter = $('#filter_transactions').val();
+                const type = $('#filter_transaction_type').val();
+                fetchTransactionSummary(filter, type);
             });
         });
-
         const kycSummaryUrl = "{{ route('kyc.summary') }}";
 
         function fetchKycSummary() {
