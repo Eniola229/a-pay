@@ -19,6 +19,7 @@ use App\Models\Errors;
 use Illuminate\Support\Facades\Http;
 use App\Models\Borrow;
 use App\Models\Logged;
+use Carbon\Carbon;
 
 class AdminAuthController extends Controller
 {
@@ -110,8 +111,9 @@ class AdminAuthController extends Controller
         $tranCount = Transaction::all()->count();
         $userCount = User::all()->count();
         $totalBalance = Balance::all()->sum('balance');
+        $newUsersToday = User::whereDate('created_at', Carbon::today())->count();
 
-        return view('admin.dashboard', compact("users", "userCount", "tranCount", 'totalBalance'));
+        return view('admin.dashboard', compact("users", "userCount", "tranCount", 'totalBalance', 'newUsersToday'));
     }
 
     public function getBalance()

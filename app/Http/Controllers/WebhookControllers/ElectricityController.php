@@ -188,7 +188,7 @@ class ElectricityController extends Controller
                         ],
                         [
                             'type' => 'text',
-                            'message' => "Your new wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay 💚"
+                            'message' => "Your new wallet balance is ₦" . number_format($balance->balance, 2) . ".\nThank you for using A-Pay 💚"
                         ]
                     ];
 

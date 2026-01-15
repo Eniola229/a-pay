@@ -158,6 +158,7 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::delete('/kyc/{kyc}/delete', [UserController::class, 'delete'])->name('admin.kyc.delete');
 
  Route::get('/transactions/summary', [App\Http\Controllers\Admin\TransactionController::class, 'summary'])->name('transactions.summary');
+ Route::get('/admin/transactions/graph', [App\Http\Controllers\Admin\TransactionController::class, 'graphData'])->name('transactions.graph');
  Route::get('/kyc/summary', [App\Http\Controllers\Admin\KycController::class, 'summary'])->name('kyc.summary');
 
 

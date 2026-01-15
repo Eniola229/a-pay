@@ -937,7 +937,7 @@ class WhatsappController extends Controller
             }
             
             // This shows plans AND stores them in session
-            return $this->showDataPlansForPhone($detectedNetwork, $phone, $session);
+            return $this->showDataPlansForPhone($detectedNetwork, $phone, $session, $user);
         }
 
         // Both phone and plan string provided
@@ -961,7 +961,7 @@ class WhatsappController extends Controller
     /**
      * Show numbered data plans for specific network and store in session
      */
-    private function showDataPlansForPhone($network, $phone, $session)
+    private function showDataPlansForPhone($network, $phone, $session, $user)
     {
         // Fetch plans directly without caching
         $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
@@ -971,6 +971,9 @@ class WhatsappController extends Controller
         if (empty($plans)) {
             return "⚠️ No data plans found for *" . strtoupper($network) . "*.";
         }
+        
+        // Get or create session for data context
+        $session = $this->getOrCreateSession($user, 'data');
         
         // Store plans in session for numbered selection
         $this->updateSessionData($session, [
@@ -1467,7 +1470,7 @@ class WhatsappController extends Controller
             $caption .= "  Description: {$t->description}\n";
             $caption .= "  Date: {$t->created_at->format('d M Y')}\n\n";
         }
-        $caption .= "_To get your full transaction history, please reach out to customer support at 👉 *+234-803-590-6313* to generate your account statement_";
+        $caption .= "_To get your full transaction history, please reach out to customer support at 👉 *+234 815 288 0128* to generate your account statement_";
 
         // Return Image + Caption
         return [
@@ -1482,7 +1485,7 @@ class WhatsappController extends Controller
      */
     private function handleSupport()
     {
-        return "💚 *A-Pay Support Team*\n\nIf you need assistance, please contact our support via WhatsApp:\n👉 *+234-803-590-6313*\n\nWe're available to help you resolve any issue as quickly as possible.\n\nIf you'd like to return to the *main menu*, simply type:\n➡️ *menu*";
+        return "💚 *A-Pay Support Team*\n\nIf you need assistance, please contact our support via WhatsApp:\n👉 *+234 815 288 0128*\n\nWe're available to help you resolve any issue as quickly as possible.\n\nIf you'd like to return to the *main menu*, simply type:\n➡️ *menu*";
     }
 
     /**
@@ -1542,14 +1545,13 @@ class WhatsappController extends Controller
                "▶️ airtime — Buy Airtime\n" .
                "▶️ data — Buy Data\n" .
                "▶️ electric — Pay Electricity Bill\n" .
-               "▶️ transfer to A-Pay — Send money to another A-Pay account\n" .
                "▶️ fund — Fund Wallet\n" .
                "▶️ balance — View Wallet Balance\n" .
                "▶️ transactions — View Recent Transactions\n" .
                "▶️ upgrade — Upgrade your A-Pay account\n\n" .
                "💬 *Support / Customer Care*\n" .
                "If you need assistance, please contact us on WhatsApp:\n" .
-               "👉 *+234-803-590-6313*\n\n" .
+               "👉 *+234 815 288 0128*\n\n" .
                "We're always ready to help you with any issue.\n\n" .
                "*Example: airtime 500 08012345678*";
     }

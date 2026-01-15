@@ -185,7 +185,7 @@ class AirtimeController extends Controller
                         ],
                         [
                             'type' => 'text',
-                            'message' => "🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\nYour new wallet balance is ₦{$balance->balance}.\nThank you for using A-Pay 💚"
+                            'message' => "🎁 Bonus Cashback: ₦{$cashback} credited to your wallet!\nYour new wallet balance is ₦" . number_format($balance->balance, 2) . ".\nThank you for using A-Pay 💚"
                         ]
                     ];
 
