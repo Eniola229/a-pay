@@ -6,7 +6,7 @@
 <div id="main-wrapper">
 <style>
     body {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
     }
    .btn-custom {
         padding: 14px 28px;
@@ -24,10 +24,11 @@
 
     .btn-custom:hover {
         box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
     }
 
     .btn-primary {
-        background-color: #007bff;
+        background-color: #28a745;
         color: white;
     }
 
@@ -41,6 +42,37 @@
         color: white;
     }
 
+    /* Enhanced Card Styles */
+    .card {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(40, 167, 69, 0.15);
+    }
+
+    /* Gradient Cards */
+    .gradient-1 {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .gradient-2 {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+    }
+
+    .gradient-3 {
+        background: linear-gradient(135deg, #17a2b8 0%, #007bff 100%);
+    }
+
+    .gradient-4 {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    }
+
     /* Graph Section Styles */
     .graph-section {
         margin-top: 30px;
@@ -49,104 +81,167 @@
     .service-buttons {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 12px;
+        margin-bottom: 25px;
     }
 
     .service-btn {
-        padding: 10px 20px;
-        border: 2px solid #e0e0e0;
+        padding: 12px 24px;
+        border: 2px solid #e8f5e9;
         background: white;
-        border-radius: 8px;
+        border-radius: 12px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         font-weight: 600;
         font-size: 14px;
+        color: #333;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .service-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(40, 167, 69, 0.1), transparent);
+        transition: left 0.5s;
+    }
+
+    .service-btn:hover::before {
+        left: 100%;
     }
 
     .service-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.2);
         border-color: #28a745;
     }
 
     .service-btn.active {
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         color: white;
         border-color: #28a745;
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+        transform: translateY(-3px);
     }
 
     .date-filters {
         display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 12px;
+        margin-bottom: 25px;
         flex-wrap: wrap;
         align-items: center;
     }
 
     .filter-btn {
-        padding: 8px 16px;
-        border: 2px solid #e0e0e0;
+        padding: 10px 20px;
+        border: 2px solid #e8f5e9;
         background: white;
-        border-radius: 6px;
+        border-radius: 10px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         font-size: 13px;
         font-weight: 500;
+        color: #333;
     }
 
     .filter-btn:hover {
         border-color: #28a745;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
     }
 
     .filter-btn.active {
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         color: white;
         border-color: #28a745;
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.25);
     }
 
     .custom-date-picker {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         align-items: center;
         flex-wrap: wrap;
+        padding: 8px 16px;
+        background: white;
+        border-radius: 10px;
+        border: 2px solid #e8f5e9;
     }
 
     .custom-date-picker input {
         padding: 8px 12px;
-        border: 2px solid #e0e0e0;
-        border-radius: 6px;
+        border: 2px solid #e8f5e9;
+        border-radius: 8px;
         font-size: 13px;
+        transition: all 0.3s;
+    }
+
+    .custom-date-picker input:focus {
+        outline: none;
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
     }
 
     .custom-date-picker label {
         font-weight: 600;
         font-size: 13px;
         margin: 0;
+        color: #28a745;
+    }
+
+    #apply-custom-date {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    #apply-custom-date:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
     }
 
     .chart-container {
         background: white;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+        border: 1px solid rgba(40, 167, 69, 0.1);
     }
 
     .chart-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #e0e0e0;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e8f5e9;
     }
 
     .chart-header h4 {
         margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-        color: #333;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e7e34;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .chart-header h4::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(180deg, #28a745 0%, #20c997 100%);
+        border-radius: 4px;
     }
 
     .chart-legend {
@@ -160,42 +255,85 @@
         align-items: center;
         gap: 8px;
         font-size: 13px;
+        font-weight: 500;
+        padding: 6px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .legend-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .legend-color {
-        width: 16px;
-        height: 16px;
-        border-radius: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
     .legend-color.success {
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     }
 
     .legend-color.error {
-        background: #dc3545;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
     .legend-color.pending {
-        background: #ffc107;
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
     }
 
     .legend-color.total {
-        background: #17a2b8;
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    }
+
+    .legend-color.fee-success {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+    }
+
+    .legend-color.fee-error {
+        background: linear-gradient(135deg, #e83e8c 0%, #d63384 100%);
     }
 
     .chart-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 15px;
-        margin-top: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 25px;
     }
 
     .stat-card {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 4px solid #28a745;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 24px;
+        border-radius: 14px;
+        border-left: 5px solid #28a745;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(40, 167, 69, 0.05) 0%, transparent 70%);
+        transition: all 0.5s;
+    }
+
+    .stat-card:hover::before {
+        top: -25%;
+        right: -25%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.15);
     }
 
     .stat-card.success {
@@ -226,35 +364,120 @@
         border-left-color: #6c757d;
     }
 
+    .stat-card.fee-success {
+        border-left-color: #6f42c1;
+    }
+
+    .stat-card.fee-error {
+        border-left-color: #e83e8c;
+    }
+
     .stat-card h4 {
-        margin: 0 0 5px 0;
-        color: #333;
-        font-size: 24px;
-        font-weight: 700;
+        margin: 0 0 8px 0;
+        color: #1e7e34;
+        font-size: 28px;
+        font-weight: 800;
+        position: relative;
+        z-index: 1;
     }
 
     .stat-card p {
         margin: 0;
         color: #666;
-        font-size: 13px;
-        font-weight: 500;
+        font-size: 14px;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
     }
 
     .stat-card .stat-count {
-        font-size: 11px;
+        font-size: 12px;
         color: #999;
-        margin-top: 5px;
+        margin-top: 8px;
+        position: relative;
+        z-index: 1;
+        font-weight: 500;
     }
 
     .stats-row {
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
 
     .stats-row h5 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 15px;
-        color: #333;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: #1e7e34;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .stats-row h5::before {
+        content: '';
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(180deg, #28a745 0%, #20c997 100%);
+        border-radius: 4px;
+    }
+
+    /* Enhanced select dropdowns */
+    select.form-control {
+        border: 2px solid #e8f5e9;
+        border-radius: 10px;
+        padding: 10px 15px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    select.form-control:focus {
+        outline: none;
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    }
+
+    /* Animate cards on load */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .card {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:nth-child(4) { animation-delay: 0.4s; }
+    .card:nth-child(5) { animation-delay: 0.5s; }
+
+    /* Loading spinner for charts */
+    .chart-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+        color: #28a745;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #e8f5e9;
+        border-top-color: #28a745;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 </style>
 
@@ -328,7 +551,6 @@
                                     <option value="electricity">Electricity</option>
                                     <option value="betting">Betting</option>
                                     <option value="to_apay">To A-Pay</option>
-                                    <option value="cashback">Cashback</option>
                                 </select>
                                 <select id="filter_transactions" class="form-control">
                                     <option value="all">All Time</option>
@@ -366,12 +588,12 @@
                 </div>
             </div>
 
-            <!-- NEW GRAPH SECTION -->
+            <!-- GRAPH SECTION -->
             <div class="row graph-section">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
-                            <h3 class="card-title mb-4">Transaction Analytics</h3>
+                            <h3 class="card-title mb-4" style="color: #1e7e34; font-weight: 700;">📊 Transaction Analytics</h3>
                             
                             <!-- Service Type Buttons -->
                             <div class="service-buttons">
@@ -396,7 +618,7 @@
                                     <input type="date" id="start-date" class="form-control-sm">
                                     <span>to</span>
                                     <input type="date" id="end-date" class="form-control-sm">
-                                    <button class="btn btn-sm btn-success" id="apply-custom-date">Apply</button>
+                                    <button class="btn btn-sm" id="apply-custom-date">Apply</button>
                                 </div>
                             </div>
 
@@ -421,6 +643,14 @@
                                             <div class="legend-color total"></div>
                                             <span>Total Volume</span>
                                         </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color fee-success"></div>
+                                            <span>Fee (Success)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color fee-error"></div>
+                                            <span>Fee (Error)</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <canvas id="transactionChart" height="80"></canvas>
@@ -428,7 +658,7 @@
 
                             <!-- Stats Summary -->
                             <div class="stats-row">
-                                <h5>Transaction Status</h5>
+                                <h5>📈 Transaction Status</h5>
                                 <div class="chart-stats">
                                     <div class="stat-card success">
                                         <h4 id="stat-success-amount">₦0</h4>
@@ -454,7 +684,7 @@
                             </div>
 
                             <div class="stats-row">
-                                <h5>Transaction Type</h5>
+                                <h5>💳 Transaction Type</h5>
                                 <div class="chart-stats">
                                     <div class="stat-card credit">
                                         <h4 id="stat-credit-amount">₦0</h4>
@@ -475,6 +705,22 @@
                                         <h4 id="stat-average">₦0</h4>
                                         <p>Average Transaction</p>
                                         <div class="stat-count" id="stat-success-rate">0% success rate</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="stats-row">
+                                <h5>💰 Transaction Fees</h5>
+                                <div class="chart-stats">
+                                    <div class="stat-card fee-success">
+                                        <h4 id="stat-fee-success-amount">₦0</h4>
+                                        <p>Fee Success</p>
+                                        <div class="stat-count" id="stat-fee-success-count">0 transactions</div>
+                                    </div>
+                                    <div class="stat-card fee-error">
+                                        <h4 id="stat-fee-error-amount">₦0</h4>
+                                        <p>Fee Error</p>
+                                        <div class="stat-count" id="stat-fee-error-count">0 transactions</div>
                                     </div>
                                 </div>
                             </div>
@@ -583,7 +829,7 @@
         }
     });
 
-    // NEW GRAPH FUNCTIONALITY
+    // GRAPH FUNCTIONALITY
     let transactionChart;
     let currentService = 'all';
     let currentFilter = 'week';
@@ -660,6 +906,34 @@
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Transaction Fee (Success)',
+                        data: [],
+                        borderColor: '#6f42c1',
+                        backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#6f42c1',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Transaction Fee (Error)',
+                        data: [],
+                        borderColor: '#e83e8c',
+                        backgroundColor: 'rgba(232, 62, 140, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#e83e8c',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     }
                 ]
             },
@@ -743,6 +1017,8 @@
         transactionChart.data.datasets[1].data = data.pending_amounts;
         transactionChart.data.datasets[2].data = data.error_amounts;
         transactionChart.data.datasets[3].data = data.total_amounts;
+        transactionChart.data.datasets[4].data = data.fee_success_amounts;
+        transactionChart.data.datasets[5].data = data.fee_error_amounts;
         
         $('#chart-title').text(data.service_name + ' - Transaction Overview');
         transactionChart.update();
@@ -774,6 +1050,13 @@
         
         $('#stat-average').text(formatCurrency(stats.average));
         $('#stat-success-rate').text(stats.success_rate + '% success rate');
+        
+        // Fee stats
+        $('#stat-fee-success-amount').text(formatCurrency(stats.fee_success_total));
+        $('#stat-fee-success-count').text(stats.fee_success_count + ' transactions');
+        
+        $('#stat-fee-error-amount').text(formatCurrency(stats.fee_error_total));
+        $('#stat-fee-error-count').text(stats.fee_error_count + ' transactions');
     }
 
     // Service button clicks

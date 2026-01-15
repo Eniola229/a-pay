@@ -17,16 +17,17 @@ class TransactionService
      * @param string|null $description
      * @param string|null $reference Transaction reference/request_id
      * @param string|null $serviceType Service type for cashback calculation (e.g., 'AIRTIME', 'DATA')
+     * @param float|null $charges Transaction fee/charges amount
      * @return \App\Models\Transaction
      * @throws \Exception
      */
-    public function createTransaction($user, float $amount, string $type, ?string $beneficiary = null, ?string $description = null, ?string $reference = null, ?string $serviceType = null)
+    public function createTransaction($user, float $amount, string $type, ?string $beneficiary = null, ?string $description = null, ?string $reference = null, ?string $serviceType = null, ?float $charges = null)
     {
         if (!in_array(strtoupper($type), ['DEBIT', 'CREDIT'])) {
             throw new Exception("Invalid transaction type: $type");
         }
         
-        return DB::transaction(function () use ($user, $amount, $type, $beneficiary, $description, $reference, $serviceType) {
+        return DB::transaction(function () use ($user, $amount, $type, $beneficiary, $description, $reference, $serviceType, $charges) {
             // Fetch user balance and lock for update
             $balance = Balance::where('user_id', $user->id)->lockForUpdate()->first();
             
@@ -80,6 +81,7 @@ class TransactionService
                 'balance_after' => $balanceAfter,
                 'reference' => $reference,
                 'cash_back' => $cashback,
+                'charges' => $charges,
             ]);
             
             return $transaction;
@@ -96,7 +98,7 @@ class TransactionService
      * @param string $description
      * @param string $refundReference
      * @return \App\Models\Transaction
-     */
+     */ 
     public function refundTransaction($transaction, $balance, $originalReference, $beneficiary, $description, $refundReference)
     {
         return DB::transaction(function () use ($transaction, $balance, $originalReference, $beneficiary, $description, $refundReference) {

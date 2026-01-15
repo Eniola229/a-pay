@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Mail\ElectricityPaymentReceipt;
-
+ 
 class ElectricityController extends Controller
 {
     protected $transactionService;
@@ -55,9 +55,8 @@ class ElectricityController extends Controller
                 return "❌ Account error. Please contact support.";
             }
 
-            $serviceFee = 39;
-            $systemFee = 60;
-            $totalAmount = $amount + $serviceFee + $systemFee;
+            $transactionFee = 99;
+            $totalAmount = $amount + $transactionFee;
 
             if ($balance->balance < $totalAmount) {
                 $shortBy = $totalAmount - $balance->balance;
@@ -67,28 +66,34 @@ class ElectricityController extends Controller
             $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
 
             try {
+                // Debit only the electricity amount (not including fee)
                 $transaction = $this->transactionService->createTransaction(
                     $user,
-                    $totalAmount,
+                    $amount,
                     'DEBIT',
                     $meterNumber, 
                     "Electricity bill payment for meter " . $meterNumber,
                     $requestId,
+                    null,
+                    $transactionFee
                 );
+                
+                // Debit the transaction fee separately
+                $feeTransaction = $this->transactionService->createTransaction(
+                    $user,
+                    $transactionFee,
+                    'DEBIT',
+                    'SYSTEM',
+                    "Transaction fee for electricity purchase - Meter: " . $meterNumber,
+                    'FEE_' . $requestId,
+                    null,
+                    0
+                );
+                
                 $balance->refresh();
             } catch (\Exception $e) {
-                return "😔 Oops! Something went wrong...";
+                return "Processing...\n\n if i dont reply within 1 min please message support";
             }
-
-            $electricityPurchase = ElectricityPurchase::create([
-                'user_id'      => $user->id,
-                'meter_number' => $meterNumber,
-                'provider_id'  => $providerMap[$provider] ?? $provider,
-                'amount'       => $amount,
-                'service_fee'  => $serviceFee,
-                'total_amount' => $totalAmount,
-                'status'       => 'PENDING'
-            ]);
 
             $apiToken = env('EBILLS_API_TOKEN');
 
@@ -114,6 +119,7 @@ class ElectricityController extends Controller
                     'type' => 'FAILED',
                 ]);
                 
+                // Refund both transactions
                 $this->transactionService->refundTransaction(
                     $transaction,
                     $balance,
@@ -121,6 +127,15 @@ class ElectricityController extends Controller
                     $user->mobile,
                     "Refund for electricity purchase failed - Provider unreachable for meter {$meterNumber}",
                     "REFUND_" . $requestId
+                );
+                
+                $this->transactionService->refundTransaction(
+                    $feeTransaction,
+                    $balance,
+                    'FEE_' . $requestId,
+                    'SYSTEM',
+                    "Refund of transaction fee - Provider unreachable for meter {$meterNumber}",
+                    "REFUND_FEE_" . $requestId
                 );
                 
                 return "⚠️ Could not reach provider. Please try again later. Your balance has been restored.";
@@ -141,11 +156,19 @@ class ElectricityController extends Controller
                 $token = $responseData['data']['token'] ?? 'N/A';
                 $units = $responseData['data']['units'] ?? 'Not Provided';
 
+                // Mark both transactions as SUCCESS
                 $this->transactionService->markTransactionSuccess(
                     $transaction,
                     "Electricity bill payment for meter {$meterNumber} | Token: {$token} | Units: {$units}",
                     $requestId,
                     $meterNumber 
+                );
+                
+                $this->transactionService->markTransactionSuccess(
+                    $feeTransaction,
+                    "Transaction fee for electricity purchase - Meter: {$meterNumber} | Token: {$token}",
+                    'FEE_' . $requestId,
+                    'SYSTEM'
                 );
 
                 try {
@@ -153,7 +176,7 @@ class ElectricityController extends Controller
                         'user' => $user,
                         'meterNumber' => $meterNumber,
                         'provider' => $provider,
-                        'amount' => $amount,
+                        'amount' => $totalAmount,
                         'token' => $token,
                         'units' => $units,
                         'customer_address' => $responseData['data']['customer_address'] ?? 'N/A',
@@ -167,7 +190,7 @@ class ElectricityController extends Controller
                 // === GENERATE ELECTRICITY RECEIPT ===
                 try {
                     $receiptUrl = $this->receiptGenerator->generateElectricityReceipt([
-                        'amount' => $totalAmount, // Show total paid (amount + fees)
+                        'amount' => $totalAmount, 
                         'meter_number' => $meterNumber,
                         'provider' => $provider,
                         'token' => $token,
@@ -202,6 +225,7 @@ class ElectricityController extends Controller
                 }
 
             } else {
+                // Refund both transactions
                 $this->transactionService->refundTransaction(
                     $transaction,
                     $balance,
@@ -209,6 +233,15 @@ class ElectricityController extends Controller
                     $user->mobile,
                     "Refund for electricity purchase - Payment unsuccessful for meter {$meterNumber}",
                     "REFUND_" . $requestId
+                );
+                
+                $this->transactionService->refundTransaction(
+                    $feeTransaction,
+                    $balance,
+                    'FEE_' . $requestId,
+                    'SYSTEM',
+                    "Refund of transaction fee - Payment unsuccessful for meter {$meterNumber}",
+                    "REFUND_FEE_" . $requestId
                 );
 
                 $errorMsg = $responseData['message'] ?? 'Payment failed. Please try again.';
@@ -221,7 +254,7 @@ class ElectricityController extends Controller
                         'from' => 'EBILLS',
                         'type' => 'FAILED',
                 ]);
-                return "❌ Payment failed.\n\n⚠️ " . $errorMsg . "\n\nYour balance of ₦" . number_format($totalAmount) . " has been restored.\n\nPlease try again or contact support. 📞";
+                return "❌ Payment failed.\n\nYour balance of ₦" . number_format($totalAmount) . " has been restored.\n\nPlease try again or contact support. 📞";
             }
         });
     }

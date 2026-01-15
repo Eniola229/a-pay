@@ -97,18 +97,24 @@ class TransactionController extends Controller
             $serviceName = 'Cashback';
         }
         
+        // Create separate query for transaction fees
+        $feeQuery = Transaction::query()->where('description', 'like', '%Transaction fee%');
+        
         // Determine date range and grouping
         $labels = [];
         $successAmounts = [];
         $pendingAmounts = [];
         $errorAmounts = [];
         $totalAmounts = [];
+        $feeSuccessAmounts = [];
+        $feeErrorAmounts = [];
         $groupBy = 'day';
         
         if ($filter === 'custom' && $startDate && $endDate) {
             $start = Carbon::parse($startDate)->startOfDay();
             $end = Carbon::parse($endDate)->endOfDay();
             $query->whereBetween('created_at', [$start, $end]);
+            $feeQuery->whereBetween('created_at', [$start, $end]);
             
             // Determine grouping based on date range
             $daysDiff = $start->diffInDays($end);
@@ -119,12 +125,16 @@ class TransactionController extends Controller
             }
         } elseif ($filter === 'today') {
             $query->whereDate('created_at', Carbon::today());
+            $feeQuery->whereDate('created_at', Carbon::today());
             $groupBy = 'hour';
         } elseif ($filter === 'week') {
             $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+            $feeQuery->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
             $groupBy = 'day';
         } elseif ($filter === 'month') {
             $query->whereMonth('created_at', Carbon::now()->month)
+                  ->whereYear('created_at', Carbon::now()->year);
+            $feeQuery->whereMonth('created_at', Carbon::now()->month)
                   ->whereYear('created_at', Carbon::now()->year);
             $groupBy = 'day';
         } elseif ($filter === 'all') {
@@ -140,6 +150,8 @@ class TransactionController extends Controller
                 $pendingAmounts[] = 0;
                 $errorAmounts[] = 0;
                 $totalAmounts[] = 0;
+                $feeSuccessAmounts[] = 0;
+                $feeErrorAmounts[] = 0;
             }
             
             $successResults = $query->clone()
@@ -169,6 +181,24 @@ class TransactionController extends Controller
                 ->groupBy('period')
                 ->get();
             
+            $feeSuccessResults = $feeQuery->clone()
+                ->where('status', 'SUCCESS')
+                ->select(
+                    DB::raw('HOUR(created_at) as period'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('period')
+                ->get();
+            
+            $feeErrorResults = $feeQuery->clone()
+                ->where('status', 'ERROR')
+                ->select(
+                    DB::raw('HOUR(created_at) as period'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('period')
+                ->get();
+            
             foreach ($successResults as $result) {
                 $successAmounts[$result->period] = floatval($result->total);
             }
@@ -179,6 +209,14 @@ class TransactionController extends Controller
             
             foreach ($errorResults as $result) {
                 $errorAmounts[$result->period] = floatval($result->total);
+            }
+            
+            foreach ($feeSuccessResults as $result) {
+                $feeSuccessAmounts[$result->period] = floatval($result->total);
+            }
+            
+            foreach ($feeErrorResults as $result) {
+                $feeErrorAmounts[$result->period] = floatval($result->total);
             }
             
             for ($i = 0; $i < 24; $i++) {
@@ -206,6 +244,8 @@ class TransactionController extends Controller
                 $pendingAmounts[] = 0;
                 $errorAmounts[] = 0;
                 $totalAmounts[] = 0;
+                $feeSuccessAmounts[] = 0;
+                $feeErrorAmounts[] = 0;
                 $period->addDay();
             }
             
@@ -236,6 +276,24 @@ class TransactionController extends Controller
                 ->groupBy('period')
                 ->get();
             
+            $feeSuccessResults = $feeQuery->clone()
+                ->where('status', 'SUCCESS')
+                ->select(
+                    DB::raw('DATE(created_at) as period'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('period')
+                ->get();
+            
+            $feeErrorResults = $feeQuery->clone()
+                ->where('status', 'ERROR')
+                ->select(
+                    DB::raw('DATE(created_at) as period'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('period')
+                ->get();
+            
             foreach ($successResults as $result) {
                 if (isset($dateMap[$result->period])) {
                     $index = $dateMap[$result->period];
@@ -254,6 +312,20 @@ class TransactionController extends Controller
                 if (isset($dateMap[$result->period])) {
                     $index = $dateMap[$result->period];
                     $errorAmounts[$index] = floatval($result->total);
+                }
+            }
+            
+            foreach ($feeSuccessResults as $result) {
+                if (isset($dateMap[$result->period])) {
+                    $index = $dateMap[$result->period];
+                    $feeSuccessAmounts[$index] = floatval($result->total);
+                }
+            }
+            
+            foreach ($feeErrorResults as $result) {
+                if (isset($dateMap[$result->period])) {
+                    $index = $dateMap[$result->period];
+                    $feeErrorAmounts[$index] = floatval($result->total);
                 }
             }
             
@@ -298,8 +370,33 @@ class TransactionController extends Controller
                 ->orderBy('month')
                 ->get();
             
+            $feeSuccessResults = $feeQuery->clone()
+                ->where('status', 'SUCCESS')
+                ->select(
+                    DB::raw('YEAR(created_at) as year'),
+                    DB::raw('MONTH(created_at) as month'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('year', 'month')
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get();
+            
+            $feeErrorResults = $feeQuery->clone()
+                ->where('status', 'ERROR')
+                ->select(
+                    DB::raw('YEAR(created_at) as year'),
+                    DB::raw('MONTH(created_at) as month'),
+                    DB::raw('SUM(amount) as total')
+                )
+                ->groupBy('year', 'month')
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get();
+            
             // Combine results
             $allPeriods = $successResults->concat($pendingResults)->concat($errorResults)
+                ->concat($feeSuccessResults)->concat($feeErrorResults)
                 ->unique(function($item) {
                     return $item->year . '-' . $item->month;
                 })
@@ -316,6 +413,8 @@ class TransactionController extends Controller
                 $pendingAmounts[] = 0;
                 $errorAmounts[] = 0;
                 $totalAmounts[] = 0;
+                $feeSuccessAmounts[] = 0;
+                $feeErrorAmounts[] = 0;
             }
             
             foreach ($successResults as $result) {
@@ -342,6 +441,22 @@ class TransactionController extends Controller
                 }
             }
             
+            foreach ($feeSuccessResults as $result) {
+                $key = $result->year . '-' . $result->month;
+                if (isset($periodMap[$key])) {
+                    $index = $periodMap[$key];
+                    $feeSuccessAmounts[$index] = floatval($result->total);
+                }
+            }
+            
+            foreach ($feeErrorResults as $result) {
+                $key = $result->year . '-' . $result->month;
+                if (isset($periodMap[$key])) {
+                    $index = $periodMap[$key];
+                    $feeErrorAmounts[$index] = floatval($result->total);
+                }
+            }
+            
             for ($i = 0; $i < count($labels); $i++) {
                 $totalAmounts[$i] = $successAmounts[$i] + $pendingAmounts[$i] + $errorAmounts[$i];
             }
@@ -357,6 +472,10 @@ class TransactionController extends Controller
         $debitTransactions = $query->clone()->where('type', 'DEBIT')->get();
         $cashbackTransactions = $query->clone()->where('description', 'like', '%Cashback%')->get();
         
+        // Transaction fee statistics
+        $feeSuccessTransactions = $feeQuery->clone()->where('status', 'SUCCESS')->get();
+        $feeErrorTransactions = $feeQuery->clone()->where('status', 'ERROR')->get();
+        
         $allTransactions = $query->clone()->get();
         
         $successTotal = $successTransactions->sum('amount');
@@ -368,6 +487,9 @@ class TransactionController extends Controller
         $debitTotal = $debitTransactions->sum('amount');
         $cashbackTotal = $cashbackTransactions->sum('amount');
         
+        $feeSuccessTotal = $feeSuccessTransactions->sum('amount');
+        $feeErrorTotal = $feeErrorTransactions->sum('amount');
+        
         $successCount = $successTransactions->count();
         $pendingCount = $pendingTransactions->count();
         $errorCount = $errorTransactions->count();
@@ -376,6 +498,9 @@ class TransactionController extends Controller
         $creditCount = $creditTransactions->count();
         $debitCount = $debitTransactions->count();
         $cashbackCount = $cashbackTransactions->count();
+        
+        $feeSuccessCount = $feeSuccessTransactions->count();
+        $feeErrorCount = $feeErrorTransactions->count();
         
         $average = $totalCount > 0 ? $totalAmount / $totalCount : 0;
         $successRate = $totalCount > 0 ? round(($successCount / $totalCount) * 100, 1) : 0;
@@ -395,6 +520,10 @@ class TransactionController extends Controller
             'debit_count' => $debitCount,
             'cashback_total' => $cashbackTotal,
             'cashback_count' => $cashbackCount,
+            'fee_success_total' => $feeSuccessTotal,
+            'fee_success_count' => $feeSuccessCount,
+            'fee_error_total' => $feeErrorTotal,
+            'fee_error_count' => $feeErrorCount,
             'average' => $average,
             'success_rate' => $successRate
         ];
@@ -407,6 +536,8 @@ class TransactionController extends Controller
                 'pending_amounts' => $pendingAmounts,
                 'error_amounts' => $errorAmounts,
                 'total_amounts' => $totalAmounts,
+                'fee_success_amounts' => $feeSuccessAmounts,
+                'fee_error_amounts' => $feeErrorAmounts,
                 'service_name' => $serviceName,
                 'stats' => $stats
             ]
