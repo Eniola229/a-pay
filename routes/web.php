@@ -141,6 +141,7 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
  Route::get('/dashboard', [AdminAuthController::class, 'dashboard'])->name('admin-dashboard'); 
  Route::get('/wallet-balance', [AdminAuthController::class, 'getBalance'])->name('wallet.balance');
  Route::get('/transactions', [AdminAuthController::class, 'transactions'])->name('admin.transactions'); 
+Route::get('/transactions/logs/{reference}', [AdminAuthController::class, 'getTransactionLogs'])->name('admin.transactions.logs');
  Route::get('/complians', [AdminAuthController::class, 'complians'])->name('admin-complians'); 
  Route::get('/users', [UserController::class, 'users'])->name('admin-users'); 
  Route::get('/users/{id}', [UserController::class, 'showUser'])->name('admin.users.show');

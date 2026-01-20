@@ -109,9 +109,9 @@ class ElectricityController extends Controller
                 return response()->json(['status' => false, 'message' => 'Invalid PIN.'], 400);
             }
 
-            // Calculate total amount (amount + service fee + 60)
-            $serviceFee = 39;
-            $totalAmount = $request->amount + $serviceFee + 60;
+            // Calculate total amount with transaction fee
+            $transactionFee = 99;
+            $totalAmount = $request->amount + $transactionFee;
 
             if ($request->amount < 1000) {
                 return response()->json([
@@ -131,16 +131,31 @@ class ElectricityController extends Controller
             $requestId = 'REQ_' . now()->format('YmdHis') . strtoupper(Str::random(12));
 
             // -----------------------
-            // 3️⃣ Deduct balance via WebTransactionService (DEBIT)
+            // 3️⃣ Deduct balance via WebTransactionService
             // -----------------------
             try {
+                // Debit only the electricity amount (not including fee)
                 $transaction = $this->transactionService->createTransaction(
                     $user,
-                    $totalAmount,
+                    $request->amount,
                     'DEBIT',
                     $request->meter_number,
-                    "Electricity bill payment for " . $request->meter_number,
-                    $requestId
+                    "Electricity bill payment for meter " . $request->meter_number,
+                    $requestId,
+                    null,
+                    $transactionFee
+                );
+                
+                // Debit the transaction fee separately
+                $feeTransaction = $this->transactionService->createTransaction(
+                    $user,
+                    $transactionFee,
+                    'DEBIT',
+                    'SYSTEM',
+                    "Transaction fee for electricity purchase - Meter: " . $request->meter_number,
+                    'FEE_' . $requestId,
+                    null,
+                    0
                 );
 
                 // Refresh balance
@@ -153,32 +168,21 @@ class ElectricityController extends Controller
             }
 
             // -----------------------
-            // 4️⃣ Store electricity purchase record (optional)
-            // -----------------------
-            // $electricityPurchase = ElectricityPurchase::create([
-            //     'user_id'      => $user->id,
-            //     'meter_number' => $request->meter_number,
-            //     'provider_id'  => $request->provider_id,
-            //     'amount'       => $request->amount,
-            //     'service_fee'  => $serviceFee,
-            //     'total_amount' => $totalAmount,
-            //     'status'       => 'PENDING'
-            // ]);
-
-            // -----------------------
-            // 5️⃣ Call the API
+            // 4️⃣ Call the API
             // -----------------------
             try {
                 $purchaseResponse = Http::withHeaders([
                     'Authorization' => 'Bearer ' . env('EBILLS_API_TOKEN'),
                     'Content-Type'  => 'application/json',
-                ])->post('https://ebills.africa/wp-json/api/v2/electricity', [
+                ])->timeout(15)->post('https://ebills.africa/wp-json/api/v2/electricity', [
                     'request_id'   => $requestId,
                     'customer_id'  => $request->meter_number,
                     'service_id'   => $request->provider_id,
                     'variation_id' => $request->variation_id,
                     'amount'       => $request->amount,
                 ]);
+
+                $responseData = $purchaseResponse->json();
             } catch (\Exception $e) {
                 // Log the error
                 Logged::create([
@@ -191,32 +195,35 @@ class ElectricityController extends Controller
                     'type' => 'FAILED',
                 ]);
 
-                // Refund the user (CREDIT)
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $totalAmount,
-                    'CREDIT',
+                // Refund both transactions
+                $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
                     $request->meter_number,
-                    'Refund for failed electricity payment',
-                    'REFUND_' . $requestId
+                    "Refund for electricity purchase failed - Provider unreachable for meter {$request->meter_number}",
+                    "REFUND_" . $requestId
                 );
-
-                // Update original transaction status
-                $transaction->update([
-                    'status' => 'ERROR',
-                    'reference' => $requestId
-                ]);
-
-                // $electricityPurchase->update(['status' => 'FAILED']);
+                
+                $this->transactionService->refundTransaction(
+                    $feeTransaction,
+                    $balance,
+                    'FEE_' . $requestId,
+                    'SYSTEM',
+                    "Refund of transaction fee - Provider unreachable for meter {$request->meter_number}",
+                    "REFUND_FEE_" . $requestId
+                );
 
                 // Prepare email details for failure
                 $emailDetails = [
                     'user' => $user,
                     'meterNumber' => $request->meter_number,
                     'provider' => $request->provider_id,
-                    'amount' => $request->amount,
-                    'token' => 0,
-                    'units' => 0,
+                    'amount' => $totalAmount,
+                    'token' => 'N/A',
+                    'units' => 'N/A',
+                    'customer_address' => 'N/A',
+                    'customer_name_m' => 'N/A',
                     'status' => 'FAILED'
                 ];
 
@@ -233,155 +240,111 @@ class ElectricityController extends Controller
             }
 
             // -----------------------
-            // 6️⃣ Check if the API request was successful
+            // 5️⃣ Check if the API request was successful
             // -----------------------
-            if ($purchaseResponse->successful()) {
-                $responseData = $purchaseResponse->json();
+            if ($purchaseResponse->successful() && ($responseData['code'] ?? '') === 'success') {
+                // Log success
+                Logged::create([
+                    'user_id' => $user->id,
+                    'for' => 'ELECTRICITY',
+                    'message' => 'Electricity payment successful',
+                    'stack_trace' => json_encode($responseData),
+                    't_reference' => $requestId,
+                    'from' => 'EBILLS',
+                    'type' => 'SUCCESS',
+                ]);
 
-                // Check if the API response indicates success
-                if (isset($responseData['code']) && $responseData['code'] === 'success') {
-                    // Log success
-                    Logged::create([
-                        'user_id' => $user->id,
-                        'for' => 'ELECTRICITY',
-                        'message' => 'Electricity payment successful',
-                        'stack_trace' => json_encode($responseData),
-                        't_reference' => $requestId,
-                        'from' => 'EBILLS',
-                        'type' => 'SUCCESS',
-                    ]);
+                // Get token and units from nested 'data' object
+                $token = $responseData['data']['token'] ?? 'N/A';
+                $units = $responseData['data']['units'] ?? 'Not Provided';
 
-                    // Update transaction with token and units
-                    $transaction->update([
-                        'description' => "Electricity bill payment for " . $request->meter_number . 
-                                       ' | Token: ' . $responseData['token'] . 
-                                       ' | Units: ' . $responseData['units'],
-                        'status' => 'SUCCESS',
-                        'reference' => $requestId
-                    ]);
+                // Mark both transactions as SUCCESS
+                $this->transactionService->markTransactionSuccess(
+                    $transaction,
+                    "Electricity bill payment for meter {$request->meter_number} | Token: {$token} | Units: {$units}",
+                    $requestId,
+                    $request->meter_number
+                );
+                
+                $this->transactionService->markTransactionSuccess(
+                    $feeTransaction,
+                    "Transaction fee for electricity purchase - Meter: {$request->meter_number} | Token: {$token}",
+                    'FEE_' . $requestId,
+                    'SYSTEM'
+                );
 
-                    // $electricityPurchase->update(['status' => 'SUCCESS']);
+                // Prepare email details
+                $emailDetails = [
+                    'user' => $user,
+                    'meterNumber' => $request->meter_number,
+                    'provider' => $request->provider_id,
+                    'amount' => $totalAmount,
+                    'token' => $token,
+                    'units' => $units,
+                    'customer_address' => $responseData['data']['customer_address'] ?? 'N/A',
+                    'customer_name_m' => $responseData['data']['customer_name'] ?? 'N/A',
+                    'status' => 'SUCCESS'
+                ];
 
-                    // Prepare email details
-                    $emailDetails = [
-                        'user' => $user,
-                        'meterNumber' => $request->meter_number,
-                        'provider' => $request->provider_id,
-                        'amount' => $request->amount,
-                        'token' => $responseData['token'],
-                        'units' => $responseData['units'],
-                        'status' => 'SUCCESS'
-                    ];
-
-                    // Send email
-                    try {
-                        Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
-                    } catch (\Exception $e) {
-                        Log::error('Email send failed', ['error' => $e->getMessage()]);
-                    }
-
-                    return response()->json([
-                        'status' => true,
-                        'message' => 'Your electricity bill has been paid successfully. Please check your transaction history for the token.',
-                        'token' => $responseData['token'],
-                        'units' => $responseData['units'],
-                        'balance' => $balance->fresh()->balance
-                    ]);
-
-                } else {
-                    // Extract the error message from the API response
-                    $errorMessage = $responseData['message'] ?? 'Payment failed due to an unknown error.';
-
-                    // Log the error
-                    Logged::create([
-                        'user_id' => $user->id,
-                        'for' => 'ELECTRICITY',
-                        'message' => $errorMessage,
-                        'stack_trace' => json_encode($responseData, JSON_PRETTY_PRINT),
-                        't_reference' => $requestId,
-                        'from' => 'EBILLS',
-                        'type' => 'FAILED',
-                    ]);
-
-                    // Refund the user (CREDIT)
-                    $refundTransaction = $this->transactionService->createTransaction(
-                        $user,
-                        $totalAmount,
-                        'CREDIT',
-                        $request->meter_number,
-                        'Refund for failed electricity payment',
-                        'REFUND_' . $requestId
-                    );
-
-                    // Update transaction status
-                    $transaction->update([
-                        'status' => 'ERROR',
-                        'reference' => $requestId
-                    ]);
-
-                    // $electricityPurchase->update(['status' => 'FAILED']);
-
-                    // Prepare email details for failure
-                    $emailDetails = [
-                        'user' => $user,
-                        'meterNumber' => $request->meter_number,
-                        'provider' => $request->provider_id,
-                        'amount' => $request->amount,
-                        'token' => 0,
-                        'units' => 0,
-                        'status' => 'FAILED'
-                    ];
-
-                    try {
-                        Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
-                    } catch (\Exception $e) {
-                        Log::error('Email send failed', ['error' => $e->getMessage()]);
-                    }
-
-                    return response()->json(['status' => false, 'message' => $errorMessage], 500);
+                // Send email
+                try {
+                    Mail::to($user->email)->send(new ElectricityPaymentReceipt($emailDetails));
+                } catch (\Exception $e) {
+                    Log::error('Email send failed', ['error' => $e->getMessage()]);
                 }
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Your electricity bill has been paid successfully. Please check your transaction history for the token.',
+                    'token' => $token,
+                    'units' => $units,
+                    'balance' => $balance->fresh()->balance
+                ]);
+
             } else {
-                // Handle HTTP request errors
-                $responseData = $purchaseResponse->json();
-                $errorMessage = $responseData['message'] ?? 'Failed to connect to the payment gateway.';
+                // Extract the error message from the API response
+                $errorMessage = $responseData['message'] ?? 'Payment failed due to an unknown error.';
 
                 // Log the error
                 Logged::create([
                     'user_id' => $user->id,
                     'for' => 'ELECTRICITY',
-                    'message' => $errorMessage,
-                    'stack_trace' => json_encode($responseData, JSON_PRETTY_PRINT),
+                    'message' => json_encode($responseData),
+                    'stack_trace' => json_encode($responseData),
                     't_reference' => $requestId,
                     'from' => 'EBILLS',
                     'type' => 'FAILED',
                 ]);
 
-                // Refund the user (CREDIT)
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $totalAmount,
-                    'CREDIT',
+                // Refund both transactions
+                $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
                     $request->meter_number,
-                    'Refund for failed electricity payment',
-                    'REFUND_' . $requestId
+                    "Refund for electricity purchase - Payment unsuccessful for meter {$request->meter_number}",
+                    "REFUND_" . $requestId
                 );
-
-                // Update transaction status
-                $transaction->update([
-                    'status' => 'ERROR',
-                    'reference' => $requestId
-                ]);
-
-                // $electricityPurchase->update(['status' => 'FAILED']);
+                
+                $this->transactionService->refundTransaction(
+                    $feeTransaction,
+                    $balance,
+                    'FEE_' . $requestId,
+                    'SYSTEM',
+                    "Refund of transaction fee - Payment unsuccessful for meter {$request->meter_number}",
+                    "REFUND_FEE_" . $requestId
+                );
 
                 // Prepare email details for failure
                 $emailDetails = [
                     'user' => $user,
                     'meterNumber' => $request->meter_number,
                     'provider' => $request->provider_id,
-                    'amount' => $request->amount,
-                    'token' => 0,
-                    'units' => 0,
+                    'amount' => $totalAmount,
+                    'token' => 'N/A',
+                    'units' => 'N/A',
+                    'customer_address' => $responseData['data']['customer_address'] ?? 'N/A',
+                    'customer_name_m' => $responseData['data']['customer_name'] ?? 'N/A',
                     'status' => 'FAILED'
                 ];
 
@@ -391,10 +354,7 @@ class ElectricityController extends Controller
                     Log::error('Email send failed', ['error' => $e->getMessage()]);
                 }
 
-                return response()->json([
-                    'status' => false,
-                    'message' => 'An error occurred. Please try again later.'
-                ], 500);
+                return response()->json(['status' => false, 'message' => $errorMessage], 500);
             }
         });
     }

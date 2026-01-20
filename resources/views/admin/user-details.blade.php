@@ -466,6 +466,103 @@
         font-size: 14px;
         line-height: 1.6;
     }
+
+    /* Transaction Actions Styles */
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    .btn-action {
+        padding: 5px 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view-logs {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .btn-view-logs:hover {
+        background: #138496;
+    }
+
+    .btn-edit {
+        background: #ffc107;
+        color: #333;
+    }
+
+    .btn-edit:hover {
+        background: #e0a800;
+    }
+
+    .btn-edit:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .log-entry {
+        background: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+        padding: 12px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+    }
+
+    .log-entry.success {
+        border-left-color: #28a745;
+    }
+
+    .log-entry.error {
+        border-left-color: #dc3545;
+    }
+
+    .log-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    .log-message {
+        margin: 8px 0;
+        color: #333;
+    }
+
+    .log-details {
+        background: white;
+        padding: 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        margin-top: 8px;
+    }
+
+    .modal-lg {
+        max-width: 900px;
+    }
+
+    .form-check {
+        padding-left: 1.5rem;
+    }
+
+    .form-check-input {
+        margin-left: -1.5rem;
+    }
+
+    .admin-edited-badge {
+        background: #6c757d;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        margin-left: 5px;
+    }
 </style>
 
  <!--**********************************
@@ -753,6 +850,7 @@
                                 <th>Balance After</th>
                                 <th>Source</th>
                                 <th>Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -760,7 +858,14 @@
                                 <tr>
                                     <td>{{ $transactions->firstItem() + $index }}</td>
                                     <td>₦ {{ number_format($transaction->amount, 2) }}</td>
-                                    <td>{{ $transaction->description ?? 'N/A' }} | {{ $transaction->beneficiary ?? 'N/A' }}</td>
+                                    <td>
+                                        {{ $transaction->description ?? 'N/A' }} | {{ $transaction->beneficiary ?? 'N/A' }}
+                                        @if($transaction->admin_edited)
+                                            <span class="admin-edited-badge" title="Edited by Admin ID: {{ $transaction->edited_by_admin_id }} on {{ $transaction->edited_at->format('d M Y, h:i A') }}">
+                                                <i class="fas fa-user-shield"></i> Admin Edited
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td>{{ ucfirst($transaction->type ?? 'N/A') }}</td>
                                     <td>
                                         <span class="badge badge-{{ $transaction->status === 'SUCCESS' ? 'success' : ($transaction->status === 'PENDING' ? 'warning' : 'danger') }}">
@@ -772,10 +877,25 @@
                                     <td>₦ {{ number_format($transaction->balance_after, 2) }}</td>
                                     <td>{{ $transaction->source ?? 'N/A' }}</td>
                                     <td>{{ $transaction->created_at->format('d M, Y H:i') }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-action btn-view-logs" 
+                                                    onclick="viewTransactionLogs('{{ $transaction->reference }}')"
+                                                    title="View Transaction Logs">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                            <button class="btn-action btn-edit" 
+                                                    onclick='editTransaction(@json($transaction))'
+                                                    {{ $transaction->status === 'SUCCESS' || $transaction->admin_edited ? 'disabled' : '' }}
+                                                    title="{{ $transaction->status === 'SUCCESS' ? 'Cannot edit successful transactions' : ($transaction->admin_edited ? 'Transaction already edited by admin' : 'Edit Transaction') }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center">No transactions found.</td>
+                                    <td colspan="11" class="text-center">No transactions found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -788,6 +908,116 @@
                 </div>
             </div>
         </div>
+
+            <!-- Transaction Logs Modal -->
+            <div class="modal fade" id="transactionLogsModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-history"></i> Transaction Logs
+                                <small id="logReference" class="text-muted"></small>
+                            </h5>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                            <div id="logsContainer">
+                                <div class="text-center">
+                                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                    <p>Loading logs...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Transaction Modal -->
+            <div class="modal fade" id="editTransactionModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Transaction
+                            </h5>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <form id="editTransactionForm">
+                            @csrf
+                            <div class="modal-body">
+                                <input type="hidden" id="edit_transaction_id" name="id">
+                                <input type="hidden" id="edit_user_id" name="user_id" value="{{ $user->id }}">
+                                <input type="hidden" id="edit_old_status" name="old_status">
+                                
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Warning:</strong> Once edited, this transaction cannot be modified again.
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="edit_reference">Reference</label>
+                                    <input type="text" class="form-control" id="edit_reference" readonly>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="edit_amount">Amount</label>
+                                    <input type="text" class="form-control" id="edit_amount" readonly>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="edit_description">Description</label>
+                                    <textarea class="form-control" id="edit_description" name="description" rows="3" required></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="edit_status">Status <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="edit_status" name="status" required>
+                                        <option value="PENDING">PENDING</option>
+                                        <option value="SUCCESS">SUCCESS</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="process_refund" name="process_refund" value="1">
+                                        <label class="form-check-label" for="process_refund">
+                                            <strong>Process Refund</strong>
+                                            <small class="d-block text-muted">
+                                                (Only applicable if changing status to ERROR and transaction is not a wallet top-up)
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="password_field_container" style="display: none;">
+                                    <label for="admin_password">Admin Password <span class="text-danger">*</span></label>
+                                    <input type="password" class="form-control" id="admin_password" name="admin_password" 
+                                           placeholder="Enter your admin password to confirm status change">
+                                    <small class="text-muted">Required when changing transaction status</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="saveTransactionBtn">
+                                    <span class="btn-text">Save Changes</span>
+                                    <span class="btn-loader" style="display: none;">
+                                        <i class="fas fa-spinner fa-spin"></i> Updating...
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h4 class="card-title">User Loans</h4>
@@ -1098,7 +1328,7 @@
                 
                 <div class="form-group">
                     <label for="mobile">Mobile</label>
-                    <input type="text" id="mobile" name="mobile" value="{{ $user->mobile }}" required>
+                    <input type="text" id="mobile" name="mobile" value="{{ $user->mobile }}" readonly>
                 </div>
                 
                 <div class="form-group">
@@ -1134,17 +1364,6 @@
 
 
     <script>
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     const alerts = document.querySelectorAll('.alert');
-    //     alerts.forEach(function(alert) {
-    //         setTimeout(function() {
-    //             $(alert).fadeOut('slow', function() {
-    //                 $(this).remove();
-    //             });
-    //         }, 5000);
-    //     });
-    // });
-
     function openEditModal() {
         document.getElementById('editProfileModal').style.display = 'block';
     }
@@ -1175,7 +1394,7 @@
             name: formData.get('name'),
             email: formData.get('email'),
             mobile: formData.get('mobile'),
-            is_status: formData.get('status')  // Changed to is_status
+            is_status: formData.get('status')
         };
         
         // Confirm status change
@@ -1213,7 +1432,7 @@
                 alert('User profile updated successfully!');
                 
                 // Update the UI with new values
-                document.getElementById('currentStatus').textContent = data.is_status;  // Changed to is_status
+                document.getElementById('currentStatus').textContent = data.is_status;
                 document.querySelector('.user-name').textContent = data.name;
                 document.querySelectorAll('.user-email')[0].textContent = data.email;
                 document.querySelectorAll('.user-email')[1].textContent = data.mobile;
@@ -1319,6 +1538,165 @@
         document.getElementById('logMessage').textContent = message || 'N/A';
         $('#logDetailsModal').modal('show');
     }
+
+    // View Transaction Logs
+    async function viewTransactionLogs(reference) {
+        $('#transactionLogsModal').modal('show');
+        document.getElementById('logReference').textContent = `(${reference})`;
+        
+        try {
+            const response = await fetch(`/a-pay/admin/transactions/logs/${reference}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.status && data.logs.length > 0) {
+                let logsHtml = '';
+                data.logs.forEach(log => {
+                    const logClass = log.type === 'SUCCESS' ? 'success' : (log.type === 'ERROR' ? 'error' : '');
+                    const stackTrace = log.stack_trace ? JSON.parse(log.stack_trace) : null;
+                    
+                    logsHtml += `
+                        <div class="log-entry ${logClass}">
+                            <div class="log-header">
+                                <span>
+                                    <span class="badge badge-${log.type === 'SUCCESS' ? 'success' : (log.type === 'ERROR' ? 'danger' : 'info')}">
+                                        ${log.type}
+                                    </span>
+                                    <strong>${log.for}</strong>
+                                </span>
+                                <small class="text-muted">${new Date(log.created_at).toLocaleString()}</small>
+                            </div>
+                            <div class="log-message">${log.message}</div>
+                            <div><small class="text-muted">From: ${log.from || 'N/A'}</small></div>
+                            ${stackTrace ? `
+                                <div class="log-details">
+                                    <strong>Details:</strong>
+                                    <pre style="margin: 5px 0; white-space: pre-wrap; font-size: 11px;">${JSON.stringify(stackTrace, null, 2)}</pre>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                document.getElementById('logsContainer').innerHTML = logsHtml;
+            } else {
+                document.getElementById('logsContainer').innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i>
+                        No logs found for this transaction.
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+            document.getElementById('logsContainer').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Error loading transaction logs. Please try again.
+                </div>
+            `;
+        }
+    }
+
+    // Edit Transaction
+    function editTransaction(transaction) {
+        if (transaction.status === 'SUCCESS') {
+            alert('Cannot edit successful transactions');
+            return;
+        }
+        
+        if (transaction.admin_edited) {
+            alert('This transaction has already been edited by an admin and cannot be modified again.');
+            return;
+        }
+        
+        document.getElementById('edit_transaction_id').value = transaction.id;
+        document.getElementById('edit_old_status').value = transaction.status;
+        document.getElementById('edit_reference').value = transaction.reference || 'N/A';
+        document.getElementById('edit_amount').value = `₦ ${parseFloat(transaction.amount).toFixed(2)}`;
+        document.getElementById('edit_description').value = transaction.description || '';
+        document.getElementById('edit_status').value = transaction.status;
+        document.getElementById('admin_password').value = '';
+        document.getElementById('process_refund').checked = false;
+        document.getElementById('password_field_container').style.display = 'none';
+        
+        // Show/hide password field based on status change
+        document.getElementById('edit_status').addEventListener('change', function() {
+            const oldStatus = document.getElementById('edit_old_status').value;
+            const newStatus = this.value;
+            document.getElementById('password_field_container').style.display = 
+                oldStatus !== newStatus ? 'block' : 'none';
+        });
+        
+        $('#editTransactionModal').modal('show');
+    }
+
+    // Handle Edit Transaction Form Submission
+    document.getElementById('editTransactionForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const saveBtn = document.getElementById('saveTransactionBtn');
+        const btnText = saveBtn.querySelector('.btn-text');
+        const btnLoader = saveBtn.querySelector('.btn-loader');
+        
+        const formData = new FormData(this);
+        const oldStatus = formData.get('old_status');
+        const newStatus = formData.get('status');
+        
+        // Check if status changed and password is required
+        if (oldStatus !== newStatus && !formData.get('admin_password')) {
+            alert('Admin password is required when changing transaction status');
+            return;
+        }
+        
+        // Confirm the action
+        if (!confirm('Are you sure you want to update this transaction? This action cannot be undone.')) {
+            return;
+        }
+        
+        // Show loading state
+        saveBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline';
+        
+        try {
+            const response = await fetch('{{ route("transactions.update") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            // Reset button state
+            saveBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoader.style.display = 'none';
+            
+            if (response.ok) {
+                alert(result.message || 'Transaction updated successfully');
+                $('#editTransactionModal').modal('hide');
+                location.reload();
+            } else {
+                alert(result.message || 'Error updating transaction');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Network error: Unable to update transaction. Please try again.');
+            
+            // Reset button state
+            saveBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoader.style.display = 'none';
+        }
+    });
     </script>
     <script src="{{ asset('plugins/common/common.min.js') }}"></script>
     <script src="{{ asset('js/custom.min.js') }}"></script>

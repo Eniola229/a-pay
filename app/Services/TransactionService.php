@@ -123,7 +123,7 @@ class TransactionService
             ]);
             
             $transaction->update([
-                'status' => 'FAILED',
+                'status' => 'ERROR',
                 'reference' => $originalReference
             ]);
             

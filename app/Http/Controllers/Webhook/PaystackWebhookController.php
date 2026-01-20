@@ -10,6 +10,7 @@ use Twilio\Rest\Client;
 use App\Models\User;
 use App\Models\Logged;
 use App\Models\Transaction;
+use App\Models\WhatsappMessage;
 use App\Mail\CreditAlertMail;
 use App\Services\TransactionService;
 use App\Services\SmsService;
@@ -32,12 +33,18 @@ class PaystackWebhookController extends Controller
         $payload   = $request->getContent();
 
         if (!$signature || $signature !== hash_hmac('sha512', $payload, env('PAYSTACK_SECRET_KEY'))) {
-            Log::warning("Invalid Paystack signature");
+            Logged::create([
+                'user_id' => null,
+                'for' => 'PAYSTACK_WEBHOOK',
+                'message' => 'Invalid Paystack signature',
+                'stack_trace' => json_encode(['signature' => $signature]),
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'FAILED',
+            ]);
             return response()->json(['status' => 'invalid'], 401);
         }
 
         $data = $request->all();
-        //Log::info("PAYSTACK WEBHOOK RECEIVED", $data);
 
         if (!isset($data['event'])) {
             return response()->json(['status' => 'ignored']);
@@ -63,23 +70,54 @@ class PaystackWebhookController extends Controller
         $sender_bank = $payload['authorization']['sender_bank'] ?? null;
 
         if (!$reference) {
-            Log::warning("Paystack webhook missing reference");
+            Logged::create([
+                'user_id' => null,
+                'for' => 'PAYSTACK_WEBHOOK',
+                'message' => 'Paystack webhook missing reference',
+                'stack_trace' => json_encode($payload),
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'FAILED',
+            ]);
             return response()->json(['error' => 'missing reference'], 400);
         }
 
         if (!$email) {
-            Log::warning("Webhook missing email. REF: {$reference}");
+            Logged::create([
+                'user_id' => null,
+                'for' => 'PAYSTACK_WEBHOOK',
+                'message' => "Webhook missing email. REF: {$reference}",
+                'stack_trace' => json_encode($payload),
+                't_reference' => $reference,
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'FAILED',
+            ]);
             return response()->json(['error' => 'no email'], 200);
         }
 
         $user = User::where('email', $email)->first();
         if (!$user) {
-            Log::warning("No user found for email: {$email}");
+            Logged::create([
+                'user_id' => null,
+                'for' => 'PAYSTACK_WEBHOOK',
+                'message' => "No user found for email: {$email}",
+                'stack_trace' => json_encode(['email' => $email, 'reference' => $reference]),
+                't_reference' => $reference,
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'FAILED',
+            ]);
             return response()->json(['error' => 'no user'], 200);
         }
 
         if (Transaction::where('reference', $reference)->exists()) {
-            Log::info("Duplicate webhook ignored. REF: {$reference}");
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'PAYSTACK_WEBHOOK',
+                'message' => "Duplicate webhook ignored. REF: {$reference}",
+                'stack_trace' => json_encode(['reference' => $reference]),
+                't_reference' => $reference,
+                'from' => 'PAYSTACK_WEBHOOK',
+                'type' => 'INFO',
+            ]);
             return response()->json(['status' => 'duplicate']);
         }
 
@@ -113,7 +151,6 @@ class PaystackWebhookController extends Controller
             $newBalance = $user->balance()->first()->balance;
 
         } catch (\Exception $e) {
-            Log::error("Webhook credit error: " . $e->getMessage());
             Logged::create([
                 'user_id' => $user->id,
                 'for' => 'Wallet Top-up',
@@ -130,21 +167,30 @@ class PaystackWebhookController extends Controller
         try {
             $this->sendCreditAlertWhatsapp($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
         } catch (\Exception $e) {
-            Log::error("WhatsApp credit alert failed: " . $e->getMessage());
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'WhatsApp Credit Alert',
+                'message' => 'WhatsApp credit alert failed: ' . $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                't_reference' => $reference,
+                'from' => 'WHATSAPP_ALERT',
+                'type' => 'FAILED',
+            ]);
         }
-
-        // SMS Alert
-        // try {
-        //     $this->sendCreditAlertSMS($user, $amount, $reference, $newBalance, $sender_name, $sender_bank);
-        // } catch (\Exception $e) {
-        //     Log::error("SMS credit alert failed: " . $e->getMessage());
-        // }
 
         // Email Alert
         try {
             Mail::to($user->email)->send(new CreditAlertMail($user, $amount, $transaction));
         } catch (\Exception $e) {
-            Log::error("Email credit alert failed: " . $e->getMessage());
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'Email Credit Alert',
+                'message' => 'Email credit alert failed: ' . $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                't_reference' => $reference,
+                'from' => 'EMAIL_ALERT',
+                'type' => 'FAILED',
+            ]);
         }
 
         return response()->json(['status' => 'success']);
@@ -226,13 +272,13 @@ class PaystackWebhookController extends Controller
         $sender_bank = htmlspecialchars($sender_bank, ENT_QUOTES, 'UTF-8');
 
         $msg = 
-            "CREDIT ALERT\n" .
-            "Your A-Pay wallet has been funded.\n" .
-            "From: {$sender_name} | {$sender_bank}\n" .
-            "Amount: N" . number_format($amount, 2) . "\n" .
-            "Ref: {$reference}\n" .
-            "New Balance: N" . number_format($newBalance, 2) . "\n" .
-            "Thank you for using A-Pay";
+            "💰 *CREDIT ALERT*\n\n" .
+            "Your A-Pay wallet has been funded.\n\n" .
+            "📤 *From:* {$sender_name} | {$sender_bank}\n" .
+            "💵 *Amount:* ₦" . number_format($amount, 2) . "\n" .
+            "🔖 *Ref:* {$reference}\n" .
+            "💼 *New Balance:* ₦" . number_format($newBalance, 2) . "\n\n" .
+            "Thank you for using A-Pay! 💚";
         
         try {
             $mobile = $this->formatPhoneNumber($user->mobile);
@@ -264,6 +310,7 @@ class PaystackWebhookController extends Controller
             return false;
         }
     }
+    
     private function formatPhoneNumber($phone)
     {
         $phone = preg_replace('/[^0-9+]/', '', $phone);
@@ -282,22 +329,51 @@ class PaystackWebhookController extends Controller
         $from = 'whatsapp:' . env('TWILIO_W_NUMBER');
 
         if (!$sid || !$token || !$from) {
-            Log::error('Missing Twilio credentials', [
-                'sid' => $sid,
-                'token' => $token,
-                'from' => $from,
+            Logged::create([
+                'user_id' => null,
+                'for' => 'TWILIO_CONFIG',
+                'message' => 'Missing Twilio credentials',
+                'stack_trace' => json_encode([
+                    'sid' => $sid ? 'present' : 'missing',
+                    'token' => $token ? 'present' : 'missing',
+                    'from' => $from,
+                ]),
+                'from' => 'TWILIO_WHATSAPP',
+                'type' => 'FAILED',
             ]);
             return;
         }
 
         try {
             $client = new Client($sid, $token);
-            $client->messages->create("whatsapp:$to", [
+            $message = $client->messages->create("whatsapp:$to", [
                 'from' => $from,
                 'body' => $body,
             ]);
+
+            // Record outgoing WhatsApp message
+            WhatsappMessage::create([
+                'phone_number' => $to,
+                'direction' => 'outgoing',
+                'message_body' => $body,
+                'message_sid' => $message->sid,
+                'status' => $message->status,
+                'metadata' => [
+                    'from' => $from,
+                    'sent_at' => now()->toIso8601String(),
+                    'has_media' => false
+                ]
+            ]);
+
         } catch (\Exception $e) {
-            Log::error("Twilio WhatsApp send failed: " . $e->getMessage());
+            Logged::create([
+                'user_id' => null,
+                'for' => 'TWILIO_SEND',
+                'message' => 'Twilio WhatsApp send failed: ' . $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                'from' => 'TWILIO_WHATSAPP',
+                'type' => 'FAILED',
+            ]);
         }
     }
 }

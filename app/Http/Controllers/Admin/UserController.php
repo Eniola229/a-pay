@@ -22,6 +22,7 @@ use App\Models\KycProfile;
 use App\Models\WhatsappMessage;
 use App\Models\Logged;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 
 
 class UserController extends Controller
@@ -103,10 +104,13 @@ class UserController extends Controller
         return back()->with('success', 'KYC deleted successfully');
     }
 
-      public function updateUser(Request $request, $id)
+    public function updateUser(Request $request, $id)
     {
         try {
             $user = User::findOrFail($id);
+            
+            // Get the authenticated admin
+            $admin = auth()->user();
             
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -117,15 +121,38 @@ class UserController extends Controller
                     'max:255',
                     Rule::unique('users')->ignore($user->id),
                 ],
-                'mobile' => [
-                    'required',
-                    'string',
-                    'max:20',
-                    Rule::unique('users')->ignore($user->id),
-                ],
             ]);
             
+            // Store original values before update
+            $oldValues = [
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_status' => $user->is_status,
+            ];
+            
+            // Update user
             $user->update($validated);
+            
+            // Create audit log
+            Logged::create([
+                'user_id' => $user->id,
+                'for' => 'USER_UPDATE',
+                'message' => "User profile updated by Admin: {$admin->name} (ID: {$admin->id}, Email: {$admin->email}). Changes: " . $this->getChangeSummary($oldValues, $validated),
+                'stack_trace' => json_encode([
+                    'user_id' => $user->id,
+                    'admin_name' => $admin->name,
+                    'admin_id' => $admin->id,
+                    'admin_email' => $admin->email,
+                    'old_values' => $oldValues,
+                    'new_values' => $validated,
+                    'changes' => $this->getDetailedChanges($oldValues, $validated),
+                    'updated_at' => now(),
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]),
+                'from' => 'ADMIN_PANEL',
+                'type' => 'SUCCESS',
+            ]);
             
             return response()->json([
                 'success' => true,
@@ -140,10 +167,62 @@ class UserController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            // Log failed update attempt
+            if (isset($user) && isset($admin)) {
+                Logged::create([
+                    'user_id' => $user->id ?? null,
+                    'for' => 'USER_UPDATE_FAILED',
+                    'message' => "Failed user update attempt by Admin: {$admin->name} (ID: {$admin->id}). Error: {$e->getMessage()}",
+                    'stack_trace' => json_encode([
+                        'error' => $e->getMessage(),
+                        'admin_id' => $admin->id,
+                        'admin_email' => $admin->email,
+                        'failed_at' => now(),
+                    ]),
+                    'from' => 'ADMIN_PANEL',
+                    'type' => 'ERROR',
+                ]);
+            }
+            
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get a summary of changes for the log message
+     */
+    private function getChangeSummary($oldValues, $newValues)
+    {
+        $changes = [];
+        
+        foreach ($newValues as $key => $newValue) {
+            if ($oldValues[$key] != $newValue) {
+                $changes[] = "{$key}: '{$oldValues[$key]}' → '{$newValue}'";
+            }
+        }
+        
+        return empty($changes) ? 'No changes detected' : implode(', ', $changes);
+    }
+
+    /**
+     * Get detailed changes array
+     */
+    private function getDetailedChanges($oldValues, $newValues)
+    {
+        $changes = [];
+        
+        foreach ($newValues as $key => $newValue) {
+            if ($oldValues[$key] != $newValue) {
+                $changes[$key] = [
+                    'from' => $oldValues[$key],
+                    'to' => $newValue,
+                ];
+            }
+        }
+        
+        return $changes;
     }
 }
