@@ -78,11 +78,11 @@ class ReceiptGenerator
             imagestring($img, 5, $leftPad, $y - 15, "A-Pay", $green);
         }
         
-        $badgeX = $width - 150;
-        $badgeY = $y - 15;
-        $badgeWidth = 120;
-        $badgeHeight = 36;
-        $this->drawRoundedRect($img, $badgeX, $badgeY, $badgeWidth, $badgeHeight, 16, $green);
+        $badgeX = $width - 160;
+        $badgeY = $y - 18;
+        $badgeWidth = 140;
+        $badgeHeight = 44;
+        $this->drawRoundedRect($img, $badgeX, $badgeY, $badgeWidth, $badgeHeight, 20, $green);
         
         $badgeText = "COMPLETED";
         
@@ -90,10 +90,10 @@ class ReceiptGenerator
             // Badge Size 16
             $bbox = imagettfbbox(16, 0, $fontPath, $badgeText);
             $textWidth = $bbox[2] - $bbox[0];
-            $this->drawBoldText($img, 16, 0, $badgeX + ($badgeWidth - $textWidth) / 2, $badgeY + 24, $white, $fontPath, $badgeText);
+            $this->drawBoldText($img, 16, 0, $badgeX + ($badgeWidth - $textWidth) / 2, $badgeY + 28, $white, $fontPath, $badgeText);
         } else {
             $textWidth = imagefontwidth(3) * strlen($badgeText);
-            imagestring($img, 3, $badgeX + ($badgeWidth - $textWidth) / 2, $badgeY + 9, $badgeText, $white);
+            imagestring($img, 3, $badgeX + ($badgeWidth - $textWidth) / 2, $badgeY + 13, $badgeText, $white);
         }
         
         $y += 85;
@@ -107,7 +107,7 @@ class ReceiptGenerator
             imagestring($img, 5, ($width - $textWidth) / 2, $y - 15, $amountText, $green);
         }
         
-        $y += 80;
+        $y += 40;
         
         // === DATE (Size 14) ===
         $dateText = "on " . date('d M Y H:i', strtotime($data['date'] ?? 'now'));
@@ -119,7 +119,7 @@ class ReceiptGenerator
         $details = [
             ['Sender:', strtoupper($data['customer_name'])],
             ['Recipient:', $data['phone']],
-            ['Network/Provider:', strtoupper($data['network'])],
+            ['Network:', strtoupper($data['network'])],
             ['Type:', 'Airtime Purchase'],
             ['Reference:', $this->truncate($data['reference'], 20)],
             // ['Transaction ID:', $this->truncate($data['account_number'], 18)],
@@ -217,17 +217,17 @@ class ReceiptGenerator
             imagestring($img, 5, $leftPad, $y - 15, "A-Pay", $green);
         }
         
-        $badgeX = $width - 150;
-        $badgeY = $y - 15;
-        $this->drawRoundedRect($img, $badgeX, $badgeY, 120, 36, 16, $green);
+        $badgeX = $width - 160;
+        $badgeY = $y - 18;
+        $this->drawRoundedRect($img, $badgeX, $badgeY, 140, 44, 20, $green);
         
         if ($useTTF) {
             $bbox = imagettfbbox(16, 0, $fontPath, "COMPLETED");
             $textWidth = $bbox[2] - $bbox[0];
-            $this->drawBoldText($img, 16, 0, $badgeX + (120 - $textWidth) / 2, $badgeY + 24, $white, $fontPath, "COMPLETED");
+            $this->drawBoldText($img, 16, 0, $badgeX + (140 - $textWidth) / 2, $badgeY + 28, $white, $fontPath, "COMPLETED");
         } else {
             $textWidth = imagefontwidth(3) * 9;
-            imagestring($img, 3, $badgeX + (120 - $textWidth) / 2, $badgeY + 9, "COMPLETED", $white);
+            imagestring($img, 3, $badgeX + (140 - $textWidth) / 2, $badgeY + 13, "COMPLETED", $white);
         }
         
         $y += 85;
@@ -241,7 +241,7 @@ class ReceiptGenerator
             imagestring($img, 5, ($width - $textWidth) / 2, $y - 15, $amountText, $green);
         }
         
-        $y += 80;
+        $y += 40;
         
         $dateText = "on " . date('d M Y H:i', strtotime($data['date'] ?? 'now'));
         $this->drawCenteredTextBold($img, $dateText, $width / 2, $y, 14, $lightText, $fontPath, $useTTF);
@@ -346,17 +346,17 @@ class ReceiptGenerator
             imagestring($img, 5, $leftPad, $y - 15, "A-Pay", $green);
         }
         
-        $badgeX = $width - 150;
-        $badgeY = $y - 15;
-        $this->drawRoundedRect($img, $badgeX, $badgeY, 120, 36, 16, $green);
+        $badgeX = $width - 160;
+        $badgeY = $y - 18;
+        $this->drawRoundedRect($img, $badgeX, $badgeY, 140, 40, 20, $green);
         
         if ($useTTF) {
             $bbox = imagettfbbox(16, 0, $fontPath, "COMPLETED");
             $textWidth = $bbox[2] - $bbox[0];
-            $this->drawBoldText($img, 16, 0, $badgeX + (120 - $textWidth) / 2, $badgeY + 24, $white, $fontPath, "COMPLETED");
+            $this->drawBoldText($img, 16, 0, $badgeX + (140 - $textWidth) / 2, $badgeY + 28, $white, $fontPath, "COMPLETED");
         } else {
             $textWidth = imagefontwidth(3) * 9;
-            imagestring($img, 3, $badgeX + (120 - $textWidth) / 2, $badgeY + 9, "COMPLETED", $white);
+            imagestring($img, 3, $badgeX + (140 - $textWidth) / 2, $badgeY + 13, "COMPLETED", $white);
         }
         
         $y += 85;
@@ -370,7 +370,7 @@ class ReceiptGenerator
             imagestring($img, 5, ($width - $textWidth) / 2, $y - 15, $amountText, $green);
         }
         
-        $y += 80;
+        $y += 40;
         
         $dateText = "on " . date('d M Y H:i', strtotime($data['date'] ?? 'now'));
         $this->drawCenteredTextBold($img, $dateText, $width / 2, $y, 14, $lightText, $fontPath, $useTTF);
