@@ -115,18 +115,17 @@ class UserController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'is_status' => 'required|in:ACTIVE,INACTIVE,SUSPENDED,PENDING,BLOCKED',
-                'email' => [
-                    'required',
-                    'email',
-                    'max:255',
-                    Rule::unique('users')->ignore($user->id),
-                ],
+                // 'email' => [
+                //     'required',
+                //     'email',
+                //     'max:255',
+                //     Rule::unique('users')->ignore($user->id),
+                // ],
             ]);
             
             // Store original values before update
             $oldValues = [
                 'name' => $user->name,
-                'email' => $user->email,
                 'is_status' => $user->is_status,
             ];
             

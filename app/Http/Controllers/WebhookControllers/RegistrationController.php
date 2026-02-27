@@ -226,7 +226,7 @@ class RegistrationController extends Controller
     {
         return $whatsappController->sendMessage(
             $to,
-            "❌ Registration failed: {$error}\nPlease try again."
+            "❌ Registration failed\nPlease try again."
         );
     }
 
@@ -245,14 +245,20 @@ class RegistrationController extends Controller
 
     protected function sendFundingDetails($to, $accountNumber, $accountName, $bankName, $whatsappController)
     {
-        return $whatsappController->sendMessage(
-            $to,
-            "💰 *TO FUND YOUR A-PAY WALLET*\n\n".
-            "🏦 *Bank:* {$bankName}\n".
-            "👤 *Account Name:* AFRICICL/".strtoupper($accountName)."\n".
-            "🔢 *Account Number:* {$accountNumber}\n\n".
-            "Transfer to the virtual account above to top-up instantly.\n\n".
-            "__Kindly PIN this message for easy access.__"
-        );
+        $messages = [
+            "To fund your wallet, send any amount to your Virtual Bank Account Below:",
+
+            "AFRICICL/" . strtoupper($accountName) . "\n" .
+            "{$accountNumber}\n" .
+            "{$bankName}",
+
+            "ℹ️ Deposits are held by {$bankName}, a licensed bank by the Central Bank of Nigeria.\n\n" .
+            "_Kindly PIN this message for easy access_ 📌"
+        ];
+
+        foreach ($messages as $message) {
+            $whatsappController->sendMessage($to, $message);
+            sleep(1);
+        }
     }
 }

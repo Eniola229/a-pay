@@ -636,29 +636,42 @@ class WhatsappController extends Controller
      */
     private function handleFundWallet($user)
     {
-        return 
-            "💰 *TO FUND YOUR A-PAY WALLET*\n\n" .
-            "🏦 *Bank:* Wema Bank\n" .
-            "👤 *Account Name:* AFRICICL/" . strtoupper($user->name) . "\n" .
-            "🔢 *Account Number:* {$user->account_number}\n\n" .
-            "Transfer to the virtual account above to top-up instantly.\n\n" .
-            "__Kindly PIN this message to easily access it__";
-    }
+        $messages = [
+            "To fund your wallet, send any amount to your Virtual Bank Account Below:",
+            
+            "AFRICICL/" . strtoupper($user->name) . "\n" .
+            "{$user->account_number}\n" .
+            "Wema Bank",
+            
+            "ℹ️ Deposits are held by Wema Bank, a licensed bank by the Central Bank of Nigeria."
+        ];
 
+        foreach ($messages as $message) {
+            $this->sendMessage($user->phone, $message);
+            sleep(1); // slight delay to maintain message order
+        }
+    }
     /**
      * Handle account details
      */
     private function handleAccountDetails($user)
     {
-        return 
-            "💰 *YOUR VIRTUAL ACCOUNT DETAILS*\n\n" .
-            "🏦 *Bank:* Wema Bank\n" .
-            "👤 *Account Name:* AFRICICL/" . strtoupper($user->name) . "\n" .
-            "🔢 *Account Number:* {$user->account_number}\n\n" .
-            "Transfer to the account above to top-up instantly.\n\n" .
-            "__Kindly PIN this message to easily access it__";
-    }
+        $messages = [
+            "Your Virtual Account Details Below:",
 
+            "AFRICICL/" . strtoupper($user->name) . "\n" .
+            "{$user->account_number}\n" .
+            "Wema Bank",
+
+            "ℹ️ Deposits are held by Wema Bank, a licensed bank by the Central Bank of Nigeria.\n\n" .
+            "_Kindly PIN this message to easily access it_ 📌"
+        ];
+
+        foreach ($messages as $message) {
+            $this->sendMessage($user->phone, $message);
+            sleep(1);
+        }
+    }
     /**
      * Handle upgrade account
      */

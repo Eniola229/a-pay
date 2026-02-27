@@ -230,7 +230,7 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                @endif
+                @endif 
 
                 @if(session('error'))
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -261,7 +261,7 @@
                         <h4><i class="fa fa-envelope"></i> Send Newsletter</h4>
                         <p class="text-muted">Compose and send WhatsApp newsletter to all eligible users</p>
                         
-                        <form action="{{ route('admin.newsletter.send') }}" method="POST" id="newsletterForm">
+                        <form action="{{ route('admin.newsletter.send') }}" method="POST" id="newsletterForm" enctype="multipart/form-data">
                             @csrf
                             <div class="form-group">
                                 <label for="message">Newsletter Message</label>
@@ -279,6 +279,11 @@
                                 @error('message')
                                     <span class="text-danger">{{ $message }}</span>
                                 @enderror
+                            </div>
+
+                            <div class="form-group mt-3">
+                                <label for="media">Attach Image / Video <small class="text-muted">(optional — jpg, png, gif, mp4 · max 16MB)</small></label>
+                                <input type="file" name="media" id="media" class="form-control-file" accept="image/*,video/mp4">
                             </div>
 
                             <button type="submit" class="btn-send" onclick="return confirm('Send newsletter to {{ $eligibleUsers }} users?')">
