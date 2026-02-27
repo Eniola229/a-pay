@@ -647,13 +647,11 @@ class WhatsappController extends Controller
         ];
 
         foreach ($messages as $message) {
-            $this->sendMessage($user->phone, $message);
-            sleep(1); // slight delay to maintain message order
+            $this->sendMessage($user->mobile, $message);
+            sleep(1);
         }
     }
-    /**
-     * Handle account details
-     */
+
     private function handleAccountDetails($user)
     {
         $messages = [
@@ -668,7 +666,7 @@ class WhatsappController extends Controller
         ];
 
         foreach ($messages as $message) {
-            $this->sendMessage($user->phone, $message);
+            $this->sendMessage($user->mobile, $message);
             sleep(1);
         }
     }

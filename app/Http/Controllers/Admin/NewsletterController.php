@@ -65,7 +65,7 @@ class NewsletterController extends Controller
                 $file->getRealPath(),
                 [
                     'resource_type' => $isVideo ? 'video' : 'image',
-                    'folder'        => 'newsletter-media',
+                    'folder'        => 'apay/newsletter-media',
                 ]
             );
 
