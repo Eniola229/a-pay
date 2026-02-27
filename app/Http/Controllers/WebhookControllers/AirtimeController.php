@@ -103,19 +103,19 @@ class AirtimeController extends Controller
                 ]);
 
                 // Refund balance on network error (CREDIT)
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $amount,
-                    'CREDIT',
-                    $user->mobile, 
+                $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
+                    $user->mobile,
                     'Refund for failed airtime purchase',
-                    'REFUND_' . $requestId 
+                    'REFUND_' . $requestId
                 );
 
-                $transaction->update([
-                    'status' => 'ERROR',
-                    'reference' => $requestId
-                ]);
+                // $transaction->update([
+                //     'status' => 'ERROR',
+                //     'reference' => $requestId
+                // ]);
 
                 return [
                     'type' => 'text',
@@ -201,19 +201,19 @@ class AirtimeController extends Controller
 
             } else {
                 // Refund balance on failure (CREDIT)
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $amount,
-                    'CREDIT',
+                $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
                     $user->mobile,
                     'Refund for failed airtime purchase',
-                    'REFUND_' . $requestId,
+                    'REFUND_' . $requestId
                 );
 
-                $transaction->update([
-                    'status' => 'ERROR',
-                    'reference' => $requestId
-                ]);
+                // $transaction->update([
+                //     'status' => 'ERROR',
+                //     'reference' => $requestId
+                // ]);
 
                 Logged::create([
                     'user_id' => $user->id,

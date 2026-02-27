@@ -153,16 +153,15 @@ class DataController extends Controller
                     'type' => 'FAILED',
                 ]);
                 
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $planPrice,
-                    'CREDIT',
-                    $user->mobile, 
+                $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
+                    $user->mobile,
                     'Refund for failed data purchase',
-                    'REFUND_' . $requestId 
+                    'REFUND_' . $requestId
                 );
-
-                $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
+                // $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
 
                 return "⚠️ Could not reach data provider. Please try again later.";
             }
@@ -232,16 +231,16 @@ class DataController extends Controller
                 }
 
             } else {
-                $refundTransaction = $this->transactionService->createTransaction(
-                    $user,
-                    $planPrice,
-                    'CREDIT',
+             $this->transactionService->refundTransaction(
+                    $transaction,
+                    $balance,
+                    $requestId,
                     $user->mobile,
                     'Refund for failed data purchase',
-                    'REFUND_' . $requestId 
+                    'REFUND_' . $requestId
                 );
 
-                $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
+                // $transaction->update(['status' => 'ERROR', 'reference' => $requestId]);
 
                 Logged::create([
                     'user_id' => $user->id,
