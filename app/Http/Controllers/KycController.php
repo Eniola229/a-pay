@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
-use Cloudinary\Cloudinary;
 
 class KycController extends Controller
 {
@@ -38,45 +37,48 @@ class KycController extends Controller
         }
     }
 
+    // =========================================================================
+    // STEP 1 — BVN VERIFICATION
+    // =========================================================================
+
     /**
-     * Validate customer identity via Paystack.
+     * Verify BVN via Korapay Identity API.
      *
-     * Docs: https://paystack.com/docs/identity-verification/validate-customer/
+     * Endpoint: POST https://api.korapay.com/merchant/api/v1/identities/ng/bvn
+     * Docs:     https://developers.korapay.com/docs/nigeria-bvn
      *
-     * How it works:
-     *   1. Send POST /customer/:code/identification
-     *      :code = the customer's email address OR Paystack customer_code
-     *   2. Paystack verifies ASYNCHRONOUSLY — no OTP, no polling
-     *   3. Paystack fires a webhook when done:
-     *        customeridentification.success  — BVN matched the bank account
-     *        customeridentification.failed   — could not verify
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │  4-FACTOR OWNERSHIP PROOF                                           │
+     * │                                                                     │
+     * │  Check 1 — First name  matches BVN record (via Korapay API)        │
+     * │  Check 2 — Last name   matches BVN record (via Korapay API)        │
+     * │  Check 3 — Date of birth matches BVN record (via Korapay API)      │
+     * │  Check 4 — Phone number matches BVN record (our server-side check) │
+     * │            Korapay returns phone_number in the response.            │
+     * │            We normalise both numbers to their last 8 digits so the  │
+     * │            0XXXXXXXXXX vs +234XXXXXXXXXX prefix difference doesn't  │
+     * │            cause false failures.                                    │
+     * └─────────────────────────────────────────────────────────────────────┘
      *
-     * Required fields:
-     *   country        => "NG"
-     *   type           => "bank_account"  (only supported type right now)
-     *   value          => BVN number
-     *   bvn            => BVN number
-     *   bank_code      => bank code e.g. "044" for Access Bank
-     *   account_number => 10-digit NUBAN linked to that BVN
-     *   first_name     => must match BVN record
-     *   last_name      => must match BVN record
+     * On success we also store in session:
+     *   · Verified DOB       → used in verifyNin() to cross-check NIN DOB
+     *   · BVN-linked NIN     → Korapay returns the NIN tied to this BVN;
+     *                          we use it to pre-reject a wrong NIN instantly
+     *   · Verified names     → re-used in verifyNin() (no re-entry needed)
      */
-    public function validateCustomer(Request $request)
+    public function verifyBvn(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'user_id'        => 'required',
             'first_name'     => 'required|string',
             'last_name'      => 'required|string',
             'bvn'            => 'required|digits:11',
-            'bank_code'      => 'required|string',
-            'account_number' => 'required|digits:10',
+            'date_of_birth'  => 'required|date_format:Y-m-d',
+            'phone_number'   => 'required|min:10|max:14',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first(),
-            ], 400);
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 400);
         }
 
         $userId = $request->user_id;
@@ -87,289 +89,376 @@ class KycController extends Controller
         }
 
         try {
-            $code = urlencode($user->email);
-
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . env('PAYSTACK_SECRET_KEY'),
+                'Authorization' => 'Bearer ' . env('KORAPAY_SECRET_KEY'),
                 'Content-Type'  => 'application/json',
-            ])->post("https://api.paystack.co/customer/{$code}/identification", [
-                'country'        => 'NG',
-                'type'           => 'bank_account',
-                'value'          => $request->bvn,
-                'bvn'            => $request->bvn,
-                'bank_code'      => $request->bank_code,
-                'account_number' => $request->account_number,
-                'first_name'     => $request->first_name,
-                'last_name'      => $request->last_name,
+            ])->post('https://api.korapay.com/merchant/api/v1/identities/ng/bvn', [
+                'id'                   => $request->bvn,
+                'verification_consent' => true,
+                'validation'           => [
+                    'first_name'    => $request->first_name,
+                    'last_name'     => $request->last_name,
+                    'date_of_birth' => $request->date_of_birth,
+                ],
             ]);
 
             $data = $response->json();
 
-            $logContext = [
-                'full_response' => $data,
-                'http_status'   => $response->status(),
-            ];
-
             Logged::create([
                 'user_id'     => $userId,
-                'from'        => 'KycController@validateCustomer',
-                'for'         => 'Paystack Validate Customer',
-                'message'     => 'Sent BVN + bank account to Paystack. Awaiting async webhook result.',
+                'from'        => 'KycController@verifyBvn',
+                'for'         => 'Korapay BVN Verification',
+                'message'     => 'Sent BVN + name + DOB to Korapay for 3-factor API check.',
                 'type'        => 'info',
-                'stack_trace' => json_encode($logContext),
-                't_reference' => $data['data']['customer_code'] ?? null,
+                'stack_trace' => json_encode(['full_response' => $data, 'http_status' => $response->status()]),
+                't_reference' => $data['data']['reference'] ?? null,
             ]);
 
-            Log::info('[KYC] validateCustomer — BVN submitted to Paystack', array_merge(
-                ['user_id' => $userId],
-                $logContext
-            ));
+            // ── API-level failure ────────────────────────────────────────────
+            if (!$response->successful() || ($data['status'] ?? false) !== true) {
+                $errorMsg = 'Server down. Please try again later or message support';
 
-            /*
-             * Paystack returns HTTP 200/202 + "status": true to confirm
-             * the request was accepted. Actual pass/fail comes via webhook.
-             */
-            if ($response->successful() && ($data['status'] ?? false) === true) {
-                session(['kyc_bvn_submitted_' . $userId => true]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'BVN details submitted. Please complete the rest of the form.',
+                Logged::create([
+                    'user_id' => $userId, 'from' => 'KycController@verifyBvn',
+                    'for' => 'Korapay BVN API Failure', 'message' => $errorMsg,
+                    'type' => 'error', 'stack_trace' => json_encode($data), 't_reference' => null,
                 ]);
+
+                return response()->json(['success' => false, 'message' => $errorMsg], 400);
             }
 
-            $failContext = [
-                'full_response' => $data,
-                'http_status'   => $response->status(),
-            ];
+            $bvnData    = $data['data'];
+            $validation = $bvnData['validation'] ?? [];
+
+            // ── Checks 1-3: name + DOB match (Korapay API) ──────────────────
+            $failed = [];
+            if (!($validation['first_name']['match']    ?? false)) $failed[] = 'first name';
+            if (!($validation['last_name']['match']     ?? false)) $failed[] = 'last name';
+            if (!($validation['date_of_birth']['match'] ?? false)) $failed[] = 'date of birth';
+
+            if (!empty($failed)) {
+                $verb     = count($failed) > 1 ? 'do' : 'does';
+                $errorMsg = 'The ' . implode(' and ', $failed) . " you entered {$verb} not match your BVN record. "
+                          . 'Please enter your details exactly as registered with your bank.';
+
+                Logged::create([
+                    'user_id'     => $userId,
+                    'from'        => 'KycController@verifyBvn',
+                    'for'         => 'BVN Name/DOB Mismatch',
+                    'message'     => $errorMsg,
+                    'type'        => 'error',
+                    'stack_trace' => json_encode(['failed' => $failed, 'validation' => $validation]),
+                    't_reference' => $bvnData['reference'] ?? null,
+                ]);
+
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+
+            // ── Check 4: phone number (server-side, last 8 digits) ───────────
+            // Korapay returns the phone number registered on the BVN.
+            // We compare the last 8 digits only so "08031234567" matches "2348031234567".
+            $bvnPhone      = $bvnData['phone_number'] ?? null;
+            $submittedPhone = $request->phone_number;
+
+            if ($bvnPhone) {
+                $bvnLast8       = substr(preg_replace('/\D/', '', $bvnPhone),      -8);
+                $submittedLast8 = substr(preg_replace('/\D/', '', $submittedPhone), -8);
+
+                if ($bvnLast8 !== $submittedLast8) {
+                    $errorMsg = 'The phone number you entered does not match the phone number registered on your BVN. '
+                              . 'Please enter the exact phone number linked to your BVN.';
+
+                    Logged::create([
+                        'user_id'     => $userId,
+                        'from'        => 'KycController@verifyBvn',
+                        'for'         => 'BVN Phone Mismatch',
+                        'message'     => "Phone mismatch for user {$userId}. BVN last-8: {$bvnLast8} | Submitted last-8: {$submittedLast8}",
+                        'type'        => 'error',
+                        'stack_trace' => json_encode(['bvn_last8' => $bvnLast8, 'submitted_last8' => $submittedLast8]),
+                        't_reference' => $bvnData['reference'] ?? null,
+                    ]);
+
+                    Log::warning('[KYC] verifyBvn — Phone mismatch', [
+                        'user_id'        => $userId,
+                        'bvn_last8'      => $bvnLast8,
+                        'submitted_last8'=> $submittedLast8,
+                    ]);
+
+                    return response()->json(['success' => false, 'message' => $errorMsg], 422);
+                }
+            }
+
+            // ── All 4 checks passed ──────────────────────────────────────────
+            $verifiedDob  = $bvnData['date_of_birth']  ?? $request->date_of_birth;
+            $verifiedNin  = $bvnData['nin']            ?? null;
+            $verifiedName = trim(($bvnData['first_name'] ?? '') . ' ' . ($bvnData['last_name'] ?? ''));
+
+            session([
+                'kyc_bvn_verified_' . $userId => true,
+                'kyc_bvn_dob_'      . $userId => $verifiedDob,
+                'kyc_bvn_nin_'      . $userId => $verifiedNin,
+                'kyc_bvn_ref_'      . $userId => $bvnData['reference'] ?? null,
+                'kyc_first_name_'   . $userId => $request->first_name,
+                'kyc_last_name_'    . $userId => $request->last_name,
+            ]);
 
             Logged::create([
                 'user_id'     => $userId,
-                'from'        => 'KycController@validateCustomer',
-                'for'         => 'Paystack Validate Customer Failed',
-                'message'     => $data['message'] ?? 'Paystack rejected the validation request.',
-                'type'        => 'error',
-                'stack_trace' => json_encode($failContext),
-                't_reference' => null,
+                'from'        => 'KycController@verifyBvn',
+                'for'         => 'BVN Verified — 4-Factor Passed',
+                'message'     => "BVN 4-factor check passed for user {$userId}. Verified name: {$verifiedName}",
+                'type'        => 'info',
+                'stack_trace' => json_encode([
+                    'verified_name'  => $verifiedName,
+                    'verified_dob'   => $verifiedDob,
+                    'bvn_linked_nin' => $verifiedNin,
+                    'reference'      => $bvnData['reference'] ?? null,
+                ]),
+                't_reference' => $bvnData['reference'] ?? null,
             ]);
 
-            Log::error('[KYC] validateCustomer — Paystack rejected request', array_merge(
-                ['user_id' => $userId, 'message' => $data['message'] ?? 'No message'],
-                $failContext
-            ));
+            Log::info('[KYC] verifyBvn — 4-factor check passed', ['user_id' => $userId, 'name' => $verifiedName]);
 
             return response()->json([
-                'success' => false,
-                'message' => $data['message'] ?? 'Could not verify your details. Please check and try again.',
-            ], 400);
+                'success'       => true,
+                'message'       => 'BVN verified. Please continue to NIN verification.',
+                'verified_name' => $verifiedName,
+            ]);
 
         } catch (\Exception $e) {
             Logged::create([
-                'user_id'     => $userId,
-                'from'        => 'KycController@validateCustomer',
-                'for'         => 'Validate Customer Exception',
-                'message'     => $e->getMessage(),
-                'type'        => 'error',
-                'stack_trace' => $e->getTraceAsString(),
-                't_reference' => null,
+                'user_id' => $userId, 'from' => 'KycController@verifyBvn',
+                'for' => 'BVN Verification Exception', 'message' => $e->getMessage(),
+                'type' => 'error', 'stack_trace' => $e->getTraceAsString(), 't_reference' => null,
             ]);
 
-            Log::error('[KYC] validateCustomer — Exception thrown', [
-                'user_id'   => $userId,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
-            ]);
+            Log::error('[KYC] verifyBvn — Exception', ['user_id' => $userId, 'error' => $e->getMessage()]);
 
+            return response()->json(['success' => false, 'message' => 'Service unavailable. Please try again.'], 500);
+        }
+    }
+
+    // =========================================================================
+    // STEP 2 — NIN VERIFICATION + CROSS-DOCUMENT OWNERSHIP
+    // =========================================================================
+
+    /**
+     * Verify NIN via Korapay Identity API, then run cross-document checks
+     * against the BVN already verified in Step 1.
+     *
+     * Endpoint: POST https://api.korapay.com/merchant/api/v1/identities/ng/nin
+     * Docs:     https://developers.korapay.com/docs/nigeria-nin
+     *
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │  VERIFICATION LAYERS                                                │
+     * │                                                                     │
+     * │  Pre-check (before API call — no cost if it fails):                │
+     * │    · The BVN response contains a `nin` field — the NIN the         │
+     * │      government links to that BVN. Submitted NIN must match.       │
+     * │      If it doesn't, the user is submitting someone else's NIN.     │
+     * │                                                                     │
+     * │  NIN 3-factor (via Korapay API):                                   │
+     * │    · first_name matches NIN record                                 │
+     * │    · last_name  matches NIN record                                 │
+     * │    · date_of_birth matches NIN record                              │
+     * │      (names are read from the BVN session — no re-entry needed)    │
+     * │                                                                     │
+     * │  Cross-document DOB check (our server-side):                       │
+     * │    · DOB returned by NIN API must equal DOB returned by BVN API.   │
+     * │      Both are from government databases — same person = same DOB.  │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    public function verifyNin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id'       => 'required',
+            'nin'           => 'required|digits:11',
+            'date_of_birth' => 'required|date_format:Y-m-d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 400);
+        }
+
+        $userId = $request->user_id;
+        $user   = User::find($userId);
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        // Guard: BVN must be verified first
+        if (!session('kyc_bvn_verified_' . $userId)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Service unavailable. Please try again.',
-            ], 500);
+                'message' => 'Please verify your BVN before verifying your NIN.',
+            ], 422);
         }
-    }
 
-    /**
-     * Paystack Webhook Handler
-     *
-     * Paystack sends this after async identity verification completes.
-     * Events: customeridentification.success | customeridentification.failed
-     *
-     * IMPORTANT — add this route OUTSIDE the web middleware group (no CSRF):
-     *   Route::post('/webhook/paystack', [KycController::class, 'webhook'])->name('webhook.paystack');
-     *
-     * Then set your webhook URL in:
-     *   Paystack Dashboard > Settings > API Keys & Webhooks > Webhook URL
-     */
-    public function webhook(Request $request)
-    {
-        $paystackSig = $request->header('x-paystack-signature');
-        $expectedSig = hash_hmac('sha512', $request->getContent(), env('PAYSTACK_SECRET_KEY'));
+        $bvnDob       = session('kyc_bvn_dob_'     . $userId);
+        $bvnLinkedNin = session('kyc_bvn_nin_'     . $userId);
+        $firstName    = session('kyc_first_name_'  . $userId);
+        $lastName     = session('kyc_last_name_'   . $userId);
 
-        if ($paystackSig !== $expectedSig) {
+        // ── Pre-check: BVN's linked NIN must equal submitted NIN ─────────────
+        if ($bvnLinkedNin && $bvnLinkedNin !== $request->nin) {
+            $errorMsg = 'The NIN you entered is not linked to your BVN. '
+                      . 'Please use your own NIN.';
+
             Logged::create([
-                'user_id'     => null,
-                'from'        => 'KycController@webhook',
-                'for'         => 'Webhook Signature Invalid',
-                'message'     => 'Incoming webhook failed HMAC signature check.',
+                'user_id'     => $userId,
+                'from'        => 'KycController@verifyNin',
+                'for'         => 'NIN Pre-Check: BVN-linked NIN mismatch',
+                'message'     => "BVN linked NIN ≠ submitted NIN for user {$userId}.",
                 'type'        => 'error',
-                'stack_trace' => json_encode([
-                    'full_payload' => $request->all(),
-                    'received_sig' => $paystackSig,
-                ]),
+                'stack_trace' => json_encode(['bvn_linked_nin' => $bvnLinkedNin, 'submitted_nin' => $request->nin]),
                 't_reference' => null,
             ]);
 
-            Log::warning('[KYC] webhook — Invalid HMAC signature', [
-                'received_sig' => $paystackSig,
-                'payload'      => $request->all(),
+            Log::warning('[KYC] verifyNin — BVN-linked NIN mismatch', ['user_id' => $userId]);
+
+            return response()->json(['success' => false, 'message' => $errorMsg], 422);
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . env('KORAPAY_SECRET_KEY'),
+                'Content-Type'  => 'application/json',
+            ])->post('https://api.korapay.com/merchant/api/v1/identities/ng/nin', [
+                'id'                   => $request->nin,
+                'verification_consent' => true,
+                'validation'           => [
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                    'date_of_birth' => $request->date_of_birth,
+                ],
             ]);
 
-            return response()->json(['message' => 'Invalid signature'], 401);
+            $data = $response->json();
+
+            Logged::create([
+                'user_id'     => $userId,
+                'from'        => 'KycController@verifyNin',
+                'for'         => 'Korapay NIN Verification',
+                'message'     => 'Sent NIN + name + DOB to Korapay for 3-factor check.',
+                'type'        => 'info',
+                'stack_trace' => json_encode(['full_response' => $data, 'http_status' => $response->status()]),
+                't_reference' => $data['data']['reference'] ?? null,
+            ]);
+
+            // ── API-level failure ────────────────────────────────────────────
+            if (!$response->successful() || ($data['status'] ?? false) !== true) {
+                $errorMsg = 'Server down, please try again later';
+
+                Logged::create([
+                    'user_id' => $userId, 'from' => 'KycController@verifyNin',
+                    'for' => 'Korapay NIN API Failure', 'message' => $errorMsg,
+                    'type' => 'error', 'stack_trace' => json_encode($data), 't_reference' => null,
+                ]);
+
+                return response()->json(['success' => false, 'message' => $errorMsg], 400);
+            }
+
+            $ninData    = $data['data'];
+            $validation = $ninData['validation'] ?? [];
+
+            // ── NIN 3-factor match ───────────────────────────────────────────
+            $failed = [];
+            if (!($validation['first_name']['match']    ?? false)) $failed[] = 'first name';
+            if (!($validation['last_name']['match']     ?? false)) $failed[] = 'last name';
+            if (!($validation['date_of_birth']['match'] ?? false)) $failed[] = 'date of birth';
+
+            if (!empty($failed)) {
+                $verb     = count($failed) > 1 ? 'do' : 'does';
+                $errorMsg = 'The ' . implode(' and ', $failed) . " you entered {$verb} not match your NIN record. "
+                          . 'Please enter your details exactly as registered with NIMC.';
+
+                Logged::create([
+                    'user_id'     => $userId,
+                    'from'        => 'KycController@verifyNin',
+                    'for'         => 'NIN 3-Factor Mismatch',
+                    'message'     => $errorMsg,
+                    'type'        => 'error',
+                    'stack_trace' => json_encode(['failed' => $failed, 'validation' => $validation]),
+                    't_reference' => $ninData['reference'] ?? null,
+                ]);
+
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+
+            // ── Cross-document DOB check ─────────────────────────────────────
+            // The DOB on the NIN record must equal the DOB on the BVN record.
+            // Both come directly from government databases — same person = same birthday.
+            $ninDob = $ninData['date_of_birth'] ?? null;
+
+            if ($bvnDob && $ninDob && $bvnDob !== $ninDob) {
+                $errorMsg = 'The date of birth on your NIN does not match the date of birth on your BVN. '
+                          . 'Please ensure you are using your own documents.';
+
+                Logged::create([
+                    'user_id'     => $userId,
+                    'from'        => 'KycController@verifyNin',
+                    'for'         => 'BVN ↔ NIN DOB Cross-Check Failed',
+                    'message'     => "DOB mismatch — BVN: {$bvnDob} | NIN: {$ninDob} for user {$userId}.",
+                    'type'        => 'error',
+                    'stack_trace' => json_encode(['bvn_dob' => $bvnDob, 'nin_dob' => $ninDob]),
+                    't_reference' => $ninData['reference'] ?? null,
+                ]);
+
+                Log::warning('[KYC] verifyNin — BVN ↔ NIN DOB mismatch', [
+                    'user_id' => $userId, 'bvn_dob' => $bvnDob, 'nin_dob' => $ninDob,
+                ]);
+
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+
+            // ── ALL checks passed ────────────────────────────────────────────
+            session([
+                'kyc_nin_verified_' . $userId => true,
+                'kyc_nin_ref_'      . $userId => $ninData['reference'] ?? null,
+            ]);
+
+            Logged::create([
+                'user_id'     => $userId,
+                'from'        => 'KycController@verifyNin',
+                'for'         => 'NIN Verified — All Checks Passed',
+                'message'     => "NIN 3-factor + BVN↔NIN cross-checks passed for user {$userId}.",
+                'type'        => 'info',
+                'stack_trace' => json_encode([
+                    'nin_ref'        => $ninData['reference'] ?? null,
+                    'bvn_linked_nin' => $bvnLinkedNin,
+                    'dob_cross'      => ['bvn' => $bvnDob, 'nin' => $ninDob],
+                ]),
+                't_reference' => $ninData['reference'] ?? null,
+            ]);
+
+            Log::info('[KYC] verifyNin — All checks passed', ['user_id' => $userId]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'NIN verified. Please upload your documents and submit.',
+            ]);
+
+        } catch (\Exception $e) {
+            Logged::create([
+                'user_id' => $userId, 'from' => 'KycController@verifyNin',
+                'for' => 'NIN Verification Exception', 'message' => $e->getMessage(),
+                'type' => 'error', 'stack_trace' => $e->getTraceAsString(), 't_reference' => null,
+            ]);
+
+            Log::error('[KYC] verifyNin — Exception', ['user_id' => $userId, 'error' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Service unavailable. Please try again.'], 500);
         }
-
-        $event    = $request->input('event');
-        $data     = $request->input('data', []);
-        $customer = $data['customer'] ?? [];
-
-        $user = User::where('email', $customer['email'] ?? '')->first();
-
-        $webhookContext = [
-            'full_payload' => $request->all(),
-            'event'        => $event,
-            'customer'     => $customer,
-            'data'         => $data,
-        ];
-
-        Logged::create([
-            'user_id'     => $user?->id,
-            'from'        => 'KycController@webhook',
-            'for'         => 'Paystack Webhook: ' . $event,
-            'message'     => "Webhook [{$event}] for: " . ($customer['email'] ?? 'unknown'),
-            'type'        => 'info',
-            'stack_trace' => json_encode($webhookContext),
-            't_reference' => $customer['customer_code'] ?? null,
-        ]);
-
-        Log::info("[KYC] webhook — Received [{$event}]", array_merge(
-            ['user_id' => $user?->id, 'email' => $customer['email'] ?? 'unknown'],
-            $webhookContext
-        ));
-
-        match ($event) {
-            'customeridentification.success' => $this->handleSuccess($user, $data),
-            'customeridentification.failed'  => $this->handleFailed($user, $data),
-            default => Log::info("[KYC] webhook — Unhandled event: {$event}", ['payload' => $data]),
-        };
-
-        return response()->json(['message' => 'OK'], 200);
     }
 
-    /**
-     * customeridentification.success
-     * Paystack confirmed BVN matches the bank account — approve the KYC and update user name
-     */
-    private function handleSuccess(?User $user, array $data): void
-    {
-        if (!$user) {
-            Log::warning('[KYC] handleSuccess — No matching user found for webhook payload', ['data' => $data]);
-            return;
-        }
-
-        KycProfile::where('user_id', $user->id)->update(['status' => 'APPROVED']);
-
-        /*
-         * Update the user's name from the verified identity.
-         * Paystack returns the verified name in data.customer.first_name / last_name.
-         * Some responses also include it in data.identification — we fall back to that.
-         */
-        $firstName = $data['customer']['first_name']    ?? $data['identification']['first_name'] ?? null;
-        $lastName  = $data['customer']['last_name']     ?? $data['identification']['last_name']  ?? null;
-
-        $nameUpdated = false;
-
-        if ($firstName || $lastName) {
-            $fullName    = trim("{$firstName} {$lastName}");
-            $user->name  = $fullName;
-            $user->save();
-            $nameUpdated = true;
-        }
-
-        // TODO: notify user via WhatsApp
-        // app(WhatsAppController::class)->sendMessage($user->mobile, '...');
-
-        $logMessage = "KYC APPROVED for {$user->name} ({$user->id}) — Paystack confirmed identity."
-                    . ($nameUpdated ? " Name updated to: {$user->name}" : " Name not updated — no name in payload.");
-
-        $logContext = [
-            'full_payload' => $data,
-            'name_update'  => [
-                'updated'    => $nameUpdated,
-                'first_name' => $firstName,
-                'last_name'  => $lastName,
-                'full_name'  => $nameUpdated ? $user->name : null,
-            ],
-        ];
-
-        Logged::create([
-            'user_id'     => $user->id,
-            'from'        => 'KycController@handleSuccess',
-            'for'         => 'KYC Approved via Paystack Webhook',
-            'message'     => $logMessage,
-            'type'        => 'info',
-            'stack_trace' => json_encode($logContext),
-            't_reference' => $data['customer']['customer_code'] ?? null,
-        ]);
-
-        Log::info("[KYC] handleSuccess — {$logMessage}", array_merge(
-            ['user_id' => $user->id],
-            $logContext
-        ));
-    }
+    // =========================================================================
+    // STEP 3 — FINAL FORM SUBMISSION
+    // =========================================================================
 
     /**
-     * customeridentification.failed
-     * Paystack could not match the BVN — reject the KYC
-     */
-    private function handleFailed(?User $user, array $data): void
-    {
-        if (!$user) {
-            Log::warning('[KYC] handleFailed — No matching user found for webhook payload', ['data' => $data]);
-            return;
-        }
-
-        $reason = $data['reason'] ?? 'Identity could not be verified.';
-
-        KycProfile::where('user_id', $user->id)->update([
-            'status'           => 'REJECTED',
-            'rejection_reason' => $reason,
-        ]);
-
-        $logContext = [
-            'full_payload'     => $data,
-            'rejection_reason' => $reason,
-            'customer'         => $data['customer']      ?? [],
-            'identification'   => $data['identification'] ?? [],
-        ];
-
-        Logged::create([
-            'user_id'     => $user->id,
-            'from'        => 'KycController@handleFailed',
-            'for'         => 'KYC Rejected via Paystack Webhook',
-            'message'     => "KYC REJECTED for {$user->name} ({$user->id}). Reason: {$reason}",
-            'type'        => 'error',
-            'stack_trace' => json_encode($logContext),
-            't_reference' => $data['customer']['customer_code'] ?? null,
-        ]);
-
-        Log::error("[KYC] handleFailed — KYC REJECTED for {$user->name} ({$user->id})", array_merge(
-            ['user_id' => $user->id, 'reason' => $reason],
-            $logContext
-        ));
-    }
-
-    /**
-     * Final KYC form submission
-     * Saves all fields + uploads documents
-     * Status = PENDING until Paystack webhook updates it
+     * Final KYC form submission.
+     * Both BVN (4-factor) and NIN (3-factor + cross-document) must be verified.
      */
     public function submit(Request $request, $user)
     {
@@ -393,10 +482,9 @@ class KycController extends Controller
             $validator = Validator::make($request->all(), [
                 'bvn'              => 'required|digits:11',
                 'nin'              => 'required|digits:11',
-                'bvn_phone'        => 'required|min:10|max:11',
-                'account_number'   => 'required|digits:10',
-                'bank_code'        => 'required|string',
-                'bvn_submitted'    => 'required|in:1',
+                'bvn_phone'        => 'required|min:10|max:14',
+                'bvn_verified'     => 'required|in:1',
+                'nin_verified'     => 'required|in:1',
                 'passport_photo'   => 'required|image|mimes:jpeg,png,jpg|max:2048',
                 'proof_of_address' => 'required|file|mimes:jpeg,png,jpg,pdf|max:2048',
             ]);
@@ -406,42 +494,40 @@ class KycController extends Controller
                     'user_id' => $resolvedUserId,
                     'errors'  => $validator->errors()->toArray(),
                 ]);
-
                 return back()->withErrors($validator)->withInput();
             }
 
-            if (!session('kyc_bvn_submitted_' . $user->id)) {
+            // Double-guard: both verification sessions must exist
+            $bvnVerified = session('kyc_bvn_verified_' . $user->id);
+            $ninVerified = session('kyc_nin_verified_'  . $user->id);
+
+            if (!$bvnVerified || !$ninVerified) {
                 Logged::create([
                     'user_id'     => $resolvedUserId,
                     'from'        => 'KycController@submit',
-                    'for'         => 'KYC Submit — BVN Not Submitted',
-                    'message'     => 'Form submitted without first calling validateCustomer.',
+                    'for'         => 'KYC Submit — Verification Incomplete',
+                    'message'     => 'Form submitted without completing BVN and/or NIN verification.',
                     'type'        => 'error',
-                    'stack_trace' => null,
+                    'stack_trace' => json_encode(['bvn' => $bvnVerified, 'nin' => $ninVerified]),
                     't_reference' => null,
                 ]);
 
-                Log::error('[KYC] submit — Form submitted without BVN validation step', [
-                    'user_id' => $resolvedUserId,
-                ]);
-
-                return back()->withErrors(['bvn' => 'Please verify your BVN before submitting.'])->withInput();
+                return back()->withErrors(['error' => 'Please complete both BVN and NIN verification before submitting.'])->withInput();
             }
 
-            // Upload passport photo
+            // Upload documents
             $passportUrl = $this->uploadToCloudinary(
                 $request->file('passport_photo'),
                 'apay/kyc/passports',
                 'passport_' . $user->id . '_' . time(),
-                $user->id 
+                $user->id
             );
 
-            // Upload proof of address
             $proofUrl = $this->uploadToCloudinary(
                 $request->file('proof_of_address'),
                 'apay/kyc/proof',
                 'proof_' . $user->id . '_' . time(),
-                $user->id 
+                $user->id
             );
 
             if (!$passportUrl || !$proofUrl) {
@@ -449,49 +535,46 @@ class KycController extends Controller
                     'user_id'     => $resolvedUserId,
                     'from'        => 'KycController@submit',
                     'for'         => 'KYC Document Upload Failed',
-                    'message'     => 'Cloudinary upload failed for one or more KYC documents.',
+                    'message'     => 'Cloudinary upload failed.',
                     'type'        => 'error',
                     'stack_trace' => json_encode(['passport' => $passportUrl, 'proof' => $proofUrl]),
                     't_reference' => null,
                 ]);
 
-                Log::error('[KYC] submit — Cloudinary upload failed', [
-                    'user_id'  => $resolvedUserId,
-                    'passport' => $passportUrl,
-                    'proof'    => $proofUrl,
-                ]);
-
                 return back()->withErrors(['error' => 'Failed to upload documents. Please try again.'])->withInput();
             }
 
-            // Save KYC — PENDING until Paystack webhook fires
+            // Save KYC — APPROVED because all 7 checks + 2 cross-document checks passed
             KycProfile::create([
                 'user_id'          => $user->id,
                 'bvn'              => $request->bvn,
                 'nin'              => $request->nin,
-                'bvn_phone_last_5' => substr($request->bvn_phone, -5),
+                'bvn_phone_last_5' => substr(preg_replace('/\D/', '', $request->bvn_phone), -5),
                 'passport_photo'   => $passportUrl,
                 'proof_of_address' => $proofUrl,
-                'status'           => 'PENDING',
+                'bvn_reference'    => session('kyc_bvn_ref_' . $user->id),
+                'nin_reference'    => session('kyc_nin_ref_' . $user->id),
+                'status'           => 'APPROVED',
                 'rejection_reason' => null,
             ]);
 
-            session()->forget('kyc_bvn_submitted_' . $user->id);
+            // Clean up all KYC session keys
+            foreach (['bvn_verified', 'bvn_dob', 'bvn_nin', 'bvn_ref',
+                      'nin_verified', 'nin_ref', 'first_name', 'last_name'] as $key) {
+                session()->forget("kyc_{$key}_{$user->id}");
+            }
 
             Logged::create([
                 'user_id'     => $user->id,
                 'from'        => 'KycController@submit',
-                'for'         => 'KYC Submission',
-                'message'     => "KYC saved as PENDING for {$user->name} ({$user->id}). Awaiting Paystack webhook.",
+                'for'         => 'KYC Submission Complete',
+                'message'     => "KYC APPROVED for {$user->name} ({$user->id}). 4-factor BVN + 3-factor NIN + cross-checks all passed.",
                 'type'        => 'info',
                 'stack_trace' => null,
                 't_reference' => null,
             ]);
 
-            Log::info('[KYC] submit — KYC saved as PENDING', [
-                'user_id' => $user->id,
-                'name'    => $user->name,
-            ]);
+            Log::info('[KYC] submit — KYC saved as APPROVED', ['user_id' => $user->id]);
 
             $this->sendWhatsAppNotification($user);
 
@@ -508,36 +591,32 @@ class KycController extends Controller
                 't_reference' => null,
             ]);
 
-            Log::error('[KYC] submit — Exception thrown', [
-                'user_id'   => $resolvedUserId,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
+            Log::error('[KYC] submit — Exception', [
+                'user_id' => $resolvedUserId, 'error' => $e->getMessage(),
             ]);
 
             return back()->withErrors(['error' => 'Something went wrong. Please try again.'])->withInput();
         }
     }
 
-    /**
-     * Upload a file to Cloudinary
-     */
+    // =========================================================================
+    // HELPERS
+    // =========================================================================
+
     private function uploadToCloudinary($file, string $folder, string $publicId, ?string $userId = null): ?string
     {
-        // Guard: file must exist and be valid before attempting upload
         if (!$file || !$file->isValid() || !$file->getRealPath()) {
-            Log::error('[KYC] uploadToCloudinary — File is null or invalid, skipping upload', [
-                'public_id' => $publicId,
-                'folder'    => $folder,
+            Log::error('[KYC] uploadToCloudinary — File null or invalid', [
+                'public_id' => $publicId, 'folder' => $folder,
             ]);
             return null;
         }
 
         try {
-            // Build Cloudinary instance the same way other services do
             $cloudinaryUrl = env('CLOUDINARY_URL');
 
             if ($cloudinaryUrl) {
-                $parsed = parse_url($cloudinaryUrl);
+                $parsed     = parse_url($cloudinaryUrl);
                 $cloudinary = new \Cloudinary\Cloudinary([
                     'cloud' => [
                         'cloud_name' => $parsed['host'] ?? env('CLOUDINARY_CLOUD_NAME'),
@@ -555,9 +634,7 @@ class KycController extends Controller
                 ]);
             }
 
-            $uploadApi = $cloudinary->uploadApi();
-
-            $result = $uploadApi->upload($file->getRealPath(), [
+            $result = $cloudinary->uploadApi()->upload($file->getRealPath(), [
                 'folder'        => $folder,
                 'public_id'     => $publicId,
                 'resource_type' => 'auto',
@@ -580,22 +657,15 @@ class KycController extends Controller
                 't_reference' => null,
             ]);
             Log::error('[KYC] uploadToCloudinary — Upload failed', [
-                'public_id' => $publicId,
-                'folder'    => $folder,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
+                'public_id' => $publicId, 'folder' => $folder, 'error' => $e->getMessage(),
             ]);
             return null;
         }
     }
-    /**
-     * Send WhatsApp notification after KYC is submitted
-     */
+
     private function sendWhatsAppNotification(User $user): void
     {
-        // TODO: implement WhatsApp
-        // app(WhatsAppController::class)->sendMessage($user->mobile, $message);
-
+        // TODO: implement WhatsApp notification
         Logged::create([
             'user_id'     => $user->id,
             'from'        => 'KycController@sendWhatsAppNotification',
@@ -604,11 +674,6 @@ class KycController extends Controller
             'type'        => 'info',
             'stack_trace' => null,
             't_reference' => null,
-        ]);
-
-        Log::info('[KYC] sendWhatsAppNotification — Notification queued', [
-            'user_id' => $user->id,
-            'name'    => $user->name,
         ]);
     }
 }

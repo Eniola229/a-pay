@@ -25,19 +25,21 @@
             justify-content: center;
             padding: 32px 16px;
             position: relative;
-            overflow: hidden;
+            /* REMOVED: overflow: hidden — this was blocking scroll */
         }
 
-        body::before {
+        /* Background gradients moved to a fixed pseudo-element on html so they don't affect scroll */
+        html::before {
             content: '';
             position: fixed; inset: 0;
             background:
                 radial-gradient(ellipse 70% 60% at 50% -10%, rgba(16,185,129,0.25) 0%, transparent 60%),
                 radial-gradient(ellipse 40% 50% at 90% 100%, rgba(52,211,153,0.12) 0%, transparent 60%);
             pointer-events: none;
+            z-index: 0;
         }
 
-        body::after {
+        html::after {
             content: '';
             position: fixed; inset: 0;
             background-image:
@@ -45,6 +47,7 @@
                 linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px);
             background-size: 40px 40px;
             pointer-events: none;
+            z-index: 0;
         }
 
         .wrapper {
@@ -83,7 +86,6 @@
             box-shadow: 0 24px 80px rgba(5,150,105,0.22), 0 0 0 1px rgba(16,185,129,0.1);
         }
 
-        /* Success animation strip */
         .success-strip {
             height: 6px;
             background: linear-gradient(90deg, var(--g4), var(--g6), var(--g7), var(--g6), var(--g4));
@@ -95,7 +97,6 @@
 
         .card-body { padding: 40px 36px 32px; text-align: center; }
 
-        /* Check icon */
         .success-icon-wrap {
             position: relative;
             width: 88px; height: 88px;
@@ -149,7 +150,6 @@
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* Status list */
         .status-list {
             background: var(--g11);
             border: 1px solid rgba(16,185,129,0.2);
@@ -183,7 +183,6 @@
 
         .status-text span { font-size: 12.5px; color: #6b7280; }
 
-        /* Warning */
         .warning-card {
             background: var(--amber-bg);
             border: 1px solid var(--amber-border);
@@ -206,7 +205,6 @@
 
         .warning-text { font-size: 13px; color: #78350f; line-height: 1.5; }
 
-        /* Support */
         .support-row {
             display: flex; align-items: center; justify-content: center;
             gap: 8px;
@@ -305,3 +303,5 @@
     </div>
 
 </div>
+</body>
+</html>

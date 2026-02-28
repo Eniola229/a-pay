@@ -73,8 +73,8 @@ Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebho
 Route::get('/verify-device', [DeviceVerificationController::class, 'show'])->name('verify.device');
 Route::post('/verify-device', [DeviceVerificationController::class, 'verify']);
 //kyc
-
-Route::post('/kyc/validate-customer', [KycController::class, 'validateCustomer'])->name('kyc.validate-customer');
+Route::post('/kyc/verify-bvn', [KycController::class, 'verifyBvn'])->name('kyc.verify-bvn');
+Route::post('/kyc/verify-nin', [KycController::class, 'verifyNin'])->name('kyc.verify-nin');
 
 // KYC form & submission (token-secured via encrypted URL)
 Route::get('/kyc/{user}',             [KycController::class, 'showForm'])->name('kyc.form');
