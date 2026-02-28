@@ -666,7 +666,7 @@
                             <p class="user-email">BVN PHONE NUMBER(LAST 5): {{ $kyc->bvn_phone_last_5 ?? 'N/A' }}</p>
                             <p class="user-email">
                                 STATUS: 
-                                <span class="badge badge-{{ $kyc->status == 'approved' ? 'success' : ($kyc->status == 'rejected' ? 'danger' : 'warning') }}">
+                                <span class="badge badge-{{ $kyc->status == 'APPROVED' ? 'success' : ($kyc->status == 'REJECTED' ? 'danger' : 'warning') }}">
                                     {{ ucfirst($kyc->status) ?? 'N/A' }}
                                 </span>
                             </p>
@@ -740,24 +740,24 @@
                         <!-- Action Buttons -->
                         @if($kyc->status == 'PENDING')
                         <div class="balance-section mt-4">
-                            <button class="btn btn-success mr-2" onclick="approveKYC({{ $kyc->id }})">
+                           <button class="btn btn-success mr-2" onclick="approveKYC('{{ $kyc->id }}')">
                                 <i class="fas fa-check"></i> Approve KYC
                             </button>
-                            <button class="btn btn-danger" onclick="showRejectModal({{ $kyc->id }})">
+<button class="btn btn-danger" onclick="showRejectModal('{{ $kyc->id }}')">
                                 <i class="fas fa-times"></i> Reject KYC
                             </button>
                         </div>
                         @endif
                         @if($kyc->status == 'APPROVED')
                        <div class="balance-section mt-4">
-                            <button class="btn btn-danger" onclick="showRejectModal({{ $kyc->id }})">
+<button class="btn btn-danger" onclick="showRejectModal('{{ $kyc->id }}')">
                                 <i class="fas fa-times"></i> Reject KYC
                             </button>
                         </div>
                         @endif
                         @if($kyc->status == 'REJECTED')
                        <div class="balance-section mt-4">
-                            <button class="btn btn-danger" onclick="deleteKYC({{ $kyc->id }})">
+                           <button class="btn btn-danger" onclick="deleteKYC('{{ $kyc->id }}')">
                                 <i class="fas fa-times"></i> Delete Kyc
                             </button>
                         </div>
@@ -1475,7 +1475,7 @@
 
     function showRejectModal(kycId) {
         const form = document.getElementById('rejectKYCForm');
-        form.action = form.action.replace(/\/\d+$/, '/' + kycId);
+        form.action = form.action.replace(/\/[^\/]+$/, '/' + kycId);
         $('#rejectKYCModal').modal('show');
     }
 

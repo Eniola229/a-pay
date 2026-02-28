@@ -78,8 +78,9 @@ class PaystackWebhookController extends Controller
 
     private function handleKycSuccess(array $data): \Illuminate\Http\JsonResponse
     {
+        // Paystack sends email at top level for identification events
         $customer = $data['customer'] ?? [];
-        $email    = $customer['email'] ?? null;
+        $email    = $data['email'] ?? $customer['email'] ?? null;
 
         $user = $email ? User::where('email', $email)->first() : null;
 
@@ -95,7 +96,7 @@ class PaystackWebhookController extends Controller
                 'for'         => 'KYC_WEBHOOK',
                 'message'     => "customeridentification.success — no user found for email: {$email}",
                 'stack_trace' => json_encode($data),
-                't_reference' => $customer['customer_code'] ?? null,
+                't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
                 'from'        => 'PAYSTACK_WEBHOOK',
                 'type'        => 'FAILED',
             ]);
@@ -111,7 +112,7 @@ class PaystackWebhookController extends Controller
                 'for'         => 'KYC_WEBHOOK',
                 'message'     => "customeridentification.success — no KYC profile found for user: {$user->id}",
                 'stack_trace' => json_encode($data),
-                't_reference' => $customer['customer_code'] ?? null,
+                't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
                 'from'        => 'PAYSTACK_WEBHOOK',
                 'type'        => 'INFO',
             ]);
@@ -124,9 +125,9 @@ class PaystackWebhookController extends Controller
             'rejection_reason' => null,
         ]);
 
-        // Update user's name from the verified identity
-        $firstName   = $customer['first_name']              ?? $data['identification']['first_name'] ?? null;
-        $lastName    = $customer['last_name']               ?? $data['identification']['last_name']  ?? null;
+        // For identification events, name lives in identification block first, then customer block
+        $firstName   = $data['identification']['first_name'] ?? $customer['first_name'] ?? null;
+        $lastName    = $data['identification']['last_name']  ?? $customer['last_name']  ?? null;
         $nameUpdated = false;
 
         if ($firstName || $lastName) {
@@ -150,21 +151,22 @@ class PaystackWebhookController extends Controller
                     'last_name'  => $lastName,
                 ],
             ]),
-            't_reference' => $customer['customer_code'] ?? null,
+            't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
             'from'        => 'PAYSTACK_WEBHOOK',
             'type'        => 'SUCCESS',
         ]);
 
-        Log::info("[KYC] {$logMessage}", ['user_id' => $user->id]);
+        Log::info("[KYC] {$logMessage}", ['user_id' => $user->id, 'payload' => $data]);
 
         return response()->json(['status' => 'ok']);
     }
 
     private function handleKycFailed(array $data): \Illuminate\Http\JsonResponse
     {
+        // Paystack sends email at top level for identification events
         $customer = $data['customer'] ?? [];
-        $email    = $customer['email'] ?? null;
-        $reason   = $data['reason']   ?? 'Identity could not be verified.';
+        $email    = $data['email'] ?? $customer['email'] ?? null;
+        $reason   = $data['reason'] ?? 'Identity could not be verified.';
 
         $user = $email ? User::where('email', $email)->first() : null;
 
@@ -181,7 +183,7 @@ class PaystackWebhookController extends Controller
                 'for'         => 'KYC_WEBHOOK',
                 'message'     => "customeridentification.failed — no user found for email: {$email}",
                 'stack_trace' => json_encode($data),
-                't_reference' => $customer['customer_code'] ?? null,
+                't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
                 'from'        => 'PAYSTACK_WEBHOOK',
                 'type'        => 'FAILED',
             ]);
@@ -197,7 +199,7 @@ class PaystackWebhookController extends Controller
                 'for'         => 'KYC_WEBHOOK',
                 'message'     => "customeridentification.failed — no KYC profile found for user: {$user->id}",
                 'stack_trace' => json_encode($data),
-                't_reference' => $customer['customer_code'] ?? null,
+                't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
                 'from'        => 'PAYSTACK_WEBHOOK',
                 'type'        => 'INFO',
             ]);
@@ -219,17 +221,17 @@ class PaystackWebhookController extends Controller
             'stack_trace' => json_encode([
                 'payload'          => $data,
                 'rejection_reason' => $reason,
+                'identification'   => $data['identification'] ?? [],
             ]),
-            't_reference' => $customer['customer_code'] ?? null,
+            't_reference' => $data['customer_code'] ?? $customer['customer_code'] ?? null,
             'from'        => 'PAYSTACK_WEBHOOK',
             'type'        => 'FAILED',
         ]);
 
-        Log::error("[KYC] {$logMessage}", ['user_id' => $user->id]);
+        Log::error("[KYC] {$logMessage}", ['user_id' => $user->id, 'payload' => $data]);
 
         return response()->json(['status' => 'ok']);
     }
-
     // -------------------------------------------------------------------------
     // Payment / Deposit Handler — untouched
     // -------------------------------------------------------------------------
