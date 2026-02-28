@@ -264,7 +264,7 @@
                     <div class="status-dot">🆔</div>
                     <div class="status-text">
                         <strong>Identity Confirmed</strong>
-                        <span>BVN verified via Paystack secure channel</span>
+                        <span>BVN verified via secure channel</span>
                     </div>
                 </div>
                 <div class="status-item">
