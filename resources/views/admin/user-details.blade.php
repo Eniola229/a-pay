@@ -1569,7 +1569,7 @@
         if (confirm('Are you sure you want to permanently delete this KYC? This action cannot be undone.')) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/admin/kyc/${kycId}/delete`;
+            form.action = `/a-pay/admin/kyc/${kycId}/delete`;
             
             const csrf = document.createElement('input');
             csrf.type = 'hidden';
