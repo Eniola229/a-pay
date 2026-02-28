@@ -899,7 +899,7 @@
         </div>
 
         <div class="card-footer">
-            <span>Need help? <a href="https://wa.me/2349079916807">WhatsApp Support</a></span>
+            <span>Need help? <a href="https://wa.me/2348152880128">WhatsApp Support</a></span>
             <span>© 2026 A-Pay</span>
         </div>
     </div>

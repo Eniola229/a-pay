@@ -274,7 +274,7 @@
 
             <div class="support-row">
                 Questions?
-                <a href="https://wa.me/2349079916807" class="support-link">📲 WhatsApp Support</a>
+                <a href="https://wa.me/2348152880128" class="support-link">📲 WhatsApp Support</a>
             </div>
 
         </div>
