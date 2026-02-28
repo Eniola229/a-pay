@@ -80,12 +80,12 @@ class UserController extends Controller
         
         return view('admin.user-details', compact('user', 'balance', 'transactions', 'loans', 'kyc', 'whatsappMessages', 'logs'));
     }
-    public function approve(Kyc $kyc) {
+    public function approve(KycProfile $kyc) {
         $kyc->update(['status' => 'approved', 'rejection_reason' => null]);
         return back()->with('success', 'KYC approved successfully');
     }
 
-    public function reject(Request $request, Kyc $kyc) {
+    public function reject(Request $request, KycProfile $kyc) {
         $request->validate(['rejection_reason' => 'required|string']);
         $kyc->update([
             'status' => 'rejected',
@@ -94,9 +94,9 @@ class UserController extends Controller
         return back()->with('success', 'KYC rejected');
     }
 
-    public function delete(Kyc $kyc) {
+    public function delete(KycProfile $kyc) {
         // Optional: Only allow deletion if status is rejected
-        if ($kyc->status !== 'rejected') {
+        if ($kyc->status !== 'REJECTED') {
             return back()->with('error', 'Only rejected KYC can be deleted');
         }
         

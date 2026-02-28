@@ -157,14 +157,15 @@ Route::get('/transactions/logs/{reference}', [AdminAuthController::class, 'getTr
  Route::post('/notifications/store', [AdminAuthController::class, 'Notificationstore'])->name('notifications.store');
  Route::delete('/notifications/{id}', [AdminAuthController::class, 'Notificationdestroy'])->name('notifications.destroy');
  Route::get('/loans', [AdminAuthController::class, 'loans'])->name('admin-loans'); 
- Route::post('/kyc/{kyc}/approve', [UserController::class, 'approve'])->name('admin.kyc.approve');
- Route::post('/kyc/{kyc}/reject', [UserController::class, 'reject'])->name('admin.kyc.reject');
- Route::delete('/kyc/{kyc}/delete', [UserController::class, 'delete'])->name('admin.kyc.delete');
+// Static routes MUST come before dynamic {kyc} routes to avoid conflicts
+Route::get('/kyc/summary', [App\Http\Controllers\Admin\KycController::class, 'summary'])->name('kyc.summary');
+Route::get('/transactions/summary', [App\Http\Controllers\Admin\TransactionController::class, 'summary'])->name('transactions.summary');
+Route::get('/admin/transactions/graph', [App\Http\Controllers\Admin\TransactionController::class, 'graphData'])->name('transactions.graph');
 
- Route::get('/transactions/summary', [App\Http\Controllers\Admin\TransactionController::class, 'summary'])->name('transactions.summary');
- Route::get('/admin/transactions/graph', [App\Http\Controllers\Admin\TransactionController::class, 'graphData'])->name('transactions.graph');
- Route::get('/kyc/summary', [App\Http\Controllers\Admin\KycController::class, 'summary'])->name('kyc.summary');
-
+// Dynamic KYC routes — after static ones
+Route::post('/kyc/{kyc}/approve', [UserController::class, 'approve'])->name('admin.kyc.approve');
+Route::post('/kyc/{kyc}/reject', [UserController::class, 'reject'])->name('admin.kyc.reject');
+Route::post('/kyc/{kyc}/delete', [UserController::class, 'delete'])->name('admin.kyc.delete'); 
 
      // Newsletter Routes
     Route::get('/newsletter', [App\Http\Controllers\Admin\NewsletterController::class, 'index'])

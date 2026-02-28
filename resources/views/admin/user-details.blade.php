@@ -331,17 +331,18 @@
         background-color: #0056b3;
     }
     
-    .modal {
+/* Scope custom modal styles only to editProfileModal */
+    #editProfileModal {
         position: fixed;
-        z-index: 1000;
+        z-index: 1055;
         left: 0;
         top: 0;
         width: 100%;
         height: 100%;
         background-color: rgba(0,0,0,0.5);
     }
-    
-    .modal-content {
+
+    #editProfileModal .modal-content {
         background-color: #fff;
         margin: 5% auto;
         padding: 30px;
@@ -352,8 +353,8 @@
         max-height: 90vh;
         overflow-y: auto;
     }
-    
-    .close {
+
+    #editProfileModal .close {
         position: absolute;
         right: 20px;
         top: 15px;
@@ -362,11 +363,16 @@
         cursor: pointer;
         color: #aaa;
     }
-    
-    .close:hover {
+
+    #editProfileModal .close:hover {
         color: #000;
     }
-    
+
+    /* Fix Bootstrap modal z-index layering */
+    .modal { z-index: 1050 !important; }
+    .modal-dialog { z-index: 1060 !important; pointer-events: all !important; }
+    .modal-content { z-index: 1060 !important; pointer-events: all !important; }
+    .modal-backdrop { z-index: 1040 !important; }
     .form-group {
         margin-bottom: 20px;
     }
@@ -563,6 +569,66 @@
         font-size: 11px;
         margin-left: 5px;
     }
+
+    /* Fix modal z-index layering conflict with admin theme */
+    .modal {
+        z-index: 1050 !important;
+    }
+
+    .modal-dialog {
+        z-index: 1060 !important;
+        pointer-events: all !important;
+    }
+
+    .modal-content {
+        z-index: 1060 !important;
+        pointer-events: all !important;
+    }
+
+    .modal-backdrop {
+        z-index: 1040 !important;
+    }
+
+    /* Nuclear fix for modal backdrop blocking clicks */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
+.modal-dialog {
+    z-index: 1051 !important;
+    pointer-events: all !important;
+    position: relative !important;
+}
+
+.modal-content {
+    z-index: 1052 !important;
+    pointer-events: all !important;
+    position: relative !important;
+}
+
+/* Force modal body to accept clicks */
+.modal-body,
+.modal-header,
+.modal-footer {
+    pointer-events: all !important;
+    position: relative !important;
+    z-index: 1053 !important;
+}
+
+/* Ensure textarea and buttons inside modal work */
+.modal textarea,
+.modal input,
+.modal button,
+.modal select,
+.modal a {
+    pointer-events: all !important;
+    position: relative !important;
+    z-index: 1054 !important;
+}
 </style>
 
  <!--**********************************
@@ -1474,8 +1540,11 @@
     }
 
     function showRejectModal(kycId) {
+        // Build the action fresh using the base route without touching the current action
+        // This prevents UUID duplication on repeated clicks
         const form = document.getElementById('rejectKYCForm');
-        form.action = form.action.replace(/\/[^\/]+$/, '/' + kycId);
+        const baseUrl = form.action.replace(/\/kyc\/[^\/]+\/reject$/, '');
+        form.action = baseUrl + '/kyc/' + kycId + '/reject';
         $('#rejectKYCModal').modal('show');
     }
 
@@ -1500,20 +1569,14 @@
         if (confirm('Are you sure you want to permanently delete this KYC? This action cannot be undone.')) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/a-pay/admin/kyc/${kycId}/delete`;
+            form.action = `/admin/kyc/${kycId}/delete`;
             
             const csrf = document.createElement('input');
             csrf.type = 'hidden';
             csrf.name = '_token';
             csrf.value = '{{ csrf_token() }}';
             
-            const method = document.createElement('input');
-            method.type = 'hidden';
-            method.name = '_method';
-            method.value = 'DELETE';
-            
             form.appendChild(csrf);
-            form.appendChild(method);
             document.body.appendChild(form);
             form.submit();
         }
@@ -1695,6 +1758,24 @@
             saveBtn.disabled = false;
             btnText.style.display = 'inline';
             btnLoader.style.display = 'none';
+        }
+    });
+
+    // Remove any stale backdrops and reinitialize modals
+    $(document).on('show.bs.modal', '.modal', function() {
+        // Remove any extra backdrops
+        setTimeout(function() {
+            if ($('.modal-backdrop').length > 1) {
+                $('.modal-backdrop').not(':last').remove();
+            }
+        }, 100);
+    });
+
+    // Ensure body classes are cleaned up properly
+    $(document).on('hidden.bs.modal', '.modal', function() {
+        if ($('.modal:visible').length === 0) {
+            $('body').removeClass('modal-open');
+            $('.modal-backdrop').remove();
         }
     });
     </script>
