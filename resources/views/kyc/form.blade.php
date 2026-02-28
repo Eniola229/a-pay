@@ -1158,5 +1158,4 @@
         }
     });
 </script>
-</body>
-</html>
+@include('components.footer')

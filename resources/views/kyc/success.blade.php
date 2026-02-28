@@ -305,5 +305,5 @@
     </div>
 
 </div>
-</body>
-</html>
+
+@include('components.footer')
