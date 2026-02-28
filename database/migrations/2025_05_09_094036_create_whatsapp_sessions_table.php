@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('whatsapp_sessions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('user_id'); // UUID reference
+            $table->uuid('user_id')->nullable(); // UUID reference
+            $table->string('phone')->nullable();
             $table->string('context')->nullable(); // e.g. 'airtime'
             $table->json('data')->nullable(); // store temporary data like phone, network, amount
             $table->timestamps();

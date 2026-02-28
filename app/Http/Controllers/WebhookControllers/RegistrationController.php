@@ -118,7 +118,7 @@ class RegistrationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return "There was an error, pls try again later";
+            throw $e;
         }
     }
 

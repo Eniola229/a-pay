@@ -73,13 +73,12 @@ Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handleWebho
 Route::get('/verify-device', [DeviceVerificationController::class, 'show'])->name('verify.device');
 Route::post('/verify-device', [DeviceVerificationController::class, 'verify']);
 //kyc
-// IMPORTANT: POST routes must come BEFORE the {user} wildcard GET route
 
-Route::post('/kyc/bvn/initiate',    [KycController::class, 'initiateBvn'])->name('kyc.initiate-bvn');
-Route::post('/kyc/bvn/confirm-otp', [KycController::class, 'confirmOtp'])->name('kyc.confirm-otp');
+Route::post('/kyc/validate-customer', [KycController::class, 'validateCustomer'])->name('kyc.validate-customer');
 
-Route::get('/kyc/{user}',           [KycController::class, 'showForm'])->name('kyc.form');
-Route::post('/kyc/{user}/submit',   [KycController::class, 'submit'])->name('kyc.submit');
+// KYC form & submission (token-secured via encrypted URL)
+Route::get('/kyc/{user}',             [KycController::class, 'showForm'])->name('kyc.form');
+Route::post('/kyc/{user}/submit',     [KycController::class, 'submit'])->name('kyc.submit');
 
 
 Route::post('/get-payment-amount', [RegistrationController::class, 'getPaymentAmount']);

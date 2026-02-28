@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('balances', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('user_id');
-            $table->decimal('balance', 15, 2);
+            $table->decimal('balance', 15, 2)->default(0);
             $table->decimal('owe', 15, 2)->default(0);
             $table->string('pin')->nullable();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');

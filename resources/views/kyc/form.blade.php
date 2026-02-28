@@ -390,16 +390,6 @@
             gap: 4px;
         }
 
-        /* BVN verify section */
-        .bvn-group {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
-            align-items: end;
-        }
-
-        .bvn-group .form-group { margin-bottom: 0; }
-
         /* Verify status */
         .verify-status {
             padding: 12px 16px;
@@ -429,98 +419,6 @@
             color: #be123c;
             border: 1px solid #fecdd3;
         }
-
-        /* OTP Section */
-        .otp-section {
-            display: none;
-            padding: 20px;
-            background: var(--g11);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            margin-top: 16px;
-        }
-
-        .otp-section.visible { display: block; }
-
-        .otp-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-
-        .otp-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--g5), var(--g6));
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-
-        .otp-title {
-            font-family: 'Syne', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--g3);
-        }
-
-        .otp-subtitle {
-            font-size: 12px;
-            color: var(--text-soft);
-        }
-
-        .otp-inputs {
-            display: flex;
-            gap: 8px;
-            margin: 16px 0 14px;
-        }
-
-        .otp-digit {
-            flex: 1;
-            height: 52px;
-            text-align: center;
-            font-family: 'Syne', sans-serif;
-            font-size: 20px;
-            font-weight: 700;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            background: white;
-            color: var(--text-dark);
-            transition: all 0.2s;
-            caret-color: transparent;
-        }
-
-        .otp-digit:focus {
-            outline: none;
-            border-color: var(--g5);
-            box-shadow: 0 0 0 3px rgba(5,150,105,0.12);
-        }
-
-        .otp-digit.filled { border-color: var(--g6); background: #f0fdf4; }
-        .otp-digit.error-digit { border-color: #f43f5e; background: #fff1f2; }
-
-        .resend-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 12.5px;
-            color: var(--text-soft);
-        }
-
-        .resend-btn {
-            background: none;
-            border: none;
-            color: var(--g5);
-            font-size: 12.5px;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: 'DM Sans', sans-serif;
-        }
-
-        .resend-btn:disabled { color: var(--text-soft); cursor: default; }
 
         /* Verified badge */
         .verified-badge {
@@ -579,42 +477,6 @@
             cursor: not-allowed;
         }
 
-        .btn-secondary {
-            padding: 12px 20px;
-            background: var(--g11);
-            border: 1.5px solid var(--border);
-            color: var(--g4);
-            border-radius: 10px;
-            font-size: 13.5px;
-            white-space: nowrap;
-            height: 47px;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: var(--g10);
-            border-color: var(--g6);
-        }
-
-        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-confirm-otp {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, var(--g4), var(--g6));
-            color: white;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 4px;
-        }
-
-        .btn-confirm-otp:hover:not(:disabled) {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .btn-confirm-otp:disabled { opacity: 0.5; cursor: not-allowed; }
-
         /* Divider */
         .divider {
             height: 1px;
@@ -663,6 +525,56 @@
         }
 
         .card-footer a { color: var(--g5); text-decoration: none; font-weight: 500; }
+
+        /* Two column grid */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        /* Select input */
+        .input-select {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text-dark);
+            background: #fafafa;
+            transition: all 0.2s;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .input-select:focus {
+            outline: none;
+            border-color: var(--g5);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
+        }
+
+        /* Verify button — full width */
+        .btn-verify {
+            width: 100%;
+            padding: 13px;
+            background: var(--g11);
+            border: 1.5px solid var(--g6);
+            color: var(--g3);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 4px;
+            letter-spacing: 0.2px;
+        }
+
+        .btn-verify:hover:not(:disabled) {
+            background: var(--g10);
+            border-color: var(--g4);
+        }
+
+        .btn-verify:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* File upload */
         input[type="file"] { display: none; }
@@ -734,8 +646,7 @@
             .card-header, .card-body { padding-left: 22px; padding-right: 22px; }
             .steps { padding-left: 22px; padding-right: 22px; }
             .card-footer { flex-direction: column; gap: 6px; text-align: center; }
-            .bvn-group { grid-template-columns: 1fr; }
-            .otp-inputs { gap: 6px; }
+            .two-col { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -762,21 +673,16 @@
         <div class="steps">
             <div class="step active" id="step-indicator-1">
                 <div class="step-num">1</div>
-                <div class="step-label">BVN</div>
+                <div class="step-label">Identity</div>
             </div>
             <div class="step-connector"></div>
             <div class="step" id="step-indicator-2">
                 <div class="step-num">2</div>
-                <div class="step-label">Verify OTP</div>
+                <div class="step-label">Documents</div>
             </div>
             <div class="step-connector"></div>
             <div class="step" id="step-indicator-3">
                 <div class="step-num">3</div>
-                <div class="step-label">Documents</div>
-            </div>
-            <div class="step-connector"></div>
-            <div class="step" id="step-indicator-4">
-                <div class="step-num">4</div>
                 <div class="step-label">Submit</div>
             </div>
         </div>
@@ -800,72 +706,99 @@
 
             <form action="{{ route('kyc.submit', ['user' => $user->id]) }}" method="POST" enctype="multipart/form-data" id="kycForm">
                 @csrf
-                <input type="hidden" name="token" value="{{ request('token') }}">
-                <input type="hidden" name="bvn_verified" id="bvn_verified" value="0">
-                <input type="hidden" name="bvn" id="bvn_hidden">
-                <input type="hidden" id="otp_reference" value="">
+                <input type="hidden" name="token"         value="{{ request('token') }}">
+                <input type="hidden" name="bvn_submitted" id="bvn_submitted" value="0">
+                <input type="hidden" name="bvn"           id="bvn_hidden">
+                <input type="hidden" name="bank_code"     id="bank_code_hidden">
 
-                <!-- BVN Section -->
+                <!-- ── Step 1: Identity Details ───────────────────────── -->
                 <div class="form-section">
-                    <div class="section-label">Step 1 — Bank Verification Number</div>
+                    <div class="section-label">Step 1 — Identity Details</div>
 
-                    <div class="bvn-group">
+                    <!-- First & Last Name row -->
+                    <div class="two-col">
                         <div class="form-group">
-                            <label for="bvn_input">BVN</label>
+                            <label for="first_name">First Name</label>
                             <div class="input-wrap">
-                                <span class="input-icon">🏦</span>
-                                <input type="tel" id="bvn_input" placeholder="Enter your 11-digit BVN"
-                                    maxlength="11" inputmode="numeric" value="{{ old('bvn') }}" autocomplete="off">
+                                <span class="input-icon">👤</span>
+                                <input type="text" id="first_name" name="first_name"
+                                    placeholder="As on your BVN"
+                                    value="{{ old('first_name', $user->first_name ?? '') }}" autocomplete="off">
                             </div>
                         </div>
-                        <button type="button" class="btn btn-secondary" id="verifyBtn" onclick="initiateBvn()">
-                            Verify BVN
-                        </button>
-                    </div>
-
-                    <div class="input-hint">Your BVN is used only for identity verification — never shared.</div>
-                    <div id="verify-status" class="verify-status"></div>
-
-                    <!-- OTP Box -->
-                    <div class="otp-section" id="otpSection">
-                        <div class="otp-header">
-                            <div class="otp-icon">📲</div>
-                            <div>
-                                <div class="otp-title">Enter OTP</div>
-                                <div class="otp-subtitle" id="otp-desc">A 6-digit code was sent to your BVN-linked number</div>
+                        <div class="form-group">
+                            <label for="last_name">Last Name</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">👤</span>
+                                <input type="text" id="last_name" name="last_name"
+                                    placeholder="As on your BVN"
+                                    value="{{ old('last_name', $user->last_name ?? '') }}" autocomplete="off">
                             </div>
                         </div>
-                        <div class="otp-inputs">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d1">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d2">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d3">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d4">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d5">
-                            <input class="otp-digit" type="tel" maxlength="1" inputmode="numeric" id="d6">
+                    </div>
+                    <div class="input-hint" style="margin-top:-10px; margin-bottom:18px;">Names must match your BVN record exactly.</div>
+
+                    <!-- BVN -->
+                    <div class="form-group">
+                        <label for="bvn_input">Bank Verification Number (BVN)</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🏦</span>
+                            <input type="tel" id="bvn_input" placeholder="Enter your 11-digit BVN"
+                                maxlength="11" inputmode="numeric"
+                                value="{{ old('bvn') }}" autocomplete="off">
                         </div>
-                        <div class="resend-row">
-                            <span id="resend-timer">Resend in <strong>60s</strong></span>
-                            <button type="button" class="resend-btn" id="resendBtn" onclick="resendOtp()" disabled>Resend OTP</button>
-                        </div>
-                        <div id="otp-status" class="verify-status" style="margin-top:12px;"></div>
-                        <button type="button" class="btn btn-confirm-otp" id="confirmOtpBtn" onclick="confirmOtp()" disabled>
-                            <span>Confirm OTP</span>
-                        </button>
+                        <div class="input-hint">Dial *565*0# on any network to get your BVN.</div>
                     </div>
 
-                    <!-- Verified state -->
-                    <div id="verified-display" style="display:none;">
-                        <div class="verified-badge">
-                            ✅ <span id="verified-name">Identity Verified</span>
+                    <!-- Bank + Account Number row -->
+                    <div class="two-col">
+                        <div class="form-group">
+                            <label for="bank_select">Your Bank</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">🏛️</span>
+                                <select id="bank_select" class="input-select">
+                                    <option value="">— Select bank —</option>
+                                    <option value="044">Access Bank</option>
+                                    <option value="023">Citibank</option>
+                                    <option value="050">EcoBank</option>
+                                    <option value="070">Fidelity Bank</option>
+                                    <option value="011">First Bank</option>
+                                    <option value="214">First City Monument Bank (FCMB)</option>
+                                    <option value="058">Guaranty Trust Bank (GTB)</option>
+                                    <option value="030">Heritage Bank</option>
+                                    <option value="301">Jaiz Bank</option>
+                                    <option value="082">Keystone Bank</option>
+                                    <option value="526">Kuda Bank</option>
+                                    <option value="076">Polaris Bank</option>
+                                    <option value="101">Providus Bank</option>
+                                    <option value="221">Stanbic IBTC Bank</option>
+                                    <option value="068">Standard Chartered Bank</option>
+                                    <option value="232">Sterling Bank</option>
+                                    <option value="100">Suntrust Bank</option>
+                                    <option value="032">Union Bank</option>
+                                    <option value="033">United Bank for Africa (UBA)</option>
+                                    <option value="215">Unity Bank</option>
+                                    <option value="035">Wema Bank</option>
+                                    <option value="057">Zenith Bank</option>
+                                    <option value="120001">9Payment Service Bank (9PSB)</option>
+                                    <option value="100004">Opay</option>
+                                    <option value="100033">PalmPay</option>
+                                    <option value="100002">Moniepoint</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="account_number">Account Number</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">💳</span>
+                                <input type="tel" id="account_number" name="account_number"
+                                    placeholder="10-digit NUBAN"
+                                    maxlength="10" inputmode="numeric"
+                                    value="{{ old('account_number') }}" autocomplete="off">
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="divider"></div>
-
-                <!-- Step 3 — Documents & Identity Numbers -->
-                <div class="form-section">
-                    <div class="section-label">Step 3 — Documents & Identity</div>
+                    <div class="input-hint" style="margin-top:-10px; margin-bottom:18px;">Use the account number linked to your BVN.</div>
 
                     <!-- BVN Phone -->
                     <div class="form-group">
@@ -878,6 +811,29 @@
                         </div>
                         <div class="input-hint">The phone number registered with your BVN.</div>
                     </div>
+
+                    <!-- Verify button + status -->
+                    <button type="button" class="btn btn-verify" id="verifyBtn" onclick="validateCustomer()">
+                        🔍 Verify Identity
+                    </button>
+                    <div id="verify-status" class="verify-status"></div>
+
+                    <!-- Verified badge (shown after success) -->
+                    <div id="verified-display" style="display:none; margin-top:14px;">
+                        <div class="verified-badge">
+                            ✅ <span id="verified-name">Identity Submitted For Verification</span>
+                        </div>
+                        <div class="input-hint" style="margin-top:8px;">
+                            ✔ We will verify your details in the background. Please complete the form below.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- ── Step 2: NIN + Documents ─────────────────────────── -->
+                <div class="form-section">
+                    <div class="section-label">Step 2 — NIN & Documents</div>
 
                     <!-- NIN -->
                     <div class="form-group">
@@ -933,7 +889,7 @@
                         <span>Complete Verification</span>
                     </button>
                     <div class="submit-note">
-                        🔒 256-bit encrypted · Powered by Paystack
+                        🔒 256-bit encrypted
                     </div>
                 </div>
 
@@ -942,207 +898,132 @@
 
         <div class="card-footer">
             <span>Need help? <a href="https://wa.me/2349079916807">WhatsApp Support</a></span>
-            <span>© 2025 A-Pay</span>
+            <span>© 2026 A-Pay</span>
         </div>
     </div>
 </div>
 
 <script>
-    const ROUTES = {
-        initiateBvn: '{{ route("kyc.initiate-bvn") }}',
-        confirmOtp:  '{{ route("kyc.confirm-otp") }}',
-    };
-    const CSRF    = '{{ csrf_token() }}';
-    const USER_ID = '{{ $user->id }}';
+    const ROUTE_VALIDATE = '{{ route("kyc.validate-customer") }}';
+    const CSRF           = '{{ csrf_token() }}';
+    const USER_ID        = '{{ $user->id }}';
 
-    let otpReference = '';
-    let resendTimer = null;
-    let bvnVerified = false;
-
-    /* ── OTP digit inputs ── */
-    const digits = ['d1','d2','d3','d4','d5','d6'].map(id => document.getElementById(id));
-
-    digits.forEach((el, i) => {
-        el.addEventListener('input', () => {
-            el.value = el.value.replace(/\D/g, '');
-            el.classList.toggle('filled', !!el.value);
-            if (el.value && i < 5) digits[i+1].focus();
-            document.getElementById('confirmOtpBtn').disabled = getOtp().length < 6;
-        });
-        el.addEventListener('keydown', e => {
-            if (e.key === 'Backspace' && !el.value && i > 0) digits[i-1].focus();
-        });
-        el.addEventListener('paste', e => {
-            e.preventDefault();
-            const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
-            pasted.split('').slice(0,6).forEach((ch, idx) => {
-                if (digits[idx]) { digits[idx].value = ch; digits[idx].classList.add('filled'); }
-            });
-            digits[Math.min(pasted.length, 5)].focus();
-            document.getElementById('confirmOtpBtn').disabled = getOtp().length < 6;
-        });
-    });
-
-    function getOtp() { return digits.map(d => d.value).join(''); }
-
-    function setStatus(id, type, msg) {
-        const el = document.getElementById(id);
+    function setStatus(type, msg) {
+        const el = document.getElementById('verify-status');
         el.className = 'verify-status ' + type;
         el.innerHTML = msg;
     }
 
-    /* ── Step 1: Initiate BVN ── */
-    async function initiateBvn() {
-        const bvn = document.getElementById('bvn_input').value.trim();
+    function setStep(n) {
+        for (let i = 1; i <= 3; i++) {
+            const el = document.getElementById('step-indicator-' + i);
+            if (!el) continue;
+            el.classList.remove('active', 'done');
+            if (i < n)      el.classList.add('done');
+            else if (i === n) el.classList.add('active');
+        }
+    }
+
+    /**
+     * Send BVN + bank account to Paystack via our controller.
+     * Matches: KycController@validateCustomer
+     * POST /customer/:email/identification
+     */
+    async function validateCustomer() {
+        const firstName     = document.getElementById('first_name').value.trim();
+        const lastName      = document.getElementById('last_name').value.trim();
+        const bvn           = document.getElementById('bvn_input').value.trim();
+        const bankCode      = document.getElementById('bank_select').value;
+        const accountNumber = document.getElementById('account_number').value.trim();
+
+        // Front-end validation
+        if (!firstName || !lastName) {
+            setStatus('error', '❌ Please enter your first and last name as they appear on your BVN.');
+            return;
+        }
         if (bvn.length !== 11) {
-            setStatus('verify-status', 'error', '❌ BVN must be exactly 11 digits.');
+            setStatus('error', '❌ BVN must be exactly 11 digits.');
+            return;
+        }
+        if (!bankCode) {
+            setStatus('error', '❌ Please select your bank.');
+            return;
+        }
+        if (accountNumber.length !== 10) {
+            setStatus('error', '❌ Account number must be exactly 10 digits.');
             return;
         }
 
         const btn = document.getElementById('verifyBtn');
         btn.disabled = true;
-        btn.textContent = 'Sending OTP…';
-        setStatus('verify-status', 'loading', '<span class="spinner"></span> Contacting Paystack for verification…');
+        btn.innerHTML = '<span class="spinner"></span> Verifying Identity…';
+        setStatus('loading', '<span class="spinner"></span> Sending your details for Verification…');
 
         try {
-            const res  = await fetch(ROUTES.initiateBvn, {
-                method: 'POST',
+            const res  = await fetch(ROUTE_VALIDATE, {
+                method:  'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ bvn, user_id: USER_ID })
+                body:    JSON.stringify({
+                    user_id:        USER_ID,
+                    first_name:     firstName,
+                    last_name:      lastName,
+                    bvn:            bvn,
+                    bank_code:      bankCode,
+                    account_number: accountNumber,
+                }),
             });
+
             const data = await res.json();
 
             if (data.success) {
-                otpReference = data.reference;
-                document.getElementById('otp_reference').value = otpReference;
-
-                const maskedPhone = data.masked_phone || 'your registered number';
-                document.getElementById('otp-desc').textContent =
-                    `A 6-digit OTP was sent to ${maskedPhone}`;
-
-                setStatus('verify-status', 'success', `✅ OTP sent! Check your BVN-linked phone.`);
-                document.getElementById('otpSection').classList.add('visible');
-                digits[0].focus();
-                setStep(2);
-                startResendTimer();
-            } else {
-                setStatus('verify-status', 'error', `❌ ${data.message}`);
-                btn.disabled = false;
-                btn.textContent = 'Verify BVN';
-            }
-        } catch {
-            setStatus('verify-status', 'error', '❌ Network error. Please try again.');
-            btn.disabled = false;
-            btn.textContent = 'Verify BVN';
-        }
-    }
-
-    /* ── Step 2: Confirm OTP ── */
-    async function confirmOtp() {
-        const bvn = document.getElementById('bvn_input').value.trim();
-        const otp = getOtp();
-
-        if (otp.length < 6) {
-            setStatus('otp-status', 'error', '❌ Enter all 6 digits.');
-            return;
-        }
-
-        const btn = document.getElementById('confirmOtpBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> Verifying…';
-        setStatus('otp-status', 'loading', '<span class="spinner"></span> Confirming identity with Paystack…');
-
-        try {
-            const res  = await fetch(ROUTES.confirmOtp, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ bvn, otp, reference: otpReference, user_id: USER_ID })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                // Mark BVN verified
-                bvnVerified = true;
-                document.getElementById('bvn_verified').value = '1';
-                document.getElementById('bvn_hidden').value = bvn;
-                document.getElementById('bvn_input').classList.add('verified');
-                document.getElementById('bvn_input').readOnly = true;
+                // Store values in hidden fields for form submission
+                document.getElementById('bvn_hidden').value      = bvn;
+                document.getElementById('bank_code_hidden').value = bankCode;
+                document.getElementById('bvn_submitted').value    = '1';
 
                 // Show verified badge
-                document.getElementById('verified-name').textContent =
-                    '✓ ' + (data.full_name || 'Identity Verified');
+                document.getElementById('verified-name').textContent = '✓ Details submitted';
                 document.getElementById('verified-display').style.display = 'block';
 
-                // Hide OTP box and status
-                document.getElementById('otpSection').classList.remove('visible');
-                document.getElementById('verify-status').style.display = 'none';
+                // Lock the identity fields
+                ['first_name','last_name','bvn_input','bank_select','account_number']
+                    .forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) { el.disabled = true; el.classList.add('verified'); }
+                    });
 
-                document.getElementById('verifyBtn').style.display = 'none';
+                btn.innerHTML = '✓ Verified';
+                btn.style.background = 'var(--g11)';
+                btn.style.borderColor = 'var(--g6)';
+                btn.style.color = 'var(--g3)';
 
-                setStep(3);
+                setStatus('success', '✅ Identity details sent. We will verify in the background — please complete the form below.');
+                setStep(2);
                 document.getElementById('submitBtn').disabled = false;
-                clearInterval(resendTimer);
+
             } else {
-                digits.forEach(d => d.classList.add('error-digit'));
-                setTimeout(() => digits.forEach(d => d.classList.remove('error-digit')), 1000);
-                setStatus('otp-status', 'error', `❌ ${data.message}`);
+                setStatus('error', `❌ ${data.message}`);
                 btn.disabled = false;
-                btn.innerHTML = '<span>Confirm OTP</span>';
+                btn.innerHTML = '🔍 Verify Identity';
             }
-        } catch {
-            setStatus('otp-status', 'error', '❌ Network error. Please try again.');
+
+        } catch (err) {
+            setStatus('error', '❌ Network error. Please check your connection and try again.');
             btn.disabled = false;
-            btn.innerHTML = '<span>Confirm OTP</span>';
+            btn.innerHTML = '🔍 Verify Identity';
         }
     }
 
-    /* ── Resend OTP ── */
-    function resendOtp() {
-        digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
-        document.getElementById('confirmOtpBtn').disabled = true;
-        initiateBvn();
-    }
-
-    function startResendTimer(seconds = 60) {
-        clearInterval(resendTimer);
-        let s = seconds;
-        const timerEl = document.getElementById('resend-timer');
-        const resendBtn = document.getElementById('resendBtn');
-        resendBtn.disabled = true;
-
-        resendTimer = setInterval(() => {
-            s--;
-            timerEl.innerHTML = `Resend in <strong>${s}s</strong>`;
-            if (s <= 0) {
-                clearInterval(resendTimer);
-                timerEl.textContent = '';
-                resendBtn.disabled = false;
-            }
-        }, 1000);
-    }
-
-    /* ── Step indicator (4 steps) ── */
-    function setStep(n) {
-        for (let i = 1; i <= 4; i++) {
-            const el = document.getElementById('step-indicator-' + i);
-            if (!el) continue;
-            el.classList.remove('active', 'done');
-            if (i < n) el.classList.add('done');
-            else if (i === n) el.classList.add('active');
-        }
-    }
-
-    /* ── File upload handler ── */
+    /* File upload display */
     function handleFileSelect(input, labelId, badgeId, nameId) {
         const label = document.getElementById(labelId);
         const badge = document.getElementById(badgeId);
         const name  = document.getElementById(nameId);
 
         if (input.files && input.files[0]) {
-            const file = input.files[0];
             label.classList.add('uploaded');
             badge.style.display = 'flex';
-            name.textContent = '✓ ' + file.name;
+            name.textContent = '✓ ' + input.files[0].name;
         } else {
             label.classList.remove('uploaded');
             badge.style.display = 'none';
@@ -1150,11 +1031,14 @@
         }
     }
 
-    /* ── Form guard ── */
+    /* Guard: block form submit if Paystack validation wasn't sent */
     document.getElementById('kycForm').addEventListener('submit', e => {
-        if (document.getElementById('bvn_verified').value !== '1') {
+        if (document.getElementById('bvn_submitted').value !== '1') {
             e.preventDefault();
-            alert('Please complete BVN verification before submitting.');
+            setStatus('error', '❌ Please verify your identity details before submitting.');
+            document.getElementById('first_name').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
 </script>
+</body>
+</html>

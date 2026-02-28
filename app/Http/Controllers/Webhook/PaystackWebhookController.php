@@ -10,6 +10,7 @@ use Twilio\Rest\Client;
 use App\Models\User;
 use App\Models\Logged;
 use App\Models\Transaction;
+use App\Models\KycProfile;
 use App\Models\WhatsappMessage;
 use App\Mail\CreditAlertMail;
 use App\Services\TransactionService;
@@ -50,6 +51,16 @@ class PaystackWebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
+        // KYC identity verification events
+        if ($data['event'] === 'customeridentification.success') {
+            return $this->handleKycSuccess($data['data'] ?? []);
+        }
+
+        if ($data['event'] === 'customeridentification.failed') {
+            return $this->handleKycFailed($data['data'] ?? []);
+        }
+
+        // Payment / deposit events — logic unchanged
         if (in_array($data['event'], [
             'charge.success',
             'dedicated_account.transaction',
@@ -60,6 +71,168 @@ class PaystackWebhookController extends Controller
 
         return response()->json(['status' => 'ignored']);
     }
+
+    // -------------------------------------------------------------------------
+    // KYC Handlers
+    // -------------------------------------------------------------------------
+
+    private function handleKycSuccess(array $data): \Illuminate\Http\JsonResponse
+    {
+        $customer = $data['customer'] ?? [];
+        $email    = $customer['email'] ?? null;
+
+        $user = $email ? User::where('email', $email)->first() : null;
+
+        Log::info('[KYC] customeridentification.success — webhook received', [
+            'email'   => $email,
+            'user_id' => $user?->id,
+            'payload' => $data,
+        ]);
+
+        if (!$user) {
+            Logged::create([
+                'user_id'     => null,
+                'for'         => 'KYC_WEBHOOK',
+                'message'     => "customeridentification.success — no user found for email: {$email}",
+                'stack_trace' => json_encode($data),
+                't_reference' => $customer['customer_code'] ?? null,
+                'from'        => 'PAYSTACK_WEBHOOK',
+                'type'        => 'FAILED',
+            ]);
+            return response()->json(['status' => 'ok']);
+        }
+
+        $kyc = KycProfile::where('user_id', $user->id)->first();
+
+        // If no KYC record exists for this user, do nothing
+        if (!$kyc) {
+            Logged::create([
+                'user_id'     => $user->id,
+                'for'         => 'KYC_WEBHOOK',
+                'message'     => "customeridentification.success — no KYC profile found for user: {$user->id}",
+                'stack_trace' => json_encode($data),
+                't_reference' => $customer['customer_code'] ?? null,
+                'from'        => 'PAYSTACK_WEBHOOK',
+                'type'        => 'INFO',
+            ]);
+            return response()->json(['status' => 'ok']);
+        }
+
+        // Update KYC status to APPROVED
+        $kyc->update([
+            'status'           => 'APPROVED',
+            'rejection_reason' => null,
+        ]);
+
+        // Update user's name from the verified identity
+        $firstName   = $customer['first_name']              ?? $data['identification']['first_name'] ?? null;
+        $lastName    = $customer['last_name']               ?? $data['identification']['last_name']  ?? null;
+        $nameUpdated = false;
+
+        if ($firstName || $lastName) {
+            $user->name = trim("{$firstName} {$lastName}");
+            $user->save();
+            $nameUpdated = true;
+        }
+
+        $logMessage = "KYC APPROVED for {$user->name} ({$user->id})."
+                    . ($nameUpdated ? " Name updated to: {$user->name}." : " No name in payload.");
+
+        Logged::create([
+            'user_id'     => $user->id,
+            'for'         => 'KYC_WEBHOOK',
+            'message'     => $logMessage,
+            'stack_trace' => json_encode([
+                'payload'     => $data,
+                'name_update' => [
+                    'updated'    => $nameUpdated,
+                    'first_name' => $firstName,
+                    'last_name'  => $lastName,
+                ],
+            ]),
+            't_reference' => $customer['customer_code'] ?? null,
+            'from'        => 'PAYSTACK_WEBHOOK',
+            'type'        => 'SUCCESS',
+        ]);
+
+        Log::info("[KYC] {$logMessage}", ['user_id' => $user->id]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    private function handleKycFailed(array $data): \Illuminate\Http\JsonResponse
+    {
+        $customer = $data['customer'] ?? [];
+        $email    = $customer['email'] ?? null;
+        $reason   = $data['reason']   ?? 'Identity could not be verified.';
+
+        $user = $email ? User::where('email', $email)->first() : null;
+
+        Log::warning('[KYC] customeridentification.failed — webhook received', [
+            'email'   => $email,
+            'user_id' => $user?->id,
+            'reason'  => $reason,
+            'payload' => $data,
+        ]);
+
+        if (!$user) {
+            Logged::create([
+                'user_id'     => null,
+                'for'         => 'KYC_WEBHOOK',
+                'message'     => "customeridentification.failed — no user found for email: {$email}",
+                'stack_trace' => json_encode($data),
+                't_reference' => $customer['customer_code'] ?? null,
+                'from'        => 'PAYSTACK_WEBHOOK',
+                'type'        => 'FAILED',
+            ]);
+            return response()->json(['status' => 'ok']);
+        }
+
+        $kyc = KycProfile::where('user_id', $user->id)->first();
+
+        // If no KYC record exists for this user, do nothing
+        if (!$kyc) {
+            Logged::create([
+                'user_id'     => $user->id,
+                'for'         => 'KYC_WEBHOOK',
+                'message'     => "customeridentification.failed — no KYC profile found for user: {$user->id}",
+                'stack_trace' => json_encode($data),
+                't_reference' => $customer['customer_code'] ?? null,
+                'from'        => 'PAYSTACK_WEBHOOK',
+                'type'        => 'INFO',
+            ]);
+            return response()->json(['status' => 'ok']);
+        }
+
+        // Update KYC status to REJECTED with reason
+        $kyc->update([
+            'status'           => 'REJECTED',
+            'rejection_reason' => $reason,
+        ]);
+
+        $logMessage = "KYC REJECTED for {$user->name} ({$user->id}). Reason: {$reason}";
+
+        Logged::create([
+            'user_id'     => $user->id,
+            'for'         => 'KYC_WEBHOOK',
+            'message'     => $logMessage,
+            'stack_trace' => json_encode([
+                'payload'          => $data,
+                'rejection_reason' => $reason,
+            ]),
+            't_reference' => $customer['customer_code'] ?? null,
+            'from'        => 'PAYSTACK_WEBHOOK',
+            'type'        => 'FAILED',
+        ]);
+
+        Log::error("[KYC] {$logMessage}", ['user_id' => $user->id]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Payment / Deposit Handler — untouched
+    // -------------------------------------------------------------------------
 
     private function processDeposit($payload)
     {

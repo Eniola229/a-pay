@@ -124,7 +124,11 @@ class WhatsappController extends Controller
 
         // Process user command with improvements
         $response = $this->processCommand($user, $message);
-        return $this->sendMessage($from, $response);
+        if ($response !== null) {
+            return $this->sendMessage($from, $response);
+        }
+        return response()->json(['status' => 'ok']);
+        
     }
 
     /**
@@ -574,11 +578,13 @@ class WhatsappController extends Controller
             case 'check_balance':
                 return $this->handleCheckBalance($user);
 
-            case 'fund_wallet':
-                return $this->handleFundWallet($user);
-
             case 'account_details':
-                return $this->handleAccountDetails($user);
+                $this->handleAccountDetails($user);
+                return null;
+
+            case 'fund_wallet':
+                $this->handleFundWallet($user);
+                return null;
 
             case 'upgrade_account':
                 return $this->handleUpgradeAccount($user);
