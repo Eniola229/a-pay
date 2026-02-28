@@ -706,10 +706,12 @@
 
             <form action="{{ route('kyc.submit', ['user' => $user->id]) }}" method="POST" enctype="multipart/form-data" id="kycForm">
                 @csrf
-                <input type="hidden" name="token"         value="{{ request('token') }}">
-                <input type="hidden" name="bvn_submitted" id="bvn_submitted" value="0">
-                <input type="hidden" name="bvn"           id="bvn_hidden">
-                <input type="hidden" name="bank_code"     id="bank_code_hidden">
+                <input type="hidden" name="token"          value="{{ request('token') }}">
+                <input type="hidden" name="bvn_submitted"  id="bvn_submitted"       value="0">
+                <input type="hidden" name="bvn"            id="bvn_hidden">
+                <input type="hidden" name="bank_code"      id="bank_code_hidden">
+                {{-- FIX: account_number hidden field so it's included in the form POST --}}
+                <input type="hidden" name="account_number" id="account_number_hidden">
 
                 <!-- ── Step 1: Identity Details ───────────────────────── -->
                 <div class="form-section">
@@ -788,10 +790,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="account_number">Account Number</label>
+                            <label for="account_number_input">Account Number</label>
                             <div class="input-wrap">
                                 <span class="input-icon">💳</span>
-                                <input type="tel" id="account_number" name="account_number"
+                                <input type="tel" id="account_number_input"
                                     placeholder="10-digit NUBAN"
                                     maxlength="10" inputmode="numeric"
                                     value="{{ old('account_number') }}" autocomplete="off">
@@ -919,22 +921,53 @@
             const el = document.getElementById('step-indicator-' + i);
             if (!el) continue;
             el.classList.remove('active', 'done');
-            if (i < n)      el.classList.add('done');
+            if (i < n)        el.classList.add('done');
             else if (i === n) el.classList.add('active');
         }
     }
 
     /**
+     * Mark the form as verified — lock fields, show badge, enable submit.
+     * Called on both fresh success AND "pending request already exists".
+     */
+    function markVerified(bvn, bankCode, accountNumber) {
+        // Copy values into hidden fields so they POST with the form
+        document.getElementById('bvn_hidden').value            = bvn;
+        document.getElementById('bank_code_hidden').value      = bankCode;
+        document.getElementById('account_number_hidden').value = accountNumber;
+        document.getElementById('bvn_submitted').value         = '1';
+
+        // Show verified badge
+        document.getElementById('verified-name').textContent = '✓ Details submitted';
+        document.getElementById('verified-display').style.display = 'block';
+
+        // Lock the identity fields so they can't be changed after verify
+        ['first_name', 'last_name', 'bvn_input', 'bank_select', 'account_number_input']
+            .forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.disabled = true; el.classList.add('verified'); }
+            });
+
+        const btn = document.getElementById('verifyBtn');
+        btn.innerHTML        = '✓ Verified';
+        btn.style.background = 'var(--g11)';
+        btn.style.borderColor = 'var(--g6)';
+        btn.style.color      = 'var(--g3)';
+
+        setStep(2);
+        document.getElementById('submitBtn').disabled = false;
+    }
+
+    /**
      * Send BVN + bank account to Paystack via our controller.
      * Matches: KycController@validateCustomer
-     * POST /customer/:email/identification
      */
     async function validateCustomer() {
         const firstName     = document.getElementById('first_name').value.trim();
         const lastName      = document.getElementById('last_name').value.trim();
         const bvn           = document.getElementById('bvn_input').value.trim();
         const bankCode      = document.getElementById('bank_select').value;
-        const accountNumber = document.getElementById('account_number').value.trim();
+        const accountNumber = document.getElementById('account_number_input').value.trim();
 
         // Front-end validation
         if (!firstName || !lastName) {
@@ -960,7 +993,7 @@
         setStatus('loading', '<span class="spinner"></span> Sending your details for Verification…');
 
         try {
-            const res  = await fetch(ROUTE_VALIDATE, {
+            const res = await fetch(ROUTE_VALIDATE, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
                 body:    JSON.stringify({
@@ -975,31 +1008,23 @@
 
             const data = await res.json();
 
-            if (data.success) {
-                // Store values in hidden fields for form submission
-                document.getElementById('bvn_hidden').value      = bvn;
-                document.getElementById('bank_code_hidden').value = bankCode;
-                document.getElementById('bvn_submitted').value    = '1';
+            /*
+             * FIX: "Pending request already exists" means Paystack already has
+             * an in-progress verification for this customer — treat it as success
+             * so the user can still upload documents and submit the form.
+             */
+            const isPendingAlready = !data.success
+                && data.message
+                && data.message.toLowerCase().includes('pending request already exists');
 
-                // Show verified badge
-                document.getElementById('verified-name').textContent = '✓ Details submitted';
-                document.getElementById('verified-display').style.display = 'block';
+            if (data.success || isPendingAlready) {
+                markVerified(bvn, bankCode, accountNumber);
 
-                // Lock the identity fields
-                ['first_name','last_name','bvn_input','bank_select','account_number']
-                    .forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) { el.disabled = true; el.classList.add('verified'); }
-                    });
+                const statusMsg = isPendingAlready
+                    ? '⏳ A verification request is already in progress for your details. Please complete the form below — we will update your status automatically.'
+                    : '✅ Identity details sent. We will verify in the background — please complete the form below.';
 
-                btn.innerHTML = '✓ Verified';
-                btn.style.background = 'var(--g11)';
-                btn.style.borderColor = 'var(--g6)';
-                btn.style.color = 'var(--g3)';
-
-                setStatus('success', '✅ Identity details sent. We will verify in the background — please complete the form below.');
-                setStep(2);
-                document.getElementById('submitBtn').disabled = false;
+                setStatus('success', statusMsg);
 
             } else {
                 setStatus('error', `❌ ${data.message}`);

@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Cloudinary\Cloudinary;
 
 class KycController extends Controller
 {
@@ -432,14 +432,16 @@ class KycController extends Controller
             $passportUrl = $this->uploadToCloudinary(
                 $request->file('passport_photo'),
                 'apay/kyc/passports',
-                'passport_' . $user->id . '_' . time()
+                'passport_' . $user->id . '_' . time(),
+                $user->id 
             );
 
             // Upload proof of address
             $proofUrl = $this->uploadToCloudinary(
                 $request->file('proof_of_address'),
                 'apay/kyc/proof',
-                'proof_' . $user->id . '_' . time()
+                'proof_' . $user->id . '_' . time(),
+                $user->id 
             );
 
             if (!$passportUrl || !$proofUrl) {
@@ -519,10 +521,43 @@ class KycController extends Controller
     /**
      * Upload a file to Cloudinary
      */
-    private function uploadToCloudinary($file, string $folder, string $publicId): ?string
+    private function uploadToCloudinary($file, string $folder, string $publicId, ?string $userId = null): ?string
     {
+        // Guard: file must exist and be valid before attempting upload
+        if (!$file || !$file->isValid() || !$file->getRealPath()) {
+            Log::error('[KYC] uploadToCloudinary — File is null or invalid, skipping upload', [
+                'public_id' => $publicId,
+                'folder'    => $folder,
+            ]);
+            return null;
+        }
+
         try {
-            $upload = Cloudinary::upload($file->getRealPath(), [
+            // Build Cloudinary instance the same way other services do
+            $cloudinaryUrl = env('CLOUDINARY_URL');
+
+            if ($cloudinaryUrl) {
+                $parsed = parse_url($cloudinaryUrl);
+                $cloudinary = new \Cloudinary\Cloudinary([
+                    'cloud' => [
+                        'cloud_name' => $parsed['host'] ?? env('CLOUDINARY_CLOUD_NAME'),
+                        'api_key'    => $parsed['user'] ?? env('CLOUDINARY_API_KEY'),
+                        'api_secret' => $parsed['pass'] ?? env('CLOUDINARY_API_SECRET'),
+                    ],
+                ]);
+            } else {
+                $cloudinary = new \Cloudinary\Cloudinary([
+                    'cloud' => [
+                        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+                        'api_key'    => env('CLOUDINARY_API_KEY'),
+                        'api_secret' => env('CLOUDINARY_API_SECRET'),
+                    ],
+                ]);
+            }
+
+            $uploadApi = $cloudinary->uploadApi();
+
+            $result = $uploadApi->upload($file->getRealPath(), [
                 'folder'        => $folder,
                 'public_id'     => $publicId,
                 'resource_type' => 'auto',
@@ -532,11 +567,11 @@ class KycController extends Controller
                 'fetch_format'  => 'auto',
             ]);
 
-            return $upload->getSecurePath();
+            return $result['secure_url'] ?? null;
 
         } catch (\Exception $e) {
             Logged::create([
-                'user_id'     => null,
+                'user_id'     => $userId,
                 'from'        => 'KycController@uploadToCloudinary',
                 'for'         => 'Cloudinary Upload Failed',
                 'message'     => $e->getMessage(),
@@ -544,18 +579,15 @@ class KycController extends Controller
                 'stack_trace' => $e->getTraceAsString(),
                 't_reference' => null,
             ]);
-
             Log::error('[KYC] uploadToCloudinary — Upload failed', [
                 'public_id' => $publicId,
                 'folder'    => $folder,
                 'error'     => $e->getMessage(),
                 'exception' => $e,
             ]);
-
             return null;
         }
     }
-
     /**
      * Send WhatsApp notification after KYC is submitted
      */
