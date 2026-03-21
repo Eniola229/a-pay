@@ -27,42 +27,6 @@ class ElectricityController extends Controller
         $this->receiptGenerator = $receiptGenerator;
     }
 
-    private function sendElectricityConfirmation($user, $meterNumber, $amount, $provider)
-    {
-        $fee   = 99;
-        $total = $amount + $fee;
-
-        $session = WhatsappSession::firstOrNew([
-            'user_id' => $user->id,
-            'context' => 'pending_confirm'
-        ]);
-        $session->id = $session->id ?? Str::uuid();
-        $session->data = json_encode([
-            'service'      => 'electricity',
-            'meter_number' => $meterNumber,
-            'amount'       => $amount,
-            'provider'     => $provider,
-        ]);
-        $session->save();
-
-        $body = "⚡ *Electricity Payment*\n\n" .
-                "🔢 Meter: *{$meterNumber}*\n" .
-                "🏢 Provider: *" . ucfirst($provider) . "*\n" .
-                "💰 Amount: *₦" . number_format($amount) . "*\n" .
-                "💳 Fee: *₦" . number_format($fee) . "*\n" .
-                "💵 Total: *₦" . number_format($total) . "*";
-
-        $this->sendInteractiveButtons(
-            $user->mobile,
-            '🛒 Confirm Order',
-            $body,
-            'Tap Confirm to proceed or Cancel to abort',
-            [
-                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
-                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
-            ]
-        );
-    }
     public function purchase($user, $meterNumber, $amount, $provider)
     {
         return DB::transaction(function () use ($user, $meterNumber, $amount, $provider) {
@@ -79,7 +43,8 @@ class ElectricityController extends Controller
                 'benin' => 'benin-electric',
                 'aba' => 'aba-electric',
                 'yola' => 'yola-electric',
-                'portharcourt' => 'portharcourt-electric'
+                'portharcourt' => 'portharcourt-electric',
+                'port harcourt' => 'portharcourt-electric',
             ];
 
             if ($amount < 1000) {

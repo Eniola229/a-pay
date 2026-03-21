@@ -154,7 +154,11 @@ class AirtimePurchaseController extends Controller
                 // $airtime->update(['status' => 'FAILED']);
 
                 // Send failure email
-                Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'FAILED'));
+                try {
+                    Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'FAILED'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send AirtimePurchaseMail: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'status' => false,
@@ -207,7 +211,11 @@ class AirtimePurchaseController extends Controller
                 }
 
                 // Send success email
-                Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'SUCCESS'));
+               try {
+                    Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'SUCCESS'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send AirtimePurchaseMail: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'status' => true, 
@@ -247,8 +255,11 @@ class AirtimePurchaseController extends Controller
                 // $airtime->update(['status' => 'FAILED']);
 
                 // Send failure email
-                Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'FAILED'));
-
+                try {
+                    Mail::to($user->email)->send(new AirtimePurchaseMail($user, $transaction, 'FAILED'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send AirtimePurchaseMail: ' . $e->getMessage());
+                }
                 return response()->json([
                     'status' => false,
                     'message' => 'Airtime purchase failed. Your service provider may be unavailable. Please try again later.'

@@ -12,25 +12,25 @@
         .brand-bar { text-align: center; margin-bottom: 24px; }
         .brand-bar .logo { display: inline-block; background: linear-gradient(135deg, #00e676, #00bfa5); color: #000; font-weight: 700; font-size: 22px; letter-spacing: -0.5px; padding: 8px 24px; border-radius: 100px; }
         .card { background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,230,118,0.15); }
-        .hero { padding: 48px 40px 40px; position: relative; overflow: hidden; background: linear-gradient(145deg, #001a2e 0%, #002a45 50%, #003d60 100%); }
-        .hero::before { content: ''; position: absolute; top: -60px; right: -60px; width: 240px; height: 240px; background: radial-gradient(circle, rgba(0,180,255,0.12) 0%, transparent 70%); border-radius: 50%; }
-        .hero-label { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,180,255,0.15); border: 1px solid rgba(0,180,255,0.3); color: #40c4ff; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 14px; border-radius: 100px; margin-bottom: 20px; }
-        .hero-label::before { content: ''; width: 6px; height: 6px; background: #40c4ff; box-shadow: 0 0 8px #40c4ff; border-radius: 50%; }
+        .hero { padding: 48px 40px 40px; position: relative; overflow: hidden; background: linear-gradient(145deg, #00251a 0%, #00382a 50%, #004d35 100%); }
+        .hero::before { content: ''; position: absolute; top: -60px; right: -60px; width: 240px; height: 240px; background: radial-gradient(circle, rgba(0,230,118,0.15) 0%, transparent 70%); border-radius: 50%; }
+        .hero-label { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.3); color: #00e676; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 14px; border-radius: 100px; margin-bottom: 20px; }
+        .hero-label::before { content: ''; width: 6px; height: 6px; background: #00e676; box-shadow: 0 0 8px #00e676; border-radius: 50%; }
         .hero-title { font-size: 32px; font-weight: 700; color: #ffffff; letter-spacing: -1px; line-height: 1.1; margin-bottom: 8px; position: relative; z-index: 1; }
         .hero-subtitle { color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 300; position: relative; z-index: 1; }
-        .status-badge { position: absolute; top: 40px; right: 40px; width: 56px; height: 56px; background: linear-gradient(135deg, #40c4ff, #0091ea); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(64,196,255,0.4); z-index: 1; }
+        .status-badge { position: absolute; top: 40px; right: 40px; width: 56px; height: 56px; background: linear-gradient(135deg, #00e676, #00bfa5); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,230,118,0.4); z-index: 1; }
         .status-badge svg { width: 28px; height: 28px; }
         .body { padding: 36px 40px; background: #fff; }
-        .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #0277bd; margin-bottom: 16px; }
-        .details-card { background: #f0f8ff; border: 1px solid #b3e0ff; border-radius: 16px; overflow: hidden; margin-bottom: 28px; }
-        .details-header { background: #e1f5fe; padding: 14px 20px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #0277bd; border-bottom: 1px solid #b3e0ff; }
-        .detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 20px; border-bottom: 1px solid #e8f4fd; }
+        .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #00a152; margin-bottom: 16px; }
+        .details-card { background: #f7fdf8; border: 1px solid #e0f0e3; border-radius: 16px; overflow: hidden; margin-bottom: 28px; }
+        .details-header { background: #edf8ef; padding: 14px 20px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #2e7d32; border-bottom: 1px solid #d4edda; }
+        .detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 20px; border-bottom: 1px solid #f0f7f0; }
         .detail-row:last-child { border-bottom: none; }
-        .detail-label { font-size: 12px; color: #7a9ab0; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; width: 35%; }
-        .detail-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #1a2e3a; font-weight: 600; text-align: right; word-break: break-word; width: 60%; }
-        .complaint-box { background: #f0f8ff; border: 1px solid #b3e0ff; border-radius: 16px; padding: 20px; margin-bottom: 28px; }
-        .complaint-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #0277bd; margin-bottom: 12px; }
-        .complaint-text { font-size: 14px; color: #1a2e3a; line-height: 1.8; font-weight: 300; font-style: italic; border-left: 3px solid #40c4ff; padding-left: 16px; }
+        .detail-label { font-size: 12px; color: #8a9e8a; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; width: 35%; }
+        .detail-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #1a2e1a; font-weight: 600; text-align: right; word-break: break-word; width: 60%; }
+        .complaint-box { background: #f7fdf8; border: 1px solid #e0f0e3; border-radius: 16px; padding: 20px; margin-bottom: 28px; }
+        .complaint-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #2e7d32; margin-bottom: 12px; }
+        .complaint-text { font-size: 14px; color: #1a2e1a; line-height: 1.8; font-weight: 300; font-style: italic; border-left: 3px solid #00e676; padding-left: 16px; }
         .action-note { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 12px; padding: 14px 18px; display: flex; gap: 12px; align-items: flex-start; margin-bottom: 28px; }
         .action-icon { font-size: 18px; flex-shrink: 0; }
         .action-text { font-size: 13px; color: #2e7d32; line-height: 1.6; }

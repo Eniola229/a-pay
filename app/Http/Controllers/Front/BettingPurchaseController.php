@@ -86,7 +86,7 @@ class BettingPurchaseController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Transaction failed: ' . $e->getMessage()
+                    'message' => 'Transaction failed'
                 ], 500);
             }
 
@@ -150,14 +150,18 @@ class BettingPurchaseController extends Controller
 
                 // $bettingPurchase->update(['status' => 'FAILED']);
 
-                // Send failure email
-                Mail::to($user->email)->send(new BettingPurchaseMail(
-                    $user,
-                    $request->customer_id,
-                    $request->service_id,
-                    $request->amount,
-                    'FAILED'
-                ));
+                try {
+                    // Send failure email
+                    Mail::to($user->email)->send(new BettingPurchaseMail(
+                        $user,
+                        $request->customer_id,
+                        $request->service_id,
+                        $request->amount,
+                        'FAILED'
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send BettingPurchaseMail: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'status' => false,
@@ -212,13 +216,17 @@ class BettingPurchaseController extends Controller
                 // }
 
                 // Send success email
-                Mail::to($user->email)->send(new BettingPurchaseMail(
-                    $user,
-                    $request->customer_id,
-                    $request->service_id,
-                    $request->amount,
-                    'SUCCESS'
-                ));
+                try {
+                    Mail::to($user->email)->send(new BettingPurchaseMail(
+                        $user,
+                        $request->customer_id,
+                        $request->service_id,
+                        $request->amount,
+                        'SUCCESS'
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send BettingPurchaseMail: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'status' => true,
@@ -258,14 +266,18 @@ class BettingPurchaseController extends Controller
                 // $bettingPurchase->update(['status' => 'FAILED']);
 
                 // Send failure email
-                Mail::to($user->email)->send(new BettingPurchaseMail(
-                    $user,
-                    $request->customer_id,
-                    $request->service_id,
-                    $request->amount,
-                    'FAILED'
-                ));
-
+                try {
+                    // Send failure email
+                    Mail::to($user->email)->send(new BettingPurchaseMail(
+                        $user,
+                        $request->customer_id,
+                        $request->service_id,
+                        $request->amount,
+                        'FAILED'
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send BettingPurchaseMail: ' . $e->getMessage());
+                }
                 return response()->json([
                     'status' => false,
                     'message' => 'Betting Topup failed. Your service provider may be unavailable. Please try again later.'

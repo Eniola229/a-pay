@@ -189,66 +189,6 @@ class WhatsappController extends Controller
                 }
             }
         }
-
-        // Handle interactive button replies (confirmations)
-        $buttonPayload = $request->input('ButtonPayload');
-        $buttonText    = strtolower(trim($request->input('ButtonText') ?? ''));
-
-        if ($buttonPayload) {
-            $user = User::where('mobile', $from)->first();
-            if ($user) {
-                // Load pending session
-                $pendingSession = WhatsappSession::where('user_id', $user->id)
-                    ->where('context', 'pending_confirm')
-                    ->latest()
-                    ->first();
-
-                if ($pendingSession && $this->isSessionValid($pendingSession)) {
-                    $pendingData = json_decode($pendingSession->data, true);
-
-                    if ($buttonPayload === 'confirm_yes') {
-                        $pendingSession->delete();
-                        $service = $pendingData['service'];
-
-                        if ($service === 'airtime') {
-                            $response = $this->airtimeController->purchase(
-                                $user,
-                                $pendingData['network'],
-                                $pendingData['amount'],
-                                $pendingData['phone']
-                            );
-                        } elseif ($service === 'data') {
-                            $response = $this->dataController->purchase(
-                                $user,
-                                $pendingData['network'],
-                                $pendingData['phone'],
-                                $pendingData['plan']
-                            );
-                        } elseif ($service === 'electricity') {
-                            $response = app(ElectricityController::class)->purchase(
-                                $user,
-                                $pendingData['meter_number'],
-                                $pendingData['amount'],
-                                $pendingData['provider']
-                            );
-                        }
-
-                        if ($response !== null) {
-                            return $this->sendMessage($from, $response);
-                        }
-                        return response()->json(['status' => 'ok']);
-
-                    } elseif ($buttonPayload === 'confirm_no') {
-                        $pendingSession->delete();
-                        // Clear service session too
-                        WhatsappSession::where('user_id', $user->id)
-                            ->whereIn('context', ['airtime', 'data', 'electricity'])
-                            ->delete();
-                        return $this->sendMessage($from, "❌ *Order Cancelled*\n\nNo charge was made. Type *menu* to start again.");
-                    }
-                }
-            }
-        }
   
         // Check if user exists
         $user = User::where('mobile', $from)->first();
@@ -891,10 +831,9 @@ class WhatsappController extends Controller
         ]);
         
         // Check if we have all required information
-         if ($phone && $amount && $network) {
+        if ($phone && $amount && $network) {
             $session->delete();
-            $this->sendAirtimeConfirmation($user, $network, $amount, $phone);
-            return null;
+            return $this->airtimeController->purchase($user, $network, $amount, $phone);
         }
         
         // Check if session is new (user just started)
@@ -1032,8 +971,7 @@ class WhatsappController extends Controller
                             ->where('context', 'data')
                             ->delete();
                         
-                        $this->sendDataConfirmation($user, $network, $phone, $selectedPlan['data_plan'], $selectedPlan['price']);
-                        return null;
+                        return $this->dataController->purchase($user, $network, $phone, $selectedPlan['data_plan']);
                     } else {
                         return "⚠️ Invalid plan number. Please select a number between 1 and " . count($plans);
                     }
@@ -1113,14 +1051,7 @@ class WhatsappController extends Controller
                 ->where('context', 'data')
                 ->delete();
             
-            // Need price — fetch it
-            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
-            $allPlans = $response->json()['data'] ?? [];
-            $found = collect($allPlans)->where('service_id', strtolower($detectedNetwork))
-                ->first(fn($p) => strtolower(trim($p['data_plan'])) === strtolower(trim($plan)));
-            $price = $found['price'] ?? 0;
-            $this->sendDataConfirmation($user, $detectedNetwork, $phone, $plan, $price);
-            return null;
+            return $this->dataController->purchase($user, $detectedNetwork, $phone, $plan);
         }
 
         return "⚠️ Please follow the format:\n*data 09079916807*";
@@ -1261,11 +1192,13 @@ class WhatsappController extends Controller
         }
         
         if ($meterNumber && $amount && $provider) {
+            // Clear session after purchase
             WhatsappSession::where('user_id', $user->id)
                 ->where('context', 'electricity')
                 ->delete();
-            $this->sendElectricityConfirmation($user, $meterNumber, $amount, $provider);
-            return null;
+            
+            return app(ElectricityController::class)
+                ->purchase($user, $meterNumber, $amount, $provider);
         }
         
         return $this->getElectricityHelpMessage($hasValidSession);
@@ -1733,108 +1666,6 @@ class WhatsappController extends Controller
         $session->save();
     }
 
-    private function sendAirtimeConfirmation($user, $network, $amount, $phone)
-    {
-        $session = WhatsappSession::firstOrNew([
-            'user_id' => $user->id,
-            'context' => 'pending_confirm'
-        ]);
-        $session->id = $session->id ?? Str::uuid();
-        $session->data = json_encode([
-            'service' => 'airtime',
-            'network' => $network,
-            'amount'  => $amount,
-            'phone'   => $phone,
-        ]);
-        $session->save();
-
-        $body = "📱 *Airtime Purchase*\n\n" .
-                "📞 Number: *{$phone}*\n" .
-                "🌐 Network: *" . strtoupper($network) . "*\n" .
-                "💰 Amount: *₦" . number_format($amount) . "*";
-
-        $this->sendInteractiveButtons(
-            $user->mobile,
-            '🛒 Confirm Order',
-            $body,
-            'Tap Confirm to proceed or Cancel to abort',
-            [
-                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
-                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
-            ]
-        );
-    }
-
-    private function sendDataConfirmation($user, $network, $phone, $plan, $price)
-    {
-        $session = WhatsappSession::firstOrNew([
-            'user_id' => $user->id,
-            'context' => 'pending_confirm'
-        ]);
-        $session->id = $session->id ?? Str::uuid();
-        $session->data = json_encode([
-            'service' => 'data',
-            'network' => $network,
-            'phone'   => $phone,
-            'plan'    => $plan,
-            'amount'  => $price,
-        ]);
-        $session->save();
-
-        $body = "📶 *Data Purchase*\n\n" .
-                "📞 Number: *{$phone}*\n" .
-                "🌐 Network: *" . strtoupper($network) . "*\n" .
-                "📦 Plan: *{$plan}*\n" .
-                "💰 Amount: *₦" . number_format($price) . "*";
-
-        $this->sendInteractiveButtons(
-            $user->mobile,
-            '🛒 Confirm Order',
-            $body,
-            'Tap Confirm to proceed or Cancel to abort',
-            [
-                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
-                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
-            ]
-        );
-    }
-
-    private function sendElectricityConfirmation($user, $meterNumber, $amount, $provider)
-    {
-        $fee   = 99;
-        $total = $amount + $fee;
-
-        $session = WhatsappSession::firstOrNew([
-            'user_id' => $user->id,
-            'context' => 'pending_confirm'
-        ]);
-        $session->id = $session->id ?? Str::uuid();
-        $session->data = json_encode([
-            'service'      => 'electricity',
-            'meter_number' => $meterNumber,
-            'amount'       => $amount,
-            'provider'     => $provider,
-        ]);
-        $session->save();
-
-        $body = "⚡ *Electricity Payment*\n\n" .
-                "🔢 Meter: *{$meterNumber}*\n" .
-                "🏢 Provider: *" . ucfirst($provider) . "*\n" .
-                "💰 Amount: *₦" . number_format($amount) . "*\n" .
-                "💳 Fee: *₦" . number_format($fee) . "*\n" .
-                "💵 Total: *₦" . number_format($total) . "*";
-
-        $this->sendInteractiveButtons(
-            $user->mobile,
-            '🛒 Confirm Order',
-            $body,
-            'Tap Confirm to proceed or Cancel to abort',
-            [
-                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
-                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
-            ]
-        );
-    }
     public function sendRegistrationFlowMessage($to)
     {
         $templateSid = env('WHATSAPP_REGISTRATION_TEMPLATE_SID');
@@ -1924,7 +1755,7 @@ class WhatsappController extends Controller
             Log::error('Failed to send interactive buttons', ['error' => $e->getMessage()]);
         }
     }
-
+    
     /**
      * Send message via Twilio
      */ 

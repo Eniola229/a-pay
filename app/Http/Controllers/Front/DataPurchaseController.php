@@ -218,10 +218,12 @@ class DataPurchaseController extends Controller
                 ]);
 
                 // $dataPurchase->update(['status' => 'FAILED']);
-
-                // Send failure email
-                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
-
+                try {
+                    // Send failure email
+                    Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send DataPurchaseMail: ' . $e->getMessage());
+                }
                 return response()->json([
                     'status' => false,
                     'message' => 'We couldn\'t reach our endpoint service. Please check your internet connection and try again.'
@@ -274,9 +276,11 @@ class DataPurchaseController extends Controller
                     }
                 }
 
-                // Send success email
-                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
-
+                try {
+                    Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'SUCCESS'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send DataPurchaseMail: ' . $e->getMessage());
+                }
                 return response()->json([
                     'status' => true,
                     'message' => 'Data purchased successfully',
@@ -315,7 +319,12 @@ class DataPurchaseController extends Controller
                 // $dataPurchase->update(['status' => 'FAILED']);
 
                 // Send failure email
-                Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+                try {
+                    // Send failure email
+                    Mail::to($user->email)->send(new DataPurchaseMail($user, $request->phone_number, $planName, $planPrice, 'FAILED'));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send DataPurchaseMail: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'status' => false,

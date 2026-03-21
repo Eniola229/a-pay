@@ -365,7 +365,7 @@
 
             <!-- Hero -->
             <div class="hero">
-                <div class="hero-label">Credit Alert</div>
+                <div class="hero-label" style="color: white;">Credit Alert</div>
                 <div class="hero-amount">
                     <span>₦</span>{{ number_format($amount, 2) }}
                 </div>
@@ -389,7 +389,7 @@
                     <div class="details-header">Transaction Details</div>
                     <div class="detail-row">
                         <span class="detail-label">Amount</span>
-                        <span class="detail-value highlight">₦{{ number_format($amount, 2) }}</span>
+                        <span class="detail-value highlight"> ₦{{ number_format($amount, 2) }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Description</span>
@@ -397,14 +397,14 @@
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Transaction ID</span>
-                        <span class="detail-value">{{ $transaction->id }}</span>
+                        <span class="detail-value"> {{ $transaction->id }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Date & Time</span>
-                        <span class="detail-value">{{ now()->format('d M Y, h:i A') }}</span>
-                    </div>
+                        <span class="detail-value"> {{ now()->format('d M Y, h:i A') }}</span>
+                    </div> 
                     <div class="detail-row">
-                        <span class="detail-label">Status</span>
+                        <span class="detail-label">Status </span>
                         <span class="detail-value status-pill">✓ Successful</span>
                     </div>
                 </div>
