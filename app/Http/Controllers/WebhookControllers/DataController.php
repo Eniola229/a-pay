@@ -27,6 +27,40 @@ class DataController extends Controller
         $this->receiptGenerator = $receiptGenerator; // Added
     }
 
+    private function sendDataConfirmation($user, $network, $phone, $plan, $price)
+    {
+        $session = WhatsappSession::firstOrNew([
+            'user_id' => $user->id,
+            'context' => 'pending_confirm'
+        ]);
+        $session->id = $session->id ?? Str::uuid();
+        $session->data = json_encode([
+            'service' => 'data',
+            'network' => $network,
+            'phone'   => $phone,
+            'plan'    => $plan,
+            'amount'  => $price,
+        ]);
+        $session->save();
+
+        $body = "📶 *Data Purchase*\n\n" .
+                "📞 Number: *{$phone}*\n" .
+                "🌐 Network: *" . strtoupper($network) . "*\n" .
+                "📦 Plan: *{$plan}*\n" .
+                "💰 Amount: *₦" . number_format($price) . "*";
+
+        $this->sendInteractiveButtons(
+            $user->mobile,
+            '🛒 Confirm Order',
+            $body,
+            'Tap Confirm to proceed or Cancel to abort',
+            [
+                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
+                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
+            ]
+        );
+    }
+
     public function detectNetwork($phone)
     {
         $prefix = substr($phone, 0, 4);

@@ -32,13 +32,14 @@ class RegistrationController extends Controller
         $session->data = json_encode([
             'name'  => $name,
             'email' => $email,
-            'phone' => $from
+            'phone' => $from,
+            'pin'   => $parsed['pin'],
         ]);
         $session->save();
 
         // Validate we have all required data
         if (!$name || !$email) {
-            return $this->sendWelcomePrompt($from, $whatsappController);
+            return $whatsappController->sendRegistrationFlowMessage($from);
         }
 
         // Check if email already exists
@@ -49,7 +50,7 @@ class RegistrationController extends Controller
 
         // Create user with Paystack integration
         try {
-            $user = $this->createUserWithPaystack($from, $name, $email);
+            $user = $this->createUserWithPaystack($from, $name, $email, $parsed['pin'] ?? null);
             $session->delete();
 
             // Send success messages
@@ -70,22 +71,29 @@ class RegistrationController extends Controller
         }
     }
 
+    public function createUserDirectly($phone, $name, $email, $pin)
+    {
+        return $this->createUserWithPaystack($phone, $name, $email, $pin);
+    }
+
     protected function parseNameAndEmail($message, $sessionData)
     {
         if (preg_match('/([a-zA-Z ]+)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i', $message, $matches)) {
             return [
                 'name'  => trim($matches[1]),
-                'email' => trim($matches[2])
+                'email' => trim($matches[2]),
+                'pin'   => $sessionData['pin'] ?? null,
             ];
         }
 
         return [
             'name'  => $sessionData['name']  ?? null,
-            'email' => $sessionData['email'] ?? null
+            'email' => $sessionData['email'] ?? null,
+            'pin'   => $sessionData['pin']   ?? null,
         ];
     }
 
-    protected function createUserWithPaystack($phone, $name, $email)
+    protected function createUserWithPaystack($phone, $name, $email, $pin)
     {
         $parts = explode(' ', trim($name), 2);
         $firstName = $parts[0];
@@ -93,13 +101,9 @@ class RegistrationController extends Controller
 
         DB::beginTransaction();
         try {
-            // Get or create Paystack customer
             $customerCode = $this->getOrCreatePaystackCustomer($email, $firstName, $lastName, $phone);
-
-            // Create virtual account
             $vaData = $this->createVirtualAccount($customerCode);
 
-            // Create local user
             $user = User::create([
                 'name'           => ucwords(strtolower($name)),
                 'mobile'         => $phone,
@@ -111,6 +115,7 @@ class RegistrationController extends Controller
             Balance::create([
                 'user_id' => $user->id,
                 'balance' => 0,
+                'pin'     => $pin ? bcrypt($pin) : null,
             ]);
 
             DB::commit();

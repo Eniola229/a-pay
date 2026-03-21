@@ -1,346 +1,600 @@
 @include('components.header')
 <meta name="csrf-token" content="{{ csrf_token() }}">
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Paystack inline script -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Include Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<style type="text/css">
-.profile-card {
-    background: linear-gradient(135deg, #009966, #006644);
-    border-radius: 12px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    color: white;
-    padding: 20px;
-    text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --green-deep:   #00693e;
+    --green-mid:    #009966;
+    --green-light:  #e6f7f0;
+    --green-glow:   rgba(0, 153, 102, 0.15);
+    --red:          #e84545;
+    --red-light:    #fff0f0;
+    --ink:          #111a14;
+    --ink-soft:     #4a5e52;
+    --border:       #d4e8dc;
+    --surface:      #f7fbf9;
+    --white:        #ffffff;
+    --mono:         'DM Mono', monospace;
+    --sans:         'DM Sans', sans-serif;
+    --radius:       12px;
+    --shadow-sm:    0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+    --shadow-md:    0 2px 8px rgba(0,0,0,.07), 0 8px 32px rgba(0,0,0,.08);
+    --transition:   0.2s cubic-bezier(.4,0,.2,1);
 }
 
-.profile-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.15);
+body { font-family: var(--sans); background: var(--surface); color: var(--ink); }
+
+/* ── Layout ── */
+.nl-wrap {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+    padding: 28px 24px;
+    max-width: 1280px;
+    margin: 0 auto;
 }
 
-.profile-card-body {
+@media (max-width: 960px) {
+    .nl-wrap { grid-template-columns: 1fr; }
+}
+
+/* ── Sidebar stat card ── */
+.stat-card {
+    background: linear-gradient(160deg, var(--green-mid) 0%, var(--green-deep) 100%);
+    border-radius: var(--radius);
+    padding: 28px 22px;
+    color: var(--white);
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 20px;
+}
+
+.stat-card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    opacity: .7;
+    margin-bottom: 22px;
+}
+
+.stat-block {
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+}
+
+.stat-block:last-of-type { margin-bottom: 0; }
+
+.stat-num {
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -.02em;
+}
+
+.stat-label {
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 4px;
+    opacity: .9;
+}
+
+.stat-sub {
+    font-size: 11px;
+    opacity: .6;
+    margin-top: 3px;
+}
+
+.session-note {
+    margin-top: 18px;
+    background: rgba(0,0,0,.15);
+    border-radius: 8px;
+    padding: 13px 14px;
+    font-size: 12px;
+    line-height: 1.65;
+    opacity: .85;
+}
+
+.session-note strong { opacity: 1; }
+
+/* ── Right column ── */
+.nl-right { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Alert banners ── */
+.nl-alert {
     display: flex;
-    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    animation: fadeSlideIn .3s ease both;
+}
+
+.nl-alert.success { background: var(--green-light); color: var(--green-deep); border: 1px solid #b3dfc9; }
+.nl-alert.error   { background: var(--red-light);   color: var(--red);        border: 1px solid #f5b8b8; }
+.nl-alert i { margin-top: 1px; flex-shrink: 0; }
+.nl-alert-close { margin-left: auto; cursor: pointer; opacity: .5; transition: opacity var(--transition); background: none; border: none; font-size: 16px; color: inherit; }
+.nl-alert-close:hover { opacity: 1; }
+
+/* ── Cards ── */
+.nl-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.nl-card-header {
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
     align-items: center;
+    gap: 10px;
 }
 
-.user-info {
-    margin-bottom: 15px;
-}
-
-.stats-box {
-    background: rgba(255, 255, 255, 0.2);
+.nl-card-header .icon {
+    width: 34px; height: 34px;
     border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
 }
 
-.stats-number {
-    font-size: 32px;
-    font-weight: bold;
+.icon-red    { background: var(--red-light);   color: var(--red); }
+.icon-green  { background: var(--green-light);  color: var(--green-mid); }
+
+.nl-card-header h5 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
 }
 
-.stats-label {
-    font-size: 14px;
-    margin-top: 5px;
+.nl-card-header p {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 1px;
 }
 
-.user-name {
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 5px;
+.nl-card-body { padding: 22px; }
+
+/* ── Form elements ── */
+.field { margin-bottom: 18px; }
+.field:last-child { margin-bottom: 0; }
+
+.field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
 }
 
-.user-email {
-    font-size: 14px;
-    color: #e0e0e0;
-    margin-bottom: 8px;
-}
-
-.balance-section {
-    margin-top: 20px;
-}
-
-.balance-btn {
-    background: white;
-    color: #009966;
-    font-size: 18px;
-    font-weight: bold;
-    padding: 12px 25px;
-    border-radius: 30px;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.balance-btn:hover {
-    background: #f1f1f1;
-}
-
-.editor-container {
-    background: #fff;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.text-editor {
+.field textarea,
+.field input[type="text"],
+.field input[type="file"] {
     width: 100%;
-    min-height: 200px;
-    padding: 15px;
-    border: 1px solid #ddd;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
     border-radius: 8px;
-    font-size: 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--surface);
     outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.field textarea {
+    min-height: 180px;
     resize: vertical;
-    transition: border 0.3s ease;
+    line-height: 1.6;
 }
 
-.text-editor:focus {
-    border-color: #009966;
+.field textarea:focus,
+.field input[type="text"]:focus {
+    border-color: var(--green-mid);
+    background: var(--white);
+    box-shadow: 0 0 0 3px var(--green-glow);
 }
 
-.btn-send {
-    background: #009966;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 30px;
-    font-size: 16px;
+.field input[type="file"] {
+    padding: 10px 12px;
     cursor: pointer;
-    transition: background 0.3s ease;
-    margin-top: 15px;
-}
-
-.btn-send:hover {
-    background: #007d50;
-}
-
-.btn-alert {
-    background: #ff6b6b;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 30px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.btn-alert:hover {
-    background: #ee5a52;
+    background: var(--white);
 }
 
 .char-counter {
     text-align: right;
-    color: #777;
-    font-size: 14px;
+    font-size: 11px;
+    color: var(--ink-soft);
     margin-top: 5px;
+    font-variant-numeric: tabular-nums;
 }
 
-.btn-primary {
-    width: 100%;
-    padding: 12px;
-    background: #009966;
-    color: white;
+/* ── Template ID field ── */
+.template-field-wrap {
+    background: var(--green-light);
+    border: 1.5px dashed #8ecfb0;
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.template-field-wrap label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green-deep);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.template-field-wrap .template-desc {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    line-height: 1.55;
+}
+
+.template-field-wrap input[type="text"] {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .02em;
+    background: var(--white);
+    border-color: #b3dfc9;
+}
+
+.template-field-wrap input[type="text"]:focus {
+    border-color: var(--green-mid);
+    box-shadow: 0 0 0 3px var(--green-glow);
+}
+
+.template-field-wrap input::placeholder { color: #aac5b5; }
+
+.template-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--green-mid);
+    background: rgba(0,153,102,.1);
+    border: 1px solid rgba(0,153,102,.2);
+    border-radius: 20px;
+    padding: 2px 8px;
+    margin-left: 6px;
+}
+
+/* ── Divider ── */
+.field-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.field-divider::before,
+.field-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ── Buttons ── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
     border: none;
     border-radius: 8px;
-    font-size: 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s ease;
-    margin-top: 10px;
+    transition: all var(--transition);
+    white-space: nowrap;
 }
 
-.btn-primary:hover {
-    background: #007d50;
+.btn-green {
+    background: var(--green-mid);
+    color: var(--white);
+    box-shadow: 0 2px 8px rgba(0,153,102,.3);
+}
+
+.btn-green:hover:not(:disabled) {
+    background: var(--green-deep);
+    box-shadow: 0 4px 14px rgba(0,153,102,.4);
+    transform: translateY(-1px);
+}
+
+.btn-red {
+    background: var(--red);
+    color: var(--white);
+    box-shadow: 0 2px 8px rgba(232,69,69,.25);
+}
+
+.btn-red:hover:not(:disabled) {
+    background: #c93535;
+    box-shadow: 0 4px 14px rgba(232,69,69,.35);
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn .spinner { display: none; }
+.btn.loading .spinner { display: inline-block; }
+.btn.loading .btn-text { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
+
+/* ── Error text ── */
+.field-error { font-size: 12px; color: var(--red); margin-top: 5px; }
+
+/* ── Animations ── */
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 </style>
 
- <!--**********************************
-        Main wrapper start
-    ***********************************-->
-    <div id="main-wrapper">
+<div id="main-wrapper">
+    @include('components.nav-header')
+    @include('components.main-header')
+    @include('components.admin-sidenav')
 
-        <!--**********************************
-            Nav header start
-        ***********************************-->
-        @include('components.nav-header')
-        <!--**********************************
-            Nav header end
-        ***********************************-->
+    <div class="content-body">
+        <div class="nl-wrap">
 
-        <!--**********************************
-            Header start
-        ***********************************-->
-         @include('components.main-header')
-        <!--**********************************
-            Header end ti-comment-alt
-        ***********************************-->
+            {{-- ── Sidebar ── --}}
+            <aside>
+                <div class="stat-card">
+                    <div class="stat-card-title">📊 Newsletter Stats</div>
 
-        <!--**********************************
-            Sidebar start
-        ***********************************-->
-        @include('components.admin-sidenav')
-        <!--**********************************
-            Sidebar end
-        ***********************************-->
+                    <div class="stat-block">
+                        <div class="stat-num">{{ $eligibleUsers }}</div>
+                        <div class="stat-label">Eligible Users</div>
+                        <div class="stat-sub">Registered from Dec 1, 2025</div>
+                    </div>
 
-        <!--**********************************
-            Content body start
-        ***********************************-->
+                    <div class="stat-block">
+                        <div class="stat-num">{{ $lowBalanceUsers }}</div>
+                        <div class="stat-label">Low Balance Users</div>
+                        <div class="stat-sub">Balance below ₦100</div>
+                    </div>
 
-<div class="content-body">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Stats Sidebar -->
-            <div class="col-lg-4 col-xl-3">
-                <div class="profile-card">
-                    <div class="profile-card-body">
-                        <div class="user-info">
-                            <h3 class="user-name" style="color: white;">📊 Newsletter Stats</h3>
-                        </div>
-                        <div class="stats-box">
-                            <div class="stats-number">{{ $eligibleUsers }}</div>
-                            <div class="stats-label">Eligible Users</div>
-                            <small style="color: #e0e0e0;">(Registered from Dec 1, 2025)</small>
-                        </div>
-                        <div class="stats-box">
-                            <div class="stats-number">{{ $lowBalanceUsers }}</div>
-                            <div class="stats-label">Low Balance Users</div>
-                            <small style="color: #e0e0e0;">(Balance < ₦100)</small>
-                        </div>
+                    <div class="session-note">
+                        <strong>ℹ️ How sending works</strong><br>
+                        Users who messaged in the last <strong>24 hrs</strong> get your message directly.<br><br>
+                        Users outside that window receive the <strong>template</strong> you paste below.<br><br>
+                        If no template is provided, inactive users are skipped.
                     </div>
                 </div>
-            </div>
+            </aside>
 
-            <!-- Newsletter Editor -->
-            <div class="col-lg-8 col-xl-9">
-                <!-- Success/Error Messages -->
+            {{-- ── Right column ── --}}
+            <div class="nl-right">
+
+                {{-- Flash messages --}}
                 @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <strong>✅ Success!</strong> {{ session('success') }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                @endif 
-
-                @if(session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>❌ Error!</strong> {{ session('error') }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                    <div class="nl-alert success">
+                        <i class="fa fa-circle-check"></i>
+                        <span>{{ session('success') }}</span>
+                        <button class="nl-alert-close" onclick="this.closest('.nl-alert').remove()">&times;</button>
                     </div>
                 @endif
 
-                <!-- Low Balance Alert Button -->
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5><i class="fa fa-bell text-warning"></i> Low Balance Alert</h5>
-                        <p>Send a friendly reminder to users with balance below ₦100</p>
+                @if(session('error'))
+                    <div class="nl-alert error">
+                        <i class="fa fa-circle-xmark"></i>
+                        <span>{{ session('error') }}</span>
+                        <button class="nl-alert-close" onclick="this.closest('.nl-alert').remove()">&times;</button>
+                    </div>
+                @endif
+
+                {{-- ── Low Balance Alert Card ── --}}
+                <div class="nl-card">
+                    <div class="nl-card-header">
+                        <div class="icon icon-red"><i class="fa fa-bell"></i></div>
+                        <div>
+                            <h5>Low Balance Alert</h5>
+                            <p>Remind users with a wallet balance below ₦100 to top up</p>
+                        </div>
+                    </div>
+
+                    <div class="nl-card-body">
                         <form action="{{ route('admin.newsletter.low-balance') }}" method="POST" id="lowBalanceForm">
                             @csrf
-                            <button type="submit" class="btn-alert" onclick="return confirm('Send low balance alert to {{ $lowBalanceUsers }} users?')">
-                                <i class="fa fa-paper-plane"></i> Send Low Balance Alert
+
+                            <div class="field">
+                                <div class="template-field-wrap">
+                                    <label>
+                                        <i class="fa fa-id-card"></i>
+                                        Template ID
+                                        <span class="template-badge">Optional</span>
+                                    </label>
+                                    <p class="template-desc">
+                                        Paste your Twilio Content Template SID (starts with <code>HX…</code>).
+                                        Sent to users who haven't messaged in the last 24 hours.
+                                        Leave blank to skip inactive users.
+                                    </p>
+                                    <input
+                                        type="text"
+                                        name="template_id"
+                                        placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    >
+                                    @error('template_id')
+                                        <div class="field-error">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="btn btn-red"
+                                id="lowBalanceBtn"
+                                onclick="return confirm('Send low balance alert to {{ $lowBalanceUsers }} users?')"
+                            >
+                                <span class="spinner"></span>
+                                <span class="btn-text"><i class="fa fa-paper-plane"></i> Send Low Balance Alert to {{ $lowBalanceUsers }} Users</span>
                             </button>
                         </form>
                     </div>
                 </div>
 
-                <!-- Newsletter Editor -->
-                <div class="card">
-                    <div class="card-body editor-container">
-                        <h4><i class="fa fa-envelope"></i> Send Newsletter</h4>
-                        <p class="text-muted">Compose and send WhatsApp newsletter to all eligible users</p>
-                        
+                {{-- ── Newsletter Card ── --}}
+                <div class="nl-card">
+                    <div class="nl-card-header">
+                        <div class="icon icon-green"><i class="fa fa-envelope"></i></div>
+                        <div>
+                            <h5>Send Newsletter</h5>
+                            <p>Compose and broadcast a WhatsApp message to all eligible users</p>
+                        </div>
+                    </div>
+
+                    <div class="nl-card-body">
                         <form action="{{ route('admin.newsletter.send') }}" method="POST" id="newsletterForm" enctype="multipart/form-data">
                             @csrf
-                            <div class="form-group">
-                                <label for="message">Newsletter Message</label>
-                                <textarea 
-                                    name="message" 
-                                    id="message" 
-                                    class="text-editor" 
-                                    placeholder="Type your newsletter message here..."
+
+                            {{-- Message --}}
+                            <div class="field">
+                                <label>Message</label>
+                                <textarea
+                                    name="message"
+                                    id="message"
+                                    placeholder="Write your newsletter message here…"
                                     maxlength="1000"
                                     required
                                 ></textarea>
-                                <div class="char-counter">
-                                    <span id="charCount">0</span> / 1000 characters
-                                </div>
+                                <div class="char-counter"><span id="charCount">0</span> / 1000</div>
                                 @error('message')
-                                    <span class="text-danger">{{ $message }}</span>
+                                    <div class="field-error">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <div class="form-group mt-3">
-                                <label for="media">Attach Image / Video <small class="text-muted">(optional — jpg, png, gif, mp4 · max 16MB)</small></label>
-                                <input type="file" name="media" id="media" class="form-control-file" accept="image/*,video/mp4">
+                            <div class="field-divider">Delivery options</div>
+
+                            {{-- Template ID --}}
+                            <div class="field">
+                                <div class="template-field-wrap">
+                                    <label>
+                                        <i class="fa fa-id-card"></i>
+                                        Template ID
+                                        <span class="template-badge">Optional</span>
+                                    </label>
+                                    <p class="template-desc">
+                                        Paste your Twilio Content Template SID (starts with <code>HX…</code>).
+                                        Users who last messaged <strong>over 24 hours ago</strong> will receive this template instead of the message above.
+                                        Leave blank to skip those users.
+                                    </p>
+                                    <input
+                                        type="text"
+                                        name="template_id"
+                                        placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    >
+                                    @error('template_id')
+                                        <div class="field-error">{{ $message }}</div>
+                                    @enderror
+                                </div>
                             </div>
 
-                            <button type="submit" class="btn-send" onclick="return confirm('Send newsletter to {{ $eligibleUsers }} users?')">
-                                <i class="fa fa-paper-plane"></i> Send Newsletter to {{ $eligibleUsers }} Users
+                            {{-- Media --}}
+                            <div class="field">
+                                <label>Attach Media <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#aaa;">— jpg, png, gif, mp4 · max 16 MB · optional</span></label>
+                                <input type="file" name="media" id="media" accept="image/*,video/mp4">
+                                @error('media')
+                                    <div class="field-error">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="btn btn-green"
+                                id="sendNewsletterBtn"
+                                onclick="return confirm('Send newsletter to {{ $eligibleUsers }} users?')"
+                            >
+                                <span class="spinner"></span>
+                                <span class="btn-text"><i class="fa fa-paper-plane"></i> Send to {{ $eligibleUsers }} Users</span>
                             </button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+
+            </div>{{-- end nl-right --}}
+        </div>{{-- end nl-wrap --}}
+    </div>{{-- end content-body --}}
 </div>
 
 <script>
 // Character counter
-document.getElementById('message').addEventListener('input', function() {
-    const charCount = this.value.length;
-    document.getElementById('charCount').textContent = charCount;
+document.getElementById('message').addEventListener('input', function () {
+    document.getElementById('charCount').textContent = this.value.length;
 });
 
-// Form submission with loading state
-document.getElementById('newsletterForm').addEventListener('submit', function(e) {
-    const btn = this.querySelector('.btn-send');
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
-    btn.disabled = true;
-});
+// Loading state helper
+function setLoading(formId, btnId) {
+    document.getElementById(formId).addEventListener('submit', function () {
+        const btn = document.getElementById(btnId);
+        btn.classList.add('loading');
+        btn.disabled = true;
+    });
+}
 
-document.getElementById('lowBalanceForm').addEventListener('submit', function(e) {
-    const btn = this.querySelector('.btn-alert');
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
-    btn.disabled = true;
-});
+setLoading('newsletterForm',  'sendNewsletterBtn');
+setLoading('lowBalanceForm',  'lowBalanceBtn');
 </script>
 
-    <script src="{{ asset('plugins/common/common.min.js') }}"></script>
-    <script src="{{ asset('js/custom.min.js') }}"></script>
-    <script src="{{ asset('js/settings.js') }}"></script>
-    <script src="{{ asset('js/gleek.js') }}"></script>
-    <script src="{{ asset('js/styleSwitcher.js') }}"></script>
-    <!-- Chartjs -->
-    <script src="{{ asset('plugins/chart.js/Chart.bundle.min.js') }}"></script>
-    <!-- Circle progress -->
-    <script src="{{ asset('plugins/circle-progress/circle-progress.min.js') }}"></script>
-    <!-- Datamap -->
-    <script src="{{ asset('plugins/d3v3/index.js') }}"></script>
-    <script src="{{ asset('plugins/topojson/topojson.min.js') }}"></script>
-    <script src="{{ asset('plugins/datamaps/datamaps.world.min.js') }}"></script>
-    <!-- Morrisjs -->
-    <script src="{{ asset('plugins/raphael/raphael.min.js') }}"></script>
-    <script src="{{ asset('plugins/morris/morris.min.js') }}"></script>
-    <!-- Pignose Calender -->
-    <script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
-    <script src="{{ asset('plugins/pg-calendar/js/pignose.calendar.min.js') }}"></script>
-    <!-- ChartistJS -->
-    <script src="{{ asset('plugins/chartist/js/chartist.min.js') }}"></script>
-    <script src="{{ asset('plugins/chartist-plugin-tooltips/js/chartist-plugin-tooltip.min.js') }}"></script>
-    <!-- Dashboard Script -->
-    <script src="{{ asset('js/dashboard/dashboard-1.js') }}"></script>
+<script src="{{ asset('plugins/common/common.min.js') }}"></script>
+<script src="{{ asset('js/custom.min.js') }}"></script>
+<script src="{{ asset('js/settings.js') }}"></script>
+<script src="{{ asset('js/gleek.js') }}"></script>
+<script src="{{ asset('js/styleSwitcher.js') }}"></script>
+<script src="{{ asset('plugins/chart.js/Chart.bundle.min.js') }}"></script>
+<script src="{{ asset('plugins/circle-progress/circle-progress.min.js') }}"></script>
+<script src="{{ asset('plugins/d3v3/index.js') }}"></script>
+<script src="{{ asset('plugins/topojson/topojson.min.js') }}"></script>
+<script src="{{ asset('plugins/datamaps/datamaps.world.min.js') }}"></script>
+<script src="{{ asset('plugins/raphael/raphael.min.js') }}"></script>
+<script src="{{ asset('plugins/morris/morris.min.js') }}"></script>
+<script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
+<script src="{{ asset('plugins/pg-calendar/js/pignose.calendar.min.js') }}"></script>
+<script src="{{ asset('plugins/chartist/js/chartist.min.js') }}"></script>
+<script src="{{ asset('plugins/chartist-plugin-tooltips/js/chartist-plugin-tooltip.min.js') }}"></script>
+<script src="{{ asset('js/dashboard/dashboard-1.js') }}"></script>
 </body>
 </html>

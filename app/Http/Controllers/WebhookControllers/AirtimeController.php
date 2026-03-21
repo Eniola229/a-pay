@@ -33,6 +33,39 @@ class AirtimeController extends Controller
      * @param string $phone
      * @return array Returns message and optional receipt URL
      */
+
+    private function sendAirtimeConfirmation($user, $network, $amount, $phone)
+    {
+        // Save pending order in session
+        $session = WhatsappSession::firstOrNew([
+            'user_id' => $user->id,
+            'context' => 'pending_confirm'
+        ]);
+        $session->id = $session->id ?? Str::uuid();
+        $session->data = json_encode([
+            'service' => 'airtime',
+            'network' => $network,
+            'amount'  => $amount,
+            'phone'   => $phone,
+        ]);
+        $session->save();
+
+        $body = "📱 *Airtime Purchase*\n\n" .
+                "📞 Number: *{$phone}*\n" .
+                "🌐 Network: *" . strtoupper($network) . "*\n" .
+                "💰 Amount: *₦" . number_format($amount) . "*";
+
+        $this->sendInteractiveButtons(
+            $user->mobile,
+            '🛒 Confirm Order',
+            $body,
+            'Tap Confirm to proceed or Cancel to abort',
+            [
+                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
+                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
+            ]
+        );
+    }
     public function purchase($user, $network, $amount, $phone)
     {
         return DB::transaction(function () use ($user, $network, $amount, $phone) {

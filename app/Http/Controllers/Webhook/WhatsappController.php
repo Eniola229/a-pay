@@ -108,6 +108,148 @@ class WhatsappController extends Controller
             ]
         ]);
 
+        // Handle WhatsApp Flow form submission (registration)
+        $interactiveData = $request->input('InteractiveData');
+        if ($interactiveData) {
+            $flowData = json_decode($interactiveData, true);
+
+            Log::info('Flow submission received', ['data' => $flowData]);
+
+            // Extract fields from pages → items structure
+            $name  = null;
+            $email = null;
+            $pin   = null;
+
+            $items = $flowData['pages'][0]['items'] ?? [];
+            foreach ($items as $item) {
+                $label = strtolower(trim($item['label'] ?? ''));
+                $value = trim($item['value'] ?? '');
+
+                if (in_array($label, ['full_name', 'full name', 'name'])) {
+                    $name = $value;
+                } elseif (in_array($label, ['email'])) {
+                    $email = $value;
+                } elseif (in_array($label, ['pin'])) {
+                    $pin = $value;
+                }
+            }
+
+            if ($name && $email) {
+                // Only validate PIN if it was provided
+                if ($pin && !preg_match('/^\d{4}$/', $pin)) {
+                    return $this->sendMessage($from, "❌ PIN must be exactly 4 digits. Please try again.");
+                }
+
+                // Check if user already exists
+                if (User::where('mobile', $from)->exists()) {
+                    return $this->sendMessage($from, "⚠️ You already have an A-Pay account. Type *menu* to get started.");
+                }
+
+                // Check if email already exists
+                if (User::where('email', $email)->exists()) {
+                    return $this->sendMessage($from, "⚠️ The email *{$email}* already exists.\n\nUse the same phone number you registered with.");
+                }
+
+                // Clean up any existing register session
+                \App\Models\WhatsappSession::where('phone', $from)
+                    ->where('context', 'register')
+                    ->delete();
+
+                // Register directly
+                try {
+                    $user = $this->registrationController->createUserDirectly($from, $name, $email, $pin);
+
+                    $this->sendMessage($from,
+                        "🎉 *Congratulations {$name}!* 🎉\n\n" .
+                        "Your A-Pay account has been created successfully! 🎊\n\n" .
+                        "You can now buy:\n" .
+                        "💵 Airtime\n📶 Data\n💡 Bills\n⚡ Utilities & more\n\n" .
+                        "Type *menu* to see available services.\n\n" .
+                        "__🔐 For security, enable WhatsApp Lock.__"
+                    );
+                    sleep(1);
+                    $this->sendMessage($from, "To fund your wallet, send any amount to your Virtual Bank Account Below:");
+                    sleep(1);
+                    $this->sendMessage($from,
+                        "AFRICICL/" . strtoupper($user->name) . "\n" .
+                        "{$user->account_number}\n" .
+                        "Wema Bank"
+                    );
+                    sleep(1);
+                    $this->sendMessage($from,
+                        "ℹ️ Deposits are held by Wema Bank, a licensed bank by the Central Bank of Nigeria.\n\n" .
+                        "_Kindly PIN this message for easy access_ 📌"
+                    );
+
+                    return response()->json(['status' => 'ok']);
+
+                } catch (\Exception $e) {
+                    Log::error('Flow registration failed', ['error' => $e->getMessage()]);
+                    return $this->sendMessage($from, "❌ Registration failed. Please try again.");
+                }
+            }
+        }
+
+        // Handle interactive button replies (confirmations)
+        $buttonPayload = $request->input('ButtonPayload');
+        $buttonText    = strtolower(trim($request->input('ButtonText') ?? ''));
+
+        if ($buttonPayload) {
+            $user = User::where('mobile', $from)->first();
+            if ($user) {
+                // Load pending session
+                $pendingSession = WhatsappSession::where('user_id', $user->id)
+                    ->where('context', 'pending_confirm')
+                    ->latest()
+                    ->first();
+
+                if ($pendingSession && $this->isSessionValid($pendingSession)) {
+                    $pendingData = json_decode($pendingSession->data, true);
+
+                    if ($buttonPayload === 'confirm_yes') {
+                        $pendingSession->delete();
+                        $service = $pendingData['service'];
+
+                        if ($service === 'airtime') {
+                            $response = $this->airtimeController->purchase(
+                                $user,
+                                $pendingData['network'],
+                                $pendingData['amount'],
+                                $pendingData['phone']
+                            );
+                        } elseif ($service === 'data') {
+                            $response = $this->dataController->purchase(
+                                $user,
+                                $pendingData['network'],
+                                $pendingData['phone'],
+                                $pendingData['plan']
+                            );
+                        } elseif ($service === 'electricity') {
+                            $response = app(ElectricityController::class)->purchase(
+                                $user,
+                                $pendingData['meter_number'],
+                                $pendingData['amount'],
+                                $pendingData['provider']
+                            );
+                        }
+
+                        if ($response !== null) {
+                            return $this->sendMessage($from, $response);
+                        }
+                        return response()->json(['status' => 'ok']);
+
+                    } elseif ($buttonPayload === 'confirm_no') {
+                        $pendingSession->delete();
+                        // Clear service session too
+                        WhatsappSession::where('user_id', $user->id)
+                            ->whereIn('context', ['airtime', 'data', 'electricity'])
+                            ->delete();
+                        return $this->sendMessage($from, "❌ *Order Cancelled*\n\nNo charge was made. Type *menu* to start again.");
+                    }
+                }
+            }
+        }
+  
         // Check if user exists
         $user = User::where('mobile', $from)->first();
 
@@ -749,9 +891,10 @@ class WhatsappController extends Controller
         ]);
         
         // Check if we have all required information
-        if ($phone && $amount && $network) {
+         if ($phone && $amount && $network) {
             $session->delete();
-            return $this->airtimeController->purchase($user, $network, $amount, $phone);
+            $this->sendAirtimeConfirmation($user, $network, $amount, $phone);
+            return null;
         }
         
         // Check if session is new (user just started)
@@ -889,7 +1032,8 @@ class WhatsappController extends Controller
                             ->where('context', 'data')
                             ->delete();
                         
-                        return $this->dataController->purchase($user, $network, $phone, $selectedPlan['data_plan']);
+                        $this->sendDataConfirmation($user, $network, $phone, $selectedPlan['data_plan'], $selectedPlan['price']);
+                        return null;
                     } else {
                         return "⚠️ Invalid plan number. Please select a number between 1 and " . count($plans);
                     }
@@ -969,7 +1113,14 @@ class WhatsappController extends Controller
                 ->where('context', 'data')
                 ->delete();
             
-            return $this->dataController->purchase($user, $detectedNetwork, $phone, $plan);
+            // Need price — fetch it
+            $response = Http::get('https://ebills.africa/wp-json/api/v2/variations/data');
+            $allPlans = $response->json()['data'] ?? [];
+            $found = collect($allPlans)->where('service_id', strtolower($detectedNetwork))
+                ->first(fn($p) => strtolower(trim($p['data_plan'])) === strtolower(trim($plan)));
+            $price = $found['price'] ?? 0;
+            $this->sendDataConfirmation($user, $detectedNetwork, $phone, $plan, $price);
+            return null;
         }
 
         return "⚠️ Please follow the format:\n*data 09079916807*";
@@ -1110,13 +1261,11 @@ class WhatsappController extends Controller
         }
         
         if ($meterNumber && $amount && $provider) {
-            // Clear session after purchase
             WhatsappSession::where('user_id', $user->id)
                 ->where('context', 'electricity')
                 ->delete();
-            
-            return app(ElectricityController::class)
-                ->purchase($user, $meterNumber, $amount, $provider);
+            $this->sendElectricityConfirmation($user, $meterNumber, $amount, $provider);
+            return null;
         }
         
         return $this->getElectricityHelpMessage($hasValidSession);
@@ -1582,6 +1731,96 @@ class WhatsappController extends Controller
         $mergedData = array_merge($sessionData, $data);
         $session->data = json_encode($mergedData);
         $session->save();
+    }
+
+    public function sendRegistrationFlowMessage($to)
+    {
+        $templateSid = env('WHATSAPP_REGISTRATION_TEMPLATE_SID');
+
+        if (!$templateSid) {
+            return $this->sendMessage(
+                $to,
+                "👋 Welcome to *A-Pay!*\n\nTo create an account, reply with your _Name_ and _Email_ like this:\n\n*John Doe john@gmail.com*"
+            );
+        }
+
+        try {
+            $client = new \Twilio\Rest\Client(
+                env('TWILIO_SID'),
+                env('TWILIO_AUTH_TOKEN')
+            );
+
+            $message = $client->messages->create(
+                "whatsapp:{$to}",
+                [
+                    'from'                => 'whatsapp:' . env('TWILIO_W_NUMBER'),
+                    'messagingServiceSid' => env('TWILIO_MESSAGING_SERVICE_SID'),
+                    'contentSid'          => $templateSid,
+                ]
+            );
+
+            Log::info('Registration flow sent', [
+                'to'  => $to,
+                'sid' => $message->sid,
+                'status' => $message->status
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send registration flow', ['error' => $e->getMessage()]);
+
+            return $this->sendMessage(
+                $to,
+                "👋 Welcome to *A-Pay!*\n\nTo create an account, reply with your _Name_ and _Email_ like this:\n\n*John Doe john@gmail.com*"
+            );
+        }
+    }
+    
+    public function sendInteractiveButtons($to, $header, $body, $footer, $buttons)
+    {
+        $sid = env('TWILIO_SID');
+        $token = env('TWILIO_AUTH_TOKEN');
+        $from = 'whatsapp:' . env('TWILIO_W_NUMBER');
+
+        $buttonList = [];
+        foreach ($buttons as $btn) {
+            $buttonList[] = [
+                'type' => 'reply',
+                'reply' => [
+                    'id'    => $btn['id'],
+                    'title' => $btn['title'],
+                ]
+            ];
+        }
+
+        $payload = [
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'button',
+                'header' => [
+                    'type' => 'text',
+                    'text' => $header
+                ],
+                'body' => [
+                    'text' => $body
+                ],
+                'footer' => [
+                    'text' => $footer
+                ],
+                'action' => [
+                    'buttons' => $buttonList
+                ]
+            ]
+        ];
+
+        try {
+            $client = new \Twilio\Rest\Client($sid, $token);
+            $client->messages->create("whatsapp:{$to}", [
+                'from' => $from,
+                'body' => json_encode($payload),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send interactive buttons', ['error' => $e->getMessage()]);
+        }
     }
 
     /**
