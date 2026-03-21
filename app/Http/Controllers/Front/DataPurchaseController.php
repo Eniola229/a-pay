@@ -162,14 +162,14 @@ class DataPurchaseController extends Controller
             // -----------------------
             // 5️⃣ Create data purchase record (optional)
             // -----------------------
-            // $dataPurchase = DataPurchase::create([
-            //     'user_id'      => $user->id,
-            //     'phone_number' => $request->phone_number,
-            //     'data_plan_id' => $request->variation_id,
-            //     'network_id'   => $request->network_id,
-            //     'amount'       => $planPrice,
-            //     'status'       => 'PENDING'
-            // ]);
+            $dataPurchase = DataPurchase::create([
+                'user_id'      => $user->id,
+                'phone_number' => $request->phone_number,
+                'data_plan_id' => $request->variation_id,
+                'network_id'   => $request->network_id,
+                'amount'       => $planPrice,
+                'status'       => 'PENDING'
+            ]);
 
             // -----------------------
             // 6️⃣ Ebills API integration
@@ -251,7 +251,7 @@ class DataPurchaseController extends Controller
                     'reference' => $requestId
                 ]);
 
-                // $dataPurchase->update(['status' => 'SUCCESS']);
+                $dataPurchase->update(['status' => 'SUCCESS']);
 
                 // -----------------------
                 // 8️⃣ Calculate and apply cashback
@@ -316,7 +316,7 @@ class DataPurchaseController extends Controller
                     'reference' => $requestId
                 ]);
 
-                // $dataPurchase->update(['status' => 'FAILED']);
+                 $dataPurchase->update(['status' => 'FAILED']);
 
                 // Send failure email
                 try {

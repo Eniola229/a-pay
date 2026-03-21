@@ -94,13 +94,13 @@ class AirtimePurchaseController extends Controller
             // -----------------------
             // 4️⃣ Store the airtime purchase record (optional)
             // -----------------------
-            // $airtime = AirtimePurchase::create([
-            //     'user_id' => $user->id,
-            //     'phone_number' => $request->phone_number,
-            //     'amount' => $request->amount,
-            //     'network_id' => $request->network_id,
-            //     'status' => 'PENDING'
-            // ]);
+            $airtime = AirtimePurchase::create([
+                'user_id' => $user->id,
+                'phone_number' => $request->phone_number,
+                'amount' => $request->amount,
+                'network_id' => $request->network_id,
+                'status' => 'PENDING'
+            ]);
 
             // -----------------------
             // 5️⃣ Prepare the external API request
@@ -187,7 +187,7 @@ class AirtimePurchaseController extends Controller
                     'reference' => $requestId
                 ]);
 
-                // $airtime->update(['status' => 'SUCCESS']);
+                 $airtime->update(['status' => 'SUCCESS']);
 
                 // -----------------------
                 // 8️⃣ Apply cashback if not already applied
@@ -252,7 +252,7 @@ class AirtimePurchaseController extends Controller
                     'reference' => $requestId
                 ]);
 
-                // $airtime->update(['status' => 'FAILED']);
+                $airtime->update(['status' => 'FAILED']);
 
                 // Send failure email
                 try {
