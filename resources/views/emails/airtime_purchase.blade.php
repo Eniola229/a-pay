@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Airtime Purchase Notification</title>
+    <title>A-Pay Data Purchase Notification</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -52,26 +52,46 @@
             text-align: center;
             color: #666;
         }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            color: white;
+            margin-top: 15px;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-failed {
+            background-color: #dc3545;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            Airtime Purchase Notification
+            A-Pay Betting Topup Notification
         </div>
         <div class="content">
             <p>Hello {{ $user->name }},</p>
-            <p>Your recent airtime purchase for <strong>{{ $transaction->amount }}</strong> has been processed.</p>
-            
-            @if($status == 'SUCCESS')
-                <p class="status success">Transaction Successful ✅</p>
-                <p>Enjoy your airtime! Thank you for using A-Pay.</p>
-            @else
-                <p class="status failed">Transaction Failed ❌</p>
-                <p>We encountered an issue processing your airtime. The amount has been refunded to your wallet.</p>
-            @endif
+            <p>Your betting top up request has been 
+                <span class="status {{ $status == 'SUCCESS' ? 'success' : 'failed' }}">
+                    {{ $status == 'SUCCESS' ? 'successful ✅' : 'failed ❌' }}
+                </span>.
+            </p>
 
-            <p>Description: <strong>{{ $transaction->description }}</strong></p>
+            <p><strong>Customer ID:</strong> {{ $customerID }}</p>
+            <p><strong>Service ID:</strong> {{ $serviceID }}</p>
+            <p><strong>Amount:</strong> ₦{{ number_format($amountPaid, 2) }}</p>
+
+            @if ($status == 'SUCCESS')
+                <p>Thank you for using A-Pay!</p>
+                <a href="{{ url('/') }}" class="btn btn-success">Go to Dashboard</a>
+            @else
+                <p>We apologize for the inconvenience. Your funds have been refunded.</p>
+                <a href="{{ url('/') }}" class="btn btn-failed">Kindly Try Again</a>
+            @endif
 
             <div class="footer">
                 <p>Need help? Contact our support team.</p>
