@@ -1733,6 +1733,108 @@ class WhatsappController extends Controller
         $session->save();
     }
 
+    private function sendAirtimeConfirmation($user, $network, $amount, $phone)
+    {
+        $session = WhatsappSession::firstOrNew([
+            'user_id' => $user->id,
+            'context' => 'pending_confirm'
+        ]);
+        $session->id = $session->id ?? Str::uuid();
+        $session->data = json_encode([
+            'service' => 'airtime',
+            'network' => $network,
+            'amount'  => $amount,
+            'phone'   => $phone,
+        ]);
+        $session->save();
+
+        $body = "📱 *Airtime Purchase*\n\n" .
+                "📞 Number: *{$phone}*\n" .
+                "🌐 Network: *" . strtoupper($network) . "*\n" .
+                "💰 Amount: *₦" . number_format($amount) . "*";
+
+        $this->sendInteractiveButtons(
+            $user->mobile,
+            '🛒 Confirm Order',
+            $body,
+            'Tap Confirm to proceed or Cancel to abort',
+            [
+                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
+                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
+            ]
+        );
+    }
+
+    private function sendDataConfirmation($user, $network, $phone, $plan, $price)
+    {
+        $session = WhatsappSession::firstOrNew([
+            'user_id' => $user->id,
+            'context' => 'pending_confirm'
+        ]);
+        $session->id = $session->id ?? Str::uuid();
+        $session->data = json_encode([
+            'service' => 'data',
+            'network' => $network,
+            'phone'   => $phone,
+            'plan'    => $plan,
+            'amount'  => $price,
+        ]);
+        $session->save();
+
+        $body = "📶 *Data Purchase*\n\n" .
+                "📞 Number: *{$phone}*\n" .
+                "🌐 Network: *" . strtoupper($network) . "*\n" .
+                "📦 Plan: *{$plan}*\n" .
+                "💰 Amount: *₦" . number_format($price) . "*";
+
+        $this->sendInteractiveButtons(
+            $user->mobile,
+            '🛒 Confirm Order',
+            $body,
+            'Tap Confirm to proceed or Cancel to abort',
+            [
+                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
+                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
+            ]
+        );
+    }
+
+    private function sendElectricityConfirmation($user, $meterNumber, $amount, $provider)
+    {
+        $fee   = 99;
+        $total = $amount + $fee;
+
+        $session = WhatsappSession::firstOrNew([
+            'user_id' => $user->id,
+            'context' => 'pending_confirm'
+        ]);
+        $session->id = $session->id ?? Str::uuid();
+        $session->data = json_encode([
+            'service'      => 'electricity',
+            'meter_number' => $meterNumber,
+            'amount'       => $amount,
+            'provider'     => $provider,
+        ]);
+        $session->save();
+
+        $body = "⚡ *Electricity Payment*\n\n" .
+                "🔢 Meter: *{$meterNumber}*\n" .
+                "🏢 Provider: *" . ucfirst($provider) . "*\n" .
+                "💰 Amount: *₦" . number_format($amount) . "*\n" .
+                "💳 Fee: *₦" . number_format($fee) . "*\n" .
+                "💵 Total: *₦" . number_format($total) . "*";
+
+        $this->sendInteractiveButtons(
+            $user->mobile,
+            '🛒 Confirm Order',
+            $body,
+            'Tap Confirm to proceed or Cancel to abort',
+            [
+                ['id' => 'confirm_yes', 'title' => '✅ Confirm'],
+                ['id' => 'confirm_no',  'title' => '❌ Cancel'],
+            ]
+        );
+    }
     public function sendRegistrationFlowMessage($to)
     {
         $templateSid = env('WHATSAPP_REGISTRATION_TEMPLATE_SID');
